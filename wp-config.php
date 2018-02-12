@@ -18,42 +18,6 @@
  * @package WordPress
  */
 
-// ** MySQL settings - You can get this info from your web host ** //
-/** The name of the database for WordPress */
-define('DB_NAME', 'hectv_wordpress');
-
-/** MySQL database username */
-define('DB_USER', 'wordpressuser');
-
-/** MySQL database password */
-define('DB_PASSWORD', 'moneytalks101');
-
-/** MySQL hostname */
-define('DB_HOST', 'localhost');
-
-/** Database Charset to use in creating database tables. */
-define('DB_CHARSET', 'utf8mb4');
-
-/** The Database Collate type. Don't change this if in doubt. */
-define('DB_COLLATE', '');
-
-/**#@+
- * Authentication Unique Keys and Salts.
- *
- * Change these to different unique phrases!
- * You can generate these using the {@link https://api.wordpress.org/secret-key/1.1/salt/ WordPress.org secret-key service}
- * You can change these at any point in time to invalidate all existing cookies. This will force all users to have to log in again.
- *
- * @since 2.6.0
- */
-define('AUTH_KEY',         'P+T!xVj[iQ u&U&VLeZ{U`c-i&d:|Fyuzt$uA?9?Ee6rOqbeQ%]b*%B>Ov`HJZE]');
-define('SECURE_AUTH_KEY',  'yJ9om-PwvJZ[)32Mdu5..HA]C&11:EgLrEwuXz!yZ#*w?ok]zg>IgN.(h}L>}(E^');
-define('LOGGED_IN_KEY',    '&U.e#W[4Tf7E~@TRa]}|dfbpo>$w{[XZR2}25tm|!xhSMWfKI8GPk<_UMYGxE0Uz');
-define('NONCE_KEY',        '/4U;;>B?JAxw}HPeR*$}[hY{}ud g8{{,Yq)Zh8Son#>&%@FB>nJNTBXQb{J5hp9');
-define('AUTH_SALT',        'rJj3nk4F3NrT=zW+M:levt|ZDd1,mgIEow$|HIX{I.mkz/]%mXH41] *6X6:CApD');
-define('SECURE_AUTH_SALT', '8E0>SzRk;!RDE4Lfm%[Dl>=R,}9k{Qx1sDX,XL7]F$w)-fZ~9r[EaHC:`i|miB%[');
-define('LOGGED_IN_SALT',   '$fW1;93!K,a-g]T)$43M*FaDN1XrZ}XQag&y//#;Nb)WJKO)3k$W)bSV)(rwT)zY');
-define('NONCE_SALT',       'uACi($x]8[0?aN/;^I m$1xX]R5x@?<e!h>`LQhxJ[wwOt~Dq&PMDLLlnxo<sj^d');
 
 /**#@-*/
 
@@ -77,7 +41,28 @@ $table_prefix  = 'wp_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
-define('WP_DEBUG', false);
+define('DB_NAME', $_SERVER['RDS_DB_NAME']);
+define('DB_USER', $_SERVER['RDS_USERNAME']);
+define('DB_PASSWORD', $_SERVER['RDS_PASSWORD']);
+define('DB_HOST', $_SERVER['RDS_HOSTNAME']);
+define('DB_CHARSET', 'utf8mb4');
+define('DB_COLLATE', '');
+define('AUTH_KEY',         $_SERVER['AUTH_KEY']);
+define('SECURE_AUTH_KEY',  $_SERVER['SECURE_AUTH_KEY']);
+define('LOGGED_IN_KEY',    $_SERVER['LOGGED_IN_KEY']);
+define('NONCE_KEY',        $_SERVER['NONCE_KEY']);
+define('AUTH_SALT',        $_SERVER['AUTH_SALT']);
+define('SECURE_AUTH_SALT', $_SERVER['SECURE_AUTH_SALT']);
+define('LOGGED_IN_SALT',   $_SERVER['LOGGED_IN_SALT']);
+define('NONCE_SALT',       $_SERVER['NONCE_SALT']);
+define('AWS_ACCESS_KEY_ID',$_SERVER['AWS_ACCESS_KEY_ID']);
+define('AWS_SECRET_ACCESS_KEY',	$_SERVER['AWS_SECRET_ACCESS_KEY']);
+define('JWT_AUTH_SECRET_KEY', 'R[/(_(.9s(y[YT.|C]3eH,ukOIk y|bH<n`8TvBN:GnttP5_Z|`d!t|t6E>$Qpp,');
+define('JWT_AUTH_CORS_ENABLE', true);
+
+
+define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
+define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
 
 /* That's all, stop editing! Happy blogging. */
 

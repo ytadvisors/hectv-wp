@@ -1,5 +1,11 @@
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
+.idea
+.config
+wp-content/ai1wm-backups/*
+wp-content/uploads/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+.DS_Store
+*/DS_Store
