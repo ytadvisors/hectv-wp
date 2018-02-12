@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/state_of_the_arts/" />
+	</head>
+	<body>
+		<switch>
+			<video src="sot_1501_10_diggin_the_smash_300.mp4" system-bitrate="300000"/>
+			<video src="sot_1501_10_diggin_the_smash_300.mp4" system-bitrate="300000"/>
+			<video src="sot_1501_10_diggin_the_smash_300.mp4" system-bitrate="300000"/>
+		</switch>
+	</body>
+</smil>

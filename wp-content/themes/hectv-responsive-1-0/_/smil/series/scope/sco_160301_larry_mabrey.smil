@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/scope/" />
+	</head>
+	<body>
+		<switch>
+			<video src="sco_160301_larry_mabrey_300.mp4" system-bitrate="300000"/>
+			<video src="sco_160301_larry_mabrey_800.mp4" system-bitrate="800000"/>
+			<video src="sco_160301_larry_mabrey_1500.mp4" system-bitrate="1500000"/>
+		</switch>
+	</body>
+</smil>

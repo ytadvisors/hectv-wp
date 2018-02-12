@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/slso_thm/" />
+	</head>
+	<body>
+		<switch>
+			<video src="slso_thm_1402_300.mp4" system-bitrate="300000"/>
+			<video src="slso_thm_1402_800.mp4" system-bitrate="800000"/>
+			<video src="slso_thm_1402_1500.mp4" system-bitrate="1500000"/>
+		</switch>
+	</body>
+</smil>

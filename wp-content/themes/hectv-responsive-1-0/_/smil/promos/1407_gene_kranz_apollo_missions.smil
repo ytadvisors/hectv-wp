@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/promos/" />
+	</head>
+	<body>
+		<switch>
+			<video src="1407_gene_kranz_apollo_missions_300.mp4" system-bitrate="300000"/>
+			<video src="1407_gene_kranz_apollo_missions_800.mp4" system-bitrate="800000"/>
+			<video src="1407_gene_kranz_apollo_missions_1500.mp4" system-bitrate="1500000"/>
+		</switch>
+	</body>
+</smil>

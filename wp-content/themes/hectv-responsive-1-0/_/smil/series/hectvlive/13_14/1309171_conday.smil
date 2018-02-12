@@ -1,0 +1,11 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/hectvlive/13_14/" />
+	</head>
+	<body>
+		<switch>
+			<video src="1309171_conday_800.mp4" system-bitrate="800000"/>
+			<video src="1309171_conday_1500.mp4" system-bitrate="1500000"/>
+		</switch>
+	</body>
+</smil>

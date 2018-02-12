@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/mtb/" />
+	</head>
+	<body>
+		<switch>
+			<video src="mtb_ooo_1305_pink_300.mp4" system-bitrate="300000"/>
+			<video src="mtb_ooo_1305_pink_800.mp4" system-bitrate="800000"/>
+			<video src="mtb_ooo_1305_pink_1500.mp4" system-bitrate="1500000"/>
+		</switch>
+	</body>
+</smil>

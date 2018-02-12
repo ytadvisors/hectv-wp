@@ -1,0 +1,12 @@
+<smil>
+	<head>
+		<meta base="rtmp://hectv.bc-s.cdn.bitgravity.com/cdn/_definst_/hectv/series/state_of_the_arts/" />
+	</head>
+	<body>
+		<switch>
+			<video src="sot_1507_eric_leuthardt_300.mp4" system-bitrate="300000"/>
+			<video src="sot_1507_eric_leuthardt_800.mp4" system-bitrate="300000"/>
+			<video src="sot_1507_eric_leuthardt_1500.mp4" system-bitrate="300000"/>
+		</switch>
+	</body>
+</smil>

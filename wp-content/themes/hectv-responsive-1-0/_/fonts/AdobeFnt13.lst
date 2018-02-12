@@ -1,0 +1,509 @@
+%!Adobe-FontList 1.13
+%Locale:0x409
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Lato-Black
+FamilyName:Lato
+StyleName:Black
+MenuName:Lato Black
+StyleBits:0
+WeightClass:900
+WidthClass:5
+AngleClass:0
+FullName:Lato Black
+WritingScript:Roman
+OutlineFileName:\Lato-Black.ttf
+DataFormat:sfntData
+FileLength:590648
+FileModTime:1409517615
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Lato-Bold
+FamilyName:Lato
+StyleName:Bold
+MenuName:Lato
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:Lato Bold
+WritingScript:Roman
+OutlineFileName:\Lato-Bold.ttf
+DataFormat:sfntData
+FileLength:633240
+FileModTime:1409517616
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Lato-Heavy
+FamilyName:Lato
+StyleName:Heavy
+MenuName:Lato Heavy
+StyleBits:0
+WeightClass:800
+WidthClass:5
+AngleClass:0
+FullName:Lato Heavy
+WritingScript:Roman
+OutlineFileName:\Lato-Heavy.ttf
+DataFormat:sfntData
+FileLength:641656
+FileModTime:1409517617
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Lato-Medium
+FamilyName:Lato
+StyleName:Medium
+MenuName:Lato Medium
+StyleBits:0
+WeightClass:500
+WidthClass:5
+AngleClass:0
+FullName:Lato Medium
+WritingScript:Roman
+OutlineFileName:\Lato-Medium.ttf
+DataFormat:sfntData
+FileLength:612812
+FileModTime:1409517619
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Lato-Thin
+FamilyName:Lato
+StyleName:Thin
+MenuName:Lato Thin
+StyleBits:0
+WeightClass:275
+WidthClass:5
+AngleClass:0
+FullName:Lato Thin
+WritingScript:Roman
+OutlineFileName:\Lato-Thin.ttf
+DataFormat:sfntData
+FileLength:602232
+FileModTime:1409517621
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:MinionPro-Regular
+FamilyName:Minion Pro
+StyleName:Regular
+MenuName:Minion Pro
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Minion Pro
+WritingScript:Roman
+OutlineFileName:\MinionPro-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:174112
+FileModTime:1285271260
+DesignSize:110
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:Prociono-Regular
+FamilyName:Prociono
+StyleName:Regular
+MenuName:Prociono
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Prociono Regular
+WritingScript:Roman
+OutlineFileName:\Prociono-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:36512
+FileModTime:1225910696
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-Regular
+FamilyName:PT Sans
+StyleName:Regular
+MenuName:PT Sans
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:PT Sans
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:56
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-Italic
+FamilyName:PT Sans
+StyleName:Italic
+MenuName:PT Sans
+StyleBits:1
+WeightClass:400
+WidthClass:5
+AngleClass:1
+FullName:PT Sans Italic
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:388
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-NarrowBold
+FamilyName:PT Sans Narrow
+StyleName:Bold
+MenuName:PT Sans Narrow
+StyleBits:2
+WeightClass:700
+WidthClass:3
+AngleClass:0
+FullName:PT Sans Narrow Bold
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:720
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-Narrow
+FamilyName:PT Sans Narrow
+StyleName:Regular
+MenuName:PT Sans Narrow
+StyleBits:0
+WeightClass:400
+WidthClass:3
+AngleClass:0
+FullName:PT Sans Narrow
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:1052
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-CaptionBold
+FamilyName:PT Sans Caption
+StyleName:Bold
+MenuName:PT Sans Caption
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:PT Sans Caption Bold
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:1384
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-Caption
+FamilyName:PT Sans Caption
+StyleName:Regular
+MenuName:PT Sans Caption
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:PT Sans Caption
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:1716
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-BoldItalic
+FamilyName:PT Sans
+StyleName:Bold Italic
+MenuName:PT Sans
+StyleBits:3
+WeightClass:700
+WidthClass:5
+AngleClass:1
+FullName:PT Sans Bold Italic
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:2048
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:PTSans-Bold
+FamilyName:PT Sans
+StyleName:Bold
+MenuName:PT Sans
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:PT Sans Bold
+WritingScript:Roman
+OutlineFileName:\PTSans.ttc
+TTCOffset:2380
+DataFormat:sfntData
+FileLength:2767520
+FileModTime:1410290659
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoDisplay-Black
+FamilyName:San Francisco Display
+StyleName:Black
+MenuName:San Francisco Display
+StyleBits:0
+WeightClass:900
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Display Black
+WritingScript:Roman
+OutlineFileName:\SanFranciscoDisplay-Black.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:183368
+FileModTime:1416325897
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoDisplay-Bold
+FamilyName:San Francisco Display
+StyleName:Bold
+MenuName:San Francisco Display
+StyleBits:0
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Display Bold
+WritingScript:Roman
+OutlineFileName:\SanFranciscoDisplay-Bold.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:187420
+FileModTime:1416325876
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoDisplay-Light
+FamilyName:San Francisco Display
+StyleName:Light
+MenuName:San Francisco Display
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Display Light
+WritingScript:Roman
+OutlineFileName:\SanFranciscoDisplay-Light.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:185728
+FileModTime:1416325828
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoDisplay-Regular
+FamilyName:San Francisco Display
+StyleName:Regular
+MenuName:San Francisco Display
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Display
+WritingScript:Roman
+OutlineFileName:\SanFranciscoDisplay-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:185900
+FileModTime:1416325838
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoDisplay-Thin
+FamilyName:San Francisco Display
+StyleName:Thin
+MenuName:San Francisco Display
+StyleBits:0
+WeightClass:200
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Display Thin
+WritingScript:Roman
+OutlineFileName:\SanFranciscoDisplay-Thin.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:180028
+FileModTime:1416325816
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoText-LightItalic
+FamilyName:San Francisco Text
+StyleName:Light Italic
+MenuName:San Francisco Text
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:1
+FullName:San Francisco Text Light Italic
+WritingScript:Roman
+OutlineFileName:\SanFranciscoText-LightItalic.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:140504
+FileModTime:1416325515
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoText-Regular
+FamilyName:San Francisco Text
+StyleName:Regular
+MenuName:San Francisco Text
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:San Francisco Text
+WritingScript:Roman
+OutlineFileName:\SanFranciscoText-Regular.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:179504
+FileModTime:1416325526
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoText-Italic
+FamilyName:San Francisco Text
+StyleName:Italic
+MenuName:San Francisco Text
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:1
+FullName:San Francisco Text Italic
+WritingScript:Roman
+OutlineFileName:\SanFranciscoText-RegularItalic.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:138716
+FileModTime:1416325533
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:SanFranciscoText-SemiboldItalic
+FamilyName:San Francisco Text
+StyleName:Semibold Italic
+MenuName:San Francisco Text
+StyleBits:0
+WeightClass:600
+WidthClass:5
+AngleClass:1
+FullName:San Francisco Text Semibold Italic
+WritingScript:Roman
+OutlineFileName:\SanFranciscoText-SemiboldItalic.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+FileLength:142616
+FileModTime:1416325662
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Webdings
+FamilyName:Webdings
+StyleName:Regular
+MenuName:Webdings
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Webdings
+WritingScript:Roman
+OutlineFileName:\Webdings.ttf
+DataFormat:sfntData
+FileLength:124308
+FileModTime:1285270888
+%EndFont
+

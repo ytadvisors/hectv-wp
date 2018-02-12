@@ -1,0 +1,52 @@
+
+
+div#schedule-inspector { width: 225px; margin-top: 15px; margin-right: 10px; position: fixed; top: 30px; right: 6px; z-index: 100; background-color: #fff; overflow: hidden; -webkit-box-shadow: 0px 0px 3px rgba(50, 50, 50, 0.5); -moz-box-shadow: 0px 0px 3px rgba(50, 50, 50, 0.5); box-shadow: 0px 0px 3px rgba(50, 50, 50, 0.5); }
+div#schedule-inspector.small { height: 31px !important; }
+div#schedule-inspector h2 { margin: 0px; padding: 0px 10px; font-size: 13px; background-color: #dfdfdf; cursor: move; position: relative; }
+div#schedule-inspector h2 input#operations { height: 19px; width: 19px; background-color: transparent; background-image: url(/wp-content/plugins/hectv-scheduler/ui/gear-v2.png); border: none; position: absolute; top: 4px; right: 5px; cursor: pointer; }
+div#schedule-inspector h2 input#operations:hover { opacity: 0.7; }
+
+div#schedule-inspector.operations ul.content { display: none; }
+div#schedule-inspector.operations ul.settings { display: block; }
+div#schedule-inspector.operations ul.settings li { height: auto; padding-top: 8px; }
+div#schedule-inspector.operations ul.settings li select { margin-top: 5px; }
+div#schedule-inspector.operations ul.settings li.approval { text-align: center; }
+div#schedule-inspector.operations ul.settings li.approval div.instructions { margin-bottom: 5px; }
+div#schedule-inspector ul.settings { display: none; border: 1px solid #DFDFDF; position: relative; margin: 0px; padding: 0px; border-top: none; }
+div#schedule-inspector ul.content { border: 1px solid #DFDFDF; position: relative; margin: 0px; padding: 0px; border-top: none; display: block; }
+div#schedule-inspector ul li { padding: 7px 8px; position: relative; border-top: 1px solid #ccc; }
+div#schedule-inspector ul.content li:first-child { border-top: none; }
+div#schedule-inspector ul.content li.datetime { display: none; }
+div#schedule-inspector.active ul.content li.datetime { display: block; }
+div#schedule-inspector ul.content li span { position: relative; top: 3px; }
+div#schedule-inspector ul.content li span.label { width: 100px; }
+div#schedule-inspector ul.content li span.value-display { margin-left: 30px; }
+div#schedule-inspector ul.content li .field-display { left: 65px; width: 150px; position: absolute; top: 3px; }
+div#schedule-inspector ul.content li.actions { text-align: center; padding: 6px 8px; }
+div#schedule-inspector ul.content li.actions input[type=button] { margin-right: 5px; }
+
+table.schedule { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+table.schedule thead tr th.time { width: 50px !important; }
+table.schedule thead tr th.day { border-left: 1px solid #ccc; text-align: center; width: 13%; }
+table.schedule tr td.time { border-left: 1px solid #ccc;  }
+table.schedule tr td.field { border-left: 1px solid #ccc; font-size: 10px; text-align: center; position: relative; }
+table.schedule tr td.field:hover { background-color: #EBEBEB; cursor: pointer; }
+table.schedule tr td.field.hover { background-color: #EBEBEB; }
+table.schedule tr td.field.fatal { background-color: #FF0000 !important; color: #fff; }
+table.schedule tr td.field.napp { background-image: url(/wp-content/plugins/hectv-scheduler/ui/ui-caution-sm.png); background-repeat: no-repeat; background-position: 95% 95%; }
+table.schedule tr td.field.selected { background-color: #B8F3FF !important; }
+table.schedule tr { height: 40px; }
+table.schedule tr#approvals { height: 23px; }
+
+ul#colorpicker { position: absolute; background-color: #f7f7f7; padding: 3px; border: 1px solid #e2e2e2; z-index: 999; height: 22px; display: none; }
+ul#colorpicker li { display: inline-block; height: 20px; width: 20px; border: 1px solid #978663; margin-bottom: 0px; cursor: pointer; }
+ul#colorpicker li.yellow { background-color: #fdf3cb; }
+ul#colorpicker li.green { background-color: #cfe3b9; }
+
+div.autocomplete-w1 div.autocomplete { background-color: #fff; border: 1px solid #ccc; padding: 3px; }
+div.autocomplete-w1 div.autocomplete div { padding: 3px; border-bottom: 1px solid #ccc; }
+div.autocomplete-w1 div.autocomplete div:last-child { border-bottom: none; }
+div.autocomplete-w1 div.autocomplete div.selected { background-color: #5CE4FF; }
+
+/* table.schedule tr:nth-child(even) { background-color:#fff; } */
+/* table.schedule tr:nth-child(odd) { background-color:#f2f2f2; } */
