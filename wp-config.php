@@ -61,7 +61,7 @@ define('JWT_AUTH_SECRET_KEY', 'R[/(_(.9s(y[YT.|C]3eH,ukOIk y|bH<n`8TvBN:GnttP5_Z
 define('JWT_AUTH_CORS_ENABLE', true);
 
 
-define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']); 
+define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
 define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
 
 /* That's all, stop editing! Happy blogging. */
