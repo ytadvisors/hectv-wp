@@ -310,8 +310,8 @@ function update_event_meta(){
 		update_post_meta( $post->ID, "start_time", $start_time );
 		
 		update_post_meta( $post->ID, "event_time", $event_time );
-		
-		
+
+
 
 	}
 
