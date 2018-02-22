@@ -17,20 +17,6 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
         $this->init();
     }
 
-    /*
-     *  SETUP ADMINISTRATIVE PANEL
-     */
-
-    /**
-     * Callback function loads css and js files for the admin
-     */
-    public function load_scripts() {
-        wp_register_style( 'event-styles',  plugins_url() . '/hectv/assets/css/events.css' );
-        wp_register_script( 'event-scripts',  plugins_url() . '/hectv/assets/js/events.js', 'jquery' );
-        wp_enqueue_style( 'event-styles' );
-        wp_enqueue_script( 'event-scripts' );
-    }
-
     /**
      * Callback function registers the event post type
      */
@@ -73,11 +59,5 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
     public function init()
     {
         add_filter( "init", array( $this, 'register_post_type' ), 0 );
-        add_action( "manage_{$this->post_type}_custom_column", 'manage_columns', 10, 2 );
-        add_filter( "manage_edit-{$this->post_type}_sortable_columns", array( $this, 'get_sortable_columns'), 1 );
-        add_filter( "manage_edit-{$this->post_type}_columns", array( $this, 'edit_columns') ) ;
-        add_filter( "parse_query", array( $this, 'filter_posts') );
-        add_action( 'admin_enqueue_scripts', array( $this, 'load_scripts' ));
-        add_action( "save_post_{$this->post_type}", array( $this, 'save_post'));
     }
 }
