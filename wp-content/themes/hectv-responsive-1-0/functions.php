@@ -10,8 +10,6 @@
 \*------------------------------------*/
 
 // require_once('_/inc/videos.php'); /* Video Custom Post Type Declaration */
-require_once('_/inc/new-videos.php'); /* New Video Custom Post Type Declaration */
-require_once('_/inc/playlists.php'); /* Playlist Custom Post Type Declaration */
 require_once('_/inc/magazines.php'); /* Magazine Custom Post Type Declaration */
 require_once('_/inc/querytools.php'); /* Query Tools */
 require_once('_/inc/education-tools.php'); /* Education Taxonomies */
@@ -53,7 +51,7 @@ require_once('_/inc/series-page-meta.php'); /* Series Page Meta */
 require_once('_/inc/logged-out-redirect.php');
 require_once('_/inc/logged-in-redirect.php');
 
-require_once('_/inc/preferred-recent-episode-meta.php'); /* Metabox for preferred recent episodes */
+
 require_once('_/inc/logged-out-redirect.php'); /* User Roles */
 
 require_once('_/inc/user-meta-fields.php');
@@ -61,9 +59,12 @@ require_once('_/inc/user-save-video.php');
 require_once('_/inc/remove-saved-video.php');
 
 
+define('ACF_EARLY_ACCESS', '5');
 
-//require_once('_/inc/events.php'); /* Events Tool -- To Do: Convert to WP Plugin........ */
-
+//require_once('_/inc/events.php');
+//require_once('_/inc/playlists.php'); /* Playlist Custom Post Type Declaration */
+//require_once('_/inc/preferred-recent-episode-meta.php'); /* Metabox for preferred recent episodes */
+//require_once('_/inc/new-videos.php'); /* New Video Custom Post Type Declaration */
 
 if( $_GET['doit'] == 'now' ){
 

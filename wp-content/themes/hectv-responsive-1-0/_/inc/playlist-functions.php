@@ -143,8 +143,8 @@ function lb_playlist_segment_edit_button($wp_admin_bar){
 
 add_action('admin_bar_menu', 'lb_playlist_segment_edit_button', 99);
 
+/*
 add_action( 'init', 'lb_create_topic_taxonomies', 0 );
-
 function lb_create_topic_taxonomies() {
 
 	$topicslabels = array(
@@ -195,7 +195,7 @@ function lb_create_video_keyword_taxonomies() {
 		'rewrite' => array( 'slug' => 'watch/keyword', 'with_front' => false ),
 	));
 
-}
+}*/
 
 add_action( 'restrict_manage_posts', 'lb_add_series_selection_to_admin' );
 

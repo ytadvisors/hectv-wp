@@ -39,6 +39,9 @@ class HECTV_Taxonomy extends HECTV_Routes implements HECTV_Custom_Taxonomy_Inter
         $inflector = Inflector::get('en');
         $category_name = $this->category_name;
         $plural_category = $inflector->pluralize($this->category_name);
+
+
+
         $labels = array(
             'name'                       => _x( $category_name, 'Taxonomy General Name', 'hectv' ),
             'singular_name'              => _x( $category_name, 'Taxonomy Singular Name', 'hectv' ),
@@ -73,7 +76,9 @@ class HECTV_Taxonomy extends HECTV_Routes implements HECTV_Custom_Taxonomy_Inter
             'rest_base'                  => $this->post_type,
             'rest_controller_class'      => 'WP_REST_Terms_Controller',
         );
-        register_taxonomy( $this->post_type, array( $this->parent_post ), $args );
+
+        $parent_post = is_array($this->parent_post) ? $this->parent_post : array($this->parent_post);
+        register_taxonomy( $this->post_type, $parent_post, $args );
     }
 
     public function init()

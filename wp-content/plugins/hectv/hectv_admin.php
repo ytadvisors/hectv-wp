@@ -29,8 +29,8 @@ class HECTV_Admin {
     // MAIN CALL BACKS
 
     public function modify_rest_routes( $routes ) {
-        array_push( $routes['/wp/v2/edvideos'][0]['args']['orderby']['enum'], 'meta_value' );
-        array_push( $routes['/wp/v2/edplans'][0]['args']['orderby']['enum'], 'meta_value' );
+        if(is_array($routes['/wp/v2/lb_playlist'][0]['args']['orderby']['enum']))
+            array_push( $routes['/wp/v2/lb_playlist'][0]['args']['orderby']['enum'], 'meta_value' );
         return $routes;
     }
 
@@ -75,29 +75,22 @@ class HECTV_Admin {
 
     public function init()
     {
-        /*$this->api = [
-            "vid_cat" => new Classes\HECTV_Taxonomy('vid_cat', "edvideos", "Video Category"),
-            "hec_kw" => new Classes\HECTV_Taxonomy('hec_kw', "edvideos", "HEC Keyword"),
-            "edvideos" => new Classes\HECTV_Videos('edvideos'),
-            "livevideos" =>  new Classes\HECTV_Live_Videos('livevideos'),
-            "edtestimonial" => new Classes\HECTV_Testimonials('edtestimonial'),
-            "edplans" => new Classes\HECTV_Plans('edplans'),
-            "tool" => new Classes\HECTV_Tools('tool'),
-            "edschedule" => new Classes\HECTV_Schedule('edschedule'),
-            "edplaylist" => new Classes\HECTV_Playlist('edplaylist'),
-            "edusers" => new Classes\HECTV_Users('edusers')
-        ];*/
 
         $this->api = [
+            "events" => new Classes\HECTV_Events('event'),
+            "videos" => new Classes\HECTV_Videos('lb_playlist'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_type', "event", "Event Categories"),
-            "events" => new Classes\HECTV_Events('event')
+            "keywords" => new Classes\HECTV_Taxonomy('keyword', "lb_playlist", "Keywords"),
+            "topics" => new Classes\HECTV_Taxonomy('topic', "lb_playlist", "Topics", true),
+
         ];
+
         add_filter('rest_endpoints', array( $this, 'modify_rest_routes'));
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
         add_action( 'rest_api_init', array($this, 'register_rest_fields' ));
         add_action( 'after_setup_theme', array($this, "setup_admin") );
-        add_filter( 'wp_headers', array($this, 'cors_headers' ), 11, 1 );
         add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
+        add_filter( 'wp_headers', array($this, 'cors_headers' ), 11, 1 );
         
     }
 }
