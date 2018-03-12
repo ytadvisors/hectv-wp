@@ -21,6 +21,12 @@ class HECTV_Admin {
         return get_comments( array( 'post_id' => $object[ 'id' ] ) );
     }
 
+
+
+    public function get_categories( $object, $field_name, $request ) {
+        return get_the_category( $object[ 'id' ] );
+    }
+
     public function format_duration($field){
 
         if($field["value"]){
@@ -55,6 +61,14 @@ class HECTV_Admin {
             'comments',
             array(
                 'get_callback' 	  => array( $this, 'get_comments'),
+                'update_callback' => null,
+                'schema' 		  => null,
+            ) );
+
+        register_rest_field( 'post',
+            'categories',
+            array(
+                'get_callback' 	  => array( $this, 'get_categories'),
                 'update_callback' => null,
                 'schema' 		  => null,
             ) );
