@@ -17,12 +17,23 @@ class HECTV_Admin {
         $this->init();
     }
 
-    public function setup_admin(){
-        add_theme_support( 'post-thumbnails' );
-    }
-
     public function get_comments( $object, $field_name, $request ) {
         return get_comments( array( 'post_id' => $object[ 'id' ] ) );
+    }
+
+    public function format_duration($field){
+
+        if($field["value"]){
+            $value = $field["value"];
+            $h = floor( $value / 3600 );
+            $m = floor( ( $value % 3600 ) / 60);
+            $s = $value - ( $h * 3600 ) - ( $m * 60 );
+
+            $field["value"] = sprintf('%02d:%02d:%02d', $h, $m, $s);
+            $field["disabled"] = true;
+        }
+
+        return $field;
     }
 
 
@@ -73,24 +84,34 @@ class HECTV_Admin {
         wp_enqueue_style( 'dashicons' );
     }
 
+    function show_excerpt( $user_login, $user ) {
+        $unchecked = get_user_meta( $user->ID, 'metaboxhidden_post', true );
+        $key = array_search( 'postexcerpt', $unchecked );
+        if ( FALSE !== $key ) {
+            array_splice( $unchecked, $key, 1 );
+            update_user_meta( $user->ID, 'metaboxhidden_post', $unchecked );
+        }
+        return true;
+    }
+
     public function init()
     {
 
         $this->api = [
             "events" => new Classes\HECTV_Events('event'),
-            "videos" => new Classes\HECTV_Videos('lb_playlist'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_type', "event", "Event Categories"),
             "keywords" => new Classes\HECTV_Taxonomy('keyword', "lb_playlist", "Keywords"),
             "topics" => new Classes\HECTV_Taxonomy('topic', "lb_playlist", "Topics", true),
 
         ];
-
         add_filter('rest_endpoints', array( $this, 'modify_rest_routes'));
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
-        add_action( 'rest_api_init', array($this, 'register_rest_fields' ));
-        add_action( 'after_setup_theme', array($this, "setup_admin") );
-        add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
         add_filter( 'wp_headers', array($this, 'cors_headers' ), 11, 1 );
+        add_filter( 'acf/prepare_field/name=duration', array( $this, 'format_duration') );
+        add_action( 'rest_api_init', array($this, 'register_rest_fields' ));
+        add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
+        add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
+        register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         
     }
 }
