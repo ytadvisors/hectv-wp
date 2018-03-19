@@ -22,9 +22,22 @@ class HECTV_Admin {
     }
 
 
-
     public function get_categories( $object, $field_name, $request ) {
         return get_the_category( $object[ 'id' ] );
+    }
+
+    public function get_articles($args, $request){
+        $parameter_value  = $request->get_param( "articles" );
+        $meta_query = array();
+        if ( ! empty( $parameter_value ) ) {
+            $meta_query = array(array(
+                    'key' => 'is_video',
+                    'value' => 0,
+                    "compare" => "="
+                ));
+        }
+
+        return array("meta_query" =>  $meta_query );
     }
 
     public function format_duration($field){
@@ -65,6 +78,12 @@ class HECTV_Admin {
                 'schema' 		  => null,
             ) );
 
+        register_rest_route( 'hectv/v1',
+            '/articles', array(
+                'methods' => 'GET',
+                'callback' => array( $this, 'get_articles' ),
+            )
+        );
         register_rest_field( 'post',
             'categories',
             array(
@@ -72,6 +91,7 @@ class HECTV_Admin {
                 'update_callback' => null,
                 'schema' 		  => null,
             ) );
+
 
     }
     function cors_headers( $headers ) {
@@ -118,6 +138,7 @@ class HECTV_Admin {
             "topics" => new Classes\HECTV_Taxonomy('topic', "lb_playlist", "Topics", true),
 
         ];
+        add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
         add_filter('rest_endpoints', array( $this, 'modify_rest_routes'));
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
         add_filter( 'wp_headers', array($this, 'cors_headers' ), 11, 1 );
