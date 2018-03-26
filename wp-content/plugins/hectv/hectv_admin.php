@@ -28,16 +28,15 @@ class HECTV_Admin {
 
     public function get_articles($args, $request){
         $parameter_value  = $request->get_param( "articles" );
-        $meta_query = array();
         if ( ! empty( $parameter_value ) ) {
-            $meta_query = array(array(
+            return array("meta_query" => array(array(
                     'key' => 'is_video',
                     'value' => 0,
                     "compare" => "="
-                ));
+                )));
         }
 
-        return array("meta_query" =>  $meta_query );
+        return $args;
     }
 
     public function format_duration($field){

@@ -46,9 +46,9 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
             'capability_type' => 'post',
             'menu_icon' => 'dashicons-calendar',
             'hierarchical' => false,
-            'menu_position' => null,
             'supports' => array( 'title', 'editor', 'thumbnail' ),
             'show_in_rest' => true,
+            'menu_position' => 4,
             'rest_base' => $this->post_type,
         );
 
