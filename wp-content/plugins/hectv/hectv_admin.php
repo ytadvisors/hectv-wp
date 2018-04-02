@@ -132,9 +132,11 @@ class HECTV_Admin {
 
         $this->api = [
             "events" => new Classes\HECTV_Events('event'),
+            "magazines" => new Classes\HECTV_Magazines('magazine'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_type', "event", "Event Categories"),
             "keywords" => new Classes\HECTV_Taxonomy('keyword', "lb_playlist", "Keywords"),
             "topics" => new Classes\HECTV_Taxonomy('topic', "lb_playlist", "Topics", true),
+            "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true)
 
         ];
         add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
