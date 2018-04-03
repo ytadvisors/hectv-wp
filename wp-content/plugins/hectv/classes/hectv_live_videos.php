@@ -65,7 +65,7 @@ class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Inter
             'hierarchical' => false,
             'supports' => array( 'title', 'editor','comments', 'author' ),
             'show_in_rest' => true,
-            'menu_position' => 7,
+            'menu_position' => 9,
             'rest_base' => $this->post_type,
         );
         register_post_type( $this->post_type, $args );
