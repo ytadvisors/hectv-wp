@@ -134,6 +134,7 @@ class HECTV_Admin {
 
         $this->api = [
             "events" => new Classes\HECTV_Events('event'),
+            'live_videos' => new Classes\HECTV_Live_Videos('livevideos'),
             "magazines" => new Classes\HECTV_Magazines('magazine'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_type', "event", "Event Categories"),
             "keywords" => new Classes\HECTV_Taxonomy('keyword', "lb_playlist", "Keywords"),
