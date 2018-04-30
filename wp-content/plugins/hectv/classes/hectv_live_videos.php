@@ -63,7 +63,7 @@ class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Inter
             'capability_type' => 'page',
             'menu_icon' => 'dashicons-video-alt3',
             'hierarchical' => false,
-            'supports' => array( 'title', 'editor','comments', 'author' ),
+            'supports' => array( 'title', 'editor', 'comments', 'author' ),
             'show_in_rest' => true,
             'menu_position' => 9,
             'rest_base' => $this->post_type,
