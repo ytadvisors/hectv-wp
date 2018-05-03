@@ -46,7 +46,7 @@ class HECTV_Donations extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
             'capability_type' => 'post',
             'menu_icon' => 'dashicons-heart',
             'hierarchical' => false,
-            'supports' => array( 'title', 'editor', 'thumbnail' ),
+            'supports' => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
             'show_in_rest' => true,
             'menu_position' => 5,
             'rest_base' => $this->post_type,
