@@ -3,7 +3,7 @@
 Plugin Name: Disable Comments
 Plugin URI: https://wordpress.org/plugins/disable-comments/
 Description: Allows administrators to globally disable comments on their site. Comments can be disabled according to post type.
-Version: 1.7
+Version: 1.7.1
 Author: Samir Shah
 Author URI: http://www.rayofsolaris.net/
 License: GPL2
@@ -52,11 +52,11 @@ class Disable_Comments {
 	}
 
 	private function check_compatibility() {
-		if ( version_compare( $GLOBALS['wp_version'], '3.8', '<' ) ) {
+		if ( version_compare( $GLOBALS['wp_version'], '3.9', '<' ) ) {
 			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 			deactivate_plugins( __FILE__ );
 			if ( isset( $_GET['action'] ) && ( $_GET['action'] == 'activate' || $_GET['action'] == 'error_scrape' ) ) {
-				exit( sprintf( __( 'Disable Comments requires WordPress version %s or greater.', 'disable-comments' ), '3.8' ) );
+				exit( sprintf( __( 'Disable Comments requires WordPress version %s or greater.', 'disable-comments' ), '3.9' ) );
 			}
 		}
 	}
@@ -185,7 +185,8 @@ class Disable_Comments {
 
 			if( $this->options['remove_everywhere'] ) {
 				add_action( 'admin_menu', array( $this, 'filter_admin_menu' ), 9999 );	// do this as late as possible
-				add_action( 'admin_print_footer_scripts-index.php', array( $this, 'dashboard_js' ) );
+				add_action( 'admin_print_styles-index.php', array( $this, 'admin_css' ) );
+				add_action( 'admin_print_styles-profile.php', array( $this, 'admin_css' ) );
 				add_action( 'wp_dashboard_setup', array( $this, 'filter_dashboard' ) );
 				add_filter( 'pre_option_default_pingback_flag', '__return_zero' );
 			}
@@ -331,13 +332,16 @@ jQuery(document).ready(function($){
 		remove_meta_box( 'dashboard_recent_comments', 'dashboard', 'normal' );
 	}
 
-	public function dashboard_js(){
-		echo '<script>
-		jQuery(function($){
-			$("#dashboard_right_now .comment-count, #latest-comments").hide();
-		 	$("#welcome-panel .welcome-comments").parent().hide();
-		});
-		</script>';
+	public function admin_css(){
+		echo '<style>
+			#dashboard_right_now .comment-count,
+			#dashboard_right_now .comment-mod-count,
+			#latest-comments,
+			#welcome-panel .welcome-comments,
+			.user-comment-shortcuts-wrap {
+				display: none !important;
+			}
+		</style>';
 	}
 
 	public function filter_existing_comments($comments, $post_id) {

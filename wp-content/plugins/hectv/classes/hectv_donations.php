@@ -4,7 +4,7 @@ namespace HECTV\Classes;
 
 use HECTV\Lib\HECTV_Custom_Post_Interface;
 
-class HECTV_Magazines extends HECTV_Routes  implements HECTV_Custom_Post_Interface {
+class HECTV_Donations extends HECTV_Routes  implements HECTV_Custom_Post_Interface {
     public $post_type;
     public $param_list;
 
@@ -23,14 +23,14 @@ class HECTV_Magazines extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
     public function register_post_type()
     {
         $labels = array(
-            'name' => _x( 'Magazines', 'post type general name' ), // Tip: _x('') is used for localization
-            'singular_name' => _x( 'Magazine', 'post type singular name' ),
+            'name' => _x( 'Donations', 'post type general name' ), // Tip: _x('') is used for localization
+            'singular_name' => _x( 'Donation', 'post type singular name' ),
             'add_new' => _x( 'Add New', 'video' ),
-            'add_new_item' => __( 'Add New Magazine' ),
-            'edit_item' => __( 'Edit Magazine' ),
-            'new_item' => __( 'New Magazine' ),
-            'view_item' => __( 'View Magazine' ),
-            'search_items' => __( 'Search Magazines' ),
+            'add_new_item' => __( 'Add New Donation' ),
+            'edit_item' => __( 'Edit Donation' ),
+            'new_item' => __( 'New Donation' ),
+            'view_item' => __( 'View Donation' ),
+            'search_items' => __( 'Search Donations' ),
             'not_found' =>  __( 'No events found' ),
             'not_found_in_trash' => __( 'No events found in Trash' ),
             'parent_item_colon' => ''
@@ -44,7 +44,7 @@ class HECTV_Magazines extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
             'query_var' => true,
             'rewrite' => array( 'slug' => 'magazine', 'with_front' => false ),
             'capability_type' => 'post',
-            'menu_icon' => 'dashicons-media-document',
+            'menu_icon' => 'dashicons-heart',
             'hierarchical' => false,
             'supports' => array( 'title', 'editor', 'thumbnail' ),
             'show_in_rest' => true,
