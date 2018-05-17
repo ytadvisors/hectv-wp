@@ -59,6 +59,9 @@ define('AWS_ACCESS_KEY_ID',$_SERVER['AWS_ACCESS_KEY_ID']);
 define('AWS_SECRET_ACCESS_KEY',	$_SERVER['AWS_SECRET_ACCESS_KEY']);
 define('JWT_AUTH_SECRET_KEY', 'R[/(_(.9s(y[YT.|C]3eH,ukOIk y|bH<n`8TvBN:GnttP5_Z|`d!t|t6E>$Qpp,');
 define('JWT_AUTH_CORS_ENABLE', true);
+define('WP_DEBUG', $_SERVER['WP_DEBUG'] == 1);
+define('WP_DEBUG_LOG', $_SERVER['WP_DEBUG_LOG'] == 1);
+define('WP_AUTO_UPDATE_CORE', false);
 
 
 define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
