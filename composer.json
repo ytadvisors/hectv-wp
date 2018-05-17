@@ -16,7 +16,6 @@
     "icanboogie/inflector": "^1.4",
     "rmccue/requests": "^1.7",
     "stripe/stripe-php": "^5.8",
-    "inpsyde/wonolog": "^1.0",
-    "a5hleyrich/wp-background-processing": "^1.0"
+    "inpsyde/wonolog": "^1.0"
   }
 }

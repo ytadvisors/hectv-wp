@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WP REST API Menus
+ * Plugin Name: WP REST API Menus YT FIX
  * Plugin URI:  https://github.com/nekojira/wp-api-menus
  * Description: Extends WP API with WordPress menu routes.
  *

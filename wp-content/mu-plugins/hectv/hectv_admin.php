@@ -58,8 +58,8 @@ class HECTV_Admin {
     // MAIN CALL BACKS
 
     public function modify_rest_routes( $routes ) {
-        if(is_array($routes['/wp/v2/lb_playlist'][0]['args']['orderby']['enum']))
-            array_push( $routes['/wp/v2/lb_playlist'][0]['args']['orderby']['enum'], 'meta_value' );
+        if(is_array($routes['/wp/v2/categories'][0]['args']['orderby']['enum']))
+            array_push( $routes['/wp/v2/categories'][0]['args']['orderby']['enum'], 'meta_value' );
         return $routes;
     }
 
@@ -155,11 +155,10 @@ class HECTV_Admin {
             "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true)
         ];
         add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
-        add_filter('rest_endpoints', array( $this, 'modify_rest_routes'));
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
         add_filter( 'wp_headers', array($this, 'cors_headers' ), 11, 1 );
         add_filter( 'acf/prepare_field/name=duration', array( $this, 'format_duration') );
-        add_action( 'rest_admin_init', array($this, 'register_rest_fields' ));
+        add_action( 'rest_api_init', array($this, 'register_rest_fields' ), 10, 2);
         add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );

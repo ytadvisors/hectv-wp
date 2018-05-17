@@ -62,7 +62,7 @@ define('JWT_AUTH_CORS_ENABLE', true);
 define('WP_DEBUG', $_SERVER['WP_DEBUG'] == 1);
 define('WP_DEBUG_LOG', $_SERVER['WP_DEBUG_LOG'] == 1);
 define('WP_AUTO_UPDATE_CORE', false);
-define("WP_HOME", $_SERVER['WP_HOME']);
+define("WP_HOME", $_SERVER['WP_HOME'] . "/");
 
 
 define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);

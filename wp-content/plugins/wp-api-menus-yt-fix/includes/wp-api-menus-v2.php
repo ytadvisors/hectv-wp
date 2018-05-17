@@ -369,6 +369,8 @@ if ( ! class_exists( 'WP_REST_Menus' ) ) :
         public function format_menu_item( $menu_item, $children = false, $menu = array() ) {
 
             $item = (array) $menu_item;
+            $post = get_post( $item['object_id'] );
+            $post_name = $post ? $post->post_name : "";
 
             $menu_item = array(
                 'id'          => abs( $item['ID'] ),
@@ -383,7 +385,7 @@ if ( ! class_exists( 'WP_REST_Menus' ) ) :
                 'description' => $item['description'],
                 'object_id'   => abs( $item['object_id'] ),
                 'object'      => $item['object'],
-                'object_slug' => get_post( $item['object_id'] )->post_name,
+                'object_slug' => $post_name,
                 'type'        => $item['type'],
                 'type_label'  => $item['type_label'],
             );
