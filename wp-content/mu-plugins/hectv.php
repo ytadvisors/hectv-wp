@@ -11,5 +11,6 @@
 
 date_default_timezone_set ( "America/Chicago" );
 
-Inpsyde\Wonolog\bootstrap();
+if($_SERVER['WP_DEBUG'] == 1)
+    Inpsyde\Wonolog\bootstrap();
 $admin = new \HECTV\HECTV_Admin();
