@@ -5,6 +5,7 @@
 .config
 wp-content/ai1wm-backups/*
 wp-content/uploads/*
+wp-content/wonolog/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 .DS_Store
