@@ -8,7 +8,4 @@ $baseDir = dirname($vendorDir);
 return array(
     'ICanBoogie\\Inflections' => $vendorDir . '/icanboogie/inflector/lib/inflections.php',
     'ICanBoogie\\Inflector' => $vendorDir . '/icanboogie/inflector/lib/inflector.php',
-    'WP_Async_Request' => $vendorDir . '/a5hleyrich/wp-background-processing/classes/wp-async-request.php',
-    'WP_Async_Task' => $baseDir . '/wp-content/plugins/wp-async-task/wp-async-task.php',
-    'WP_Background_Process' => $vendorDir . '/a5hleyrich/wp-background-processing/classes/wp-background-process.php',
 );

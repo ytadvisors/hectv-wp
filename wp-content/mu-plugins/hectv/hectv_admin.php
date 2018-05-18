@@ -57,12 +57,6 @@ class HECTV_Admin {
 
     // MAIN CALL BACKS
 
-    public function modify_rest_routes( $routes ) {
-        if(is_array($routes['/wp/v2/categories'][0]['args']['orderby']['enum']))
-            array_push( $routes['/wp/v2/categories'][0]['args']['orderby']['enum'], 'meta_value' );
-        return $routes;
-    }
-
     public function allow_meta_query( $valid_vars ) {
         $valid_vars = array_merge( $valid_vars, array( 'meta_key', 'meta_value' ) );
         return $valid_vars;
@@ -163,7 +157,6 @@ class HECTV_Admin {
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value", array($this, 'update_hook'), 10, 3);
-
 
     }
 }
