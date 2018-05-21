@@ -143,7 +143,8 @@ class HECTV_Admin {
             "schedule" => new Classes\HECTV_Schedules('schedules'),
             'live_videos' => new Classes\HECTV_Live_Videos('livevideos'),
             "magazines" => new Classes\HECTV_Magazines('magazine'),
-            "event_categories" => new Classes\HECTV_Taxonomy('event_type', "event", "Categories", true),
+            "event_categories" => new Classes\HECTV_Taxonomy('event_category', "event", "Categories", true),
+            "event_type" => new Classes\HECTV_Taxonomy('event_type', "event", "Tags"),
             "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true)
         ];
         add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
