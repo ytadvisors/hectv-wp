@@ -22,10 +22,17 @@ class HECTV_Schedules extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
         "Episode Title" => "field_5afc51b78a1c7"
     ];
 
+    private $db;
+
     function __construct($post_type){
 
+        global $wpdb;
+        $this->db = $wpdb;
+
         $this->post_type = $post_type;
-        $this->param_list = [];
+        $this->param_list = [
+            "month"
+        ];
 
         $this->setup_params($post_type, $this->param_list);
         $this->init();
@@ -71,40 +78,72 @@ class HECTV_Schedules extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
     }
 
 
-    public function addSchedule($file, $post_id)
+    public function param_month($args, $request)
     {
-        global $wpdb;
-        $filename = get_post($file)->guid;
-        $map = $this->getScheduleMap($filename);
-        $num_entries = count($map);
+        $parameter_name = "month";
+        $parameter_value   = $request->get_param( $parameter_name );
+        if ( ! empty( $parameter_value )  ) {
+            $values = explode("-", $parameter_value);
+            $num_dates = count($values);
+            $compare_value = "";
+            if($num_dates > 1) {
+                for($x = $num_dates - 1; $x >= 0; $x --)
+                    $compare_value .= $values[$x];
+            }
 
-        $field_name = str_replace(" ", "_", strtolower(HECTV_Schedules::$ACF_SECTION_ID)) ;
-
-
-        ini_set("memory_limit",-1);
-        set_time_limit(0);
-        ignore_user_abort(true);
-
-        wp_defer_term_counting( true );
-        wp_defer_comment_counting( true );
-        $wpdb->query( 'SET autocommit = 0;' );
-
-        $this->add_meta_value($post_id, $field_name, $num_entries);
-        $this->add_meta_value($post_id, "_".$field_name, HECTV_Schedules::$ACF_SECTION_ID_FIELD);
-
-        for($x = 0; $x < $num_entries; $x ++){
-            foreach($map[$x] as $key => $value) {
-                $key_name = HECTV_Schedules::$ACF_SECTION_ID . "_" . $x . "_" . $key;
-                $field_name = str_replace(" ", "_", strtolower($key_name)) ;
-                $this->add_meta_value($post_id, $field_name, $value);
-                $this->add_meta_value($post_id, "_".$field_name, HECTV_Schedules::$ACF_FIELDS_MAP[$key]);
+            if($compare_value != "") {
+                $meta_query = array(
+                    array(
+                        'key' => $parameter_name,
+                        'value' => $compare_value,
+                        'compare' => "like",
+                    )
+                );
+                return $this->getNewMetaQuery($args, $meta_query);
             }
         }
 
-        $wpdb->query( 'COMMIT;' );
-        wp_defer_term_counting( false );
-        wp_defer_comment_counting( false );
+        return $args;
     }
+
+    public function addSchedule($file_id, $post_id)
+    {
+        $post = get_post($file_id);
+        if($post != null){
+            $filename = $post->guid;
+
+            $map = $this->getScheduleMap($filename);
+            $num_entries = count($map);
+
+            $field_name = str_replace(" ", "_", strtolower(HECTV_Schedules::$ACF_SECTION_ID)) ;
+
+
+            ini_set("memory_limit",-1);
+            set_time_limit(0);
+            ignore_user_abort(true);
+
+            wp_defer_term_counting( true );
+            wp_defer_comment_counting( true );
+            $this->db->query( 'SET autocommit = 0;' );
+
+            $this->add_meta_value($post_id, $field_name, $num_entries);
+            $this->add_meta_value($post_id, "_".$field_name, HECTV_Schedules::$ACF_SECTION_ID_FIELD);
+
+            for($x = 0; $x < $num_entries; $x ++){
+                foreach($map[$x] as $key => $value) {
+                    $key_name = HECTV_Schedules::$ACF_SECTION_ID . "_" . $x . "_" . $key;
+                    $field_name = str_replace(" ", "_", strtolower($key_name)) ;
+                    $this->add_meta_value($post_id, $field_name, $value);
+                    $this->add_meta_value($post_id, "_".$field_name, HECTV_Schedules::$ACF_FIELDS_MAP[$key]);
+                }
+            }
+
+            $this->db->query( 'COMMIT;' );
+            wp_defer_term_counting( false );
+            wp_defer_comment_counting( false );
+        }
+    }
+
     /**
      * Callback function registers the event post type
      */

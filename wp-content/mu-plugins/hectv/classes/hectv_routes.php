@@ -61,6 +61,7 @@ class HECTV_Routes  extends \WP_REST_Controller {
                 $args["meta_query"] = array("relation" => "AND");
                 $args["meta_query"][] = $meta_query;
             }
+
         }
 
         return $args;

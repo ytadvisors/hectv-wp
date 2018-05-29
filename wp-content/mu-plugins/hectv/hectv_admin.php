@@ -123,14 +123,9 @@ class HECTV_Admin {
 
 
 
-    public function update_hook($value, $post_id, $field)
+    public function add_schedule($value, $post_id, $field)
     {
-        switch($field["name"]){
-            case "monthly_schedule":
-                $this->admin['schedule']->addSchedule($value, $post_id);
-                break;
-        }
-
+        $this->admin['schedule']->addSchedule($value, $post_id);
         return $value;
     }
 
@@ -155,7 +150,7 @@ class HECTV_Admin {
         add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
-        add_action("acf/update_value", array($this, 'update_hook'), 10, 3);
+        add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
 
     }
 }
