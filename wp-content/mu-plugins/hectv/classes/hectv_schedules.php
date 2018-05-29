@@ -31,7 +31,7 @@ class HECTV_Schedules extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
 
         $this->post_type = $post_type;
         $this->param_list = [
-            "month"
+            "day"
         ];
 
         $this->setup_params($post_type, $this->param_list);
@@ -78,24 +78,18 @@ class HECTV_Schedules extends HECTV_Routes  implements HECTV_Custom_Post_Interfa
     }
 
 
-    public function param_month($args, $request)
+    public function param_day($args, $request)
     {
-        $parameter_name = "month";
+        $parameter_name = "day";
         $parameter_value   = $request->get_param( $parameter_name );
         if ( ! empty( $parameter_value )  ) {
-            $values = explode("-", $parameter_value);
-            $num_dates = count($values);
-            $compare_value = "";
-            if($num_dates > 1) {
-                for($x = $num_dates - 1; $x >= 0; $x --)
-                    $compare_value .= $values[$x];
-            }
-
-            if($compare_value != "") {
+            $date = strtotime($parameter_value);
+            $month = date("Ym", $date);
+            if($month != "") {
                 $meta_query = array(
                     array(
-                        'key' => $parameter_name,
-                        'value' => $compare_value,
+                        'key' => "month",
+                        'value' => $month,
                         'compare' => "like",
                     )
                 );
