@@ -39,20 +39,32 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
                     SELECT pm.post_id, pm.meta_key 
                     FROM {$this->db->postmeta} pm
                     WHERE pm.meta_key LIKE 'event_dates_%%_end_time'
-                    AND STR_TO_DATE(meta_value, '%%Y-%%m-%%d') > '%s' ", $day
+                    AND 
+                      ( STR_TO_DATE(meta_value, '%%Y-%%m-%%d') > '%s' 
+                      OR STR_TO_DATE(meta_value, '%%Y-%%m-%%d') = '%s')
+                      ", $day, $day
                 ));
 
                 //Make sure the start_time is less than the end time
                 $query = "SELECT pm.post_id FROM {$this->db->postmeta} pm
-                          WHERE STR_TO_DATE(meta_value, '%%Y-%%m-%%d') < '%s' ";
+                          WHERE 
+                           (  STR_TO_DATE(meta_value, '%%Y-%%m-%%d') < '%s' 
+                              OR STR_TO_DATE(meta_value, '%%Y-%%m-%%d') = '%s'
+                            )
+                          ";
                 foreach($r as $entry){
                     $end_time = str_replace("end_time", "start_time", $entry->meta_key);
                     array_push($matches, "pm.meta_key = '$end_time' AND pm.post_id = $entry->post_id");
                 }
-                $query .= "AND ((" . implode(") OR (", $matches) . "))";
+                if(count($matches) > 0){
+                    $query .= "AND ((" . implode(") OR (", $matches) . "))";
+                    $values = $this->db->get_col( $this->db->prepare($query, $day, $day));
+                    $args["post__in"] = $values;
+                } else {
+                    $args["post__in"] = [-1];
+                }
 
-                $values = $this->db->get_col( $this->db->prepare($query, $day));
-                $args["post__in"] = $values;
+
             }
         }
         return $args;
