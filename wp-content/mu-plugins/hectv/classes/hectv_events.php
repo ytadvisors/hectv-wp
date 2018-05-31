@@ -63,6 +63,8 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
                         $args["post__in"] = $values;
                     else
                         $args["post__in"] = [-1];
+                } else {
+                    $args["post__in"] = [-1];
                 }
 
 
