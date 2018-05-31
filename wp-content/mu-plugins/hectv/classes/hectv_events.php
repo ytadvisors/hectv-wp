@@ -59,9 +59,10 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
                 if(count($matches) > 0){
                     $query .= "AND ((" . implode(") OR (", $matches) . "))";
                     $values = $this->db->get_col( $this->db->prepare($query, $day, $day));
-                    $args["post__in"] = $values;
-                } else {
-                    $args["post__in"] = [-1];
+                    if(count($values) > 0)
+                        $args["post__in"] = $values;
+                    else
+                        $args["post__in"] = [-1];
                 }
 
 
