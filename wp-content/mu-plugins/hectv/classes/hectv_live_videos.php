@@ -19,24 +19,21 @@ class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Inter
 
     public function param_start( $args, $request ){
         $current_time   = date("Y-m-d h:i:s");
-        $meta_query = array();
-        if ( ! empty( $current_time  ) ) {
-            $meta_query = array(
-                'relation' => 'AND',
-                array(
-                    'key'     => 'start_date',
-                    'value'   => $current_time,
-                    'compare' => '<',
-                    'type'    => 'DATE'
-                ),
-                array(
-                    'key'     => 'end_date',
-                    'value'   => $current_time,
-                    'compare' => '>',
-                    'type'    => 'DATE'
-                ),
-            );
-        }
+        $meta_query = array(
+            'relation' => 'AND',
+            array(
+                'key'     => 'start_date',
+                'value'   => $current_time,
+                'compare' => '<=',
+                'type'    => 'DATETIME'
+            ),
+            array(
+                'key'     => 'end_date',
+                'value'   => $current_time,
+                'compare' => '>=',
+                'type'    => 'DATETIME'
+            ),
+        );
         return $this->getNewMetaQuery($args, $meta_query);
     }
 
