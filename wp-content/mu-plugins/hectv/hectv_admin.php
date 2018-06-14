@@ -29,11 +29,11 @@ class HECTV_Admin {
     public function get_articles($args, $request){
         $parameter_value  = $request->get_param( "articles" );
         if ( ! empty( $parameter_value ) ) {
-            return array("meta_query" => array(array(
+            $args["meta_query"] = array(array(
                     'key' => 'is_video',
                     'value' => 0,
                     "compare" => "="
-                )));
+                ));
         }
 
         return $args;
@@ -73,7 +73,7 @@ class HECTV_Admin {
 
         register_rest_route( 'hectv/v1',
             '/articles', array(
-                'methods' => 'GET',
+                'methods'   => \WP_REST_Server::READABLE,
                 'callback' => array( $this, 'get_articles' ),
             )
         );
