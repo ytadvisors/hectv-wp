@@ -131,7 +131,6 @@ class HECTV_Admin {
 
     public function init()
     {
-
         $this->admin = [
             "events" => new Classes\HECTV_Events('event'),
             "donations" => new Classes\HECTV_Donations('donations'),
