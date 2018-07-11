@@ -23,17 +23,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 error_reporting( E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING | E_RECOVERABLE_ERROR );
 
-// Load the PHP 5.2 compatible autoloader.
-if ( ! file_exists( ABSPATH . '/vendor/autoload.php' ) ) {
-    die( 'Autoloader was not found, aborting.' );
-}
-require_once( ABSPATH . '/vendor/autoload.php' );
-
-if (!class_exists('HECTV\HECTV_Admin')) {
-    $autoloader = require_once(__DIR__ . '/wp-content/mu-plugins/hectv/autoloader.php');
-    $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
-}
-
 /*
  * If wp-config.php exists in the WordPress root, or if it exists in the root and wp-settings.php
  * doesn't, load wp-config.php. The secondary check for wp-settings.php has the added benefit
@@ -42,6 +31,16 @@ if (!class_exists('HECTV\HECTV_Admin')) {
  *
  * If neither set of conditions is true, initiate loading the setup process.
  */
+
+
+require_once( ABSPATH . '/vendor/autoload.php' );
+
+if (!class_exists('HECTV\HECTV_Admin')) {
+    $autoloader = require_once(__DIR__ . '/wp-content/mu-plugins/hectv/autoloader.php');
+    $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
+}
+
+
 if ( file_exists( ABSPATH . 'wp-config.php') ) {
 
 	/** The config file resides in ABSPATH */
