@@ -33,8 +33,8 @@ class HECTV_Admin {
             $thumbnail_url = get_field( "post_header", $object[ 'id' ] );
 
         if(isset($thumbnail_url)){
-            if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["medium"]))
-                return $thumbnail_url["sizes"]["medium"];
+            if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["large"]))
+                return $thumbnail_url["sizes"]["large"];
             if(isset($thumbnail_url["url"]))
                 return $thumbnail_url["url"];
         }
