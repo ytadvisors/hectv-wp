@@ -129,13 +129,13 @@ class HECTV_Admin {
         return $value;
     }
 
-    function nullify_empty($value, $post_id, $field)
-    {
-        if (empty($value)) {
-            return null;
+    public function nullify_empty($field){
+
+        if(empty($field["value"])){
+            $field["value"] = null;
         }
 
-        return $value;
+        return $field;
     }
 
     public function init()
@@ -159,8 +159,7 @@ class HECTV_Admin {
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
-
-        add_filter('acf/format_value/type=image', 'nullify_empty', 100, 3);
+        add_filter( 'acf/prepare_field/name=image', array( $this, 'nullify_empty') );
 
     }
 }
