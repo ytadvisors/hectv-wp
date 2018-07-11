@@ -129,9 +129,9 @@ class HECTV_Admin {
         return $value;
     }
 
-    function nullify_empty($value, $post_id, $field)
+    public function nullify_empty($value, $post_id, $field)
     {
-        if (empty($value)) {
+        if (!$value) {
             return null;
         }
 
