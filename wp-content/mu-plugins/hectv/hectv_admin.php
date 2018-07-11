@@ -161,8 +161,6 @@ class HECTV_Admin {
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
 
         add_filter('acf/format_value/type=image', 'nullify_empty', 100, 3);
-        add_filter('acf/format_value/type=relationship', 'nullify_empty', 100, 3);
-        add_filter('acf/format_value/type=gallery', 'nullify_empty', 100, 3);
 
     }
 }
