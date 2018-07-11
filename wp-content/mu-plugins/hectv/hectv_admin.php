@@ -160,9 +160,7 @@ class HECTV_Admin {
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
 
-        add_filter('acf/format_value_for_api/type=image', array($this, 'nullify_empty'), 100, 3);
-        add_filter('acf/format_value_for_api/type=relationship', array($this, 'nullify_empty'), 100, 3);
-        add_filter('acf/format_value_for_api/type=gallery', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=image', array($this, 'nullify_empty'), 15, 3);
 
     }
 }
