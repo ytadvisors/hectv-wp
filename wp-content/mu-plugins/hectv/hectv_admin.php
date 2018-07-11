@@ -26,16 +26,17 @@ class HECTV_Admin {
         return get_the_category( $object[ 'id' ] );
     }
 
-    public function get_video_url( $object, $field_name, $request ) {
-        $video_url = "";
+    public function get_thumbnail( $object, $field_name, $request ) {
         if(get_field("is_video", $object[ 'id' ]))
-            $video_url = get_field( "video_image", $object[ 'id' ] );
+            $thumbnail_url = get_field( "video_image", $object[ 'id' ] );
+        else
+            $thumbnail_url = get_field( "post_header", $object[ 'id' ] );
 
-        if(isset($video_url)){
-            if(isset($video_url["sizes"]) && isset($video_url["sizes"]["medium"]))
-                return $video_url["sizes"]["medium"];
-            if(isset($video_url["url"]))
-                return $video_url["url"];
+        if(isset($thumbnail_url)){
+            if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["medium"]))
+                return $thumbnail_url["sizes"]["medium"];
+            if(isset($thumbnail_url["url"]))
+                return $thumbnail_url["url"];
         }
         return "";
     }
@@ -92,9 +93,9 @@ class HECTV_Admin {
             )
         );
         register_rest_field( 'post',
-            'video_url',
+            'thumbnail',
             array(
-                'get_callback' 	  => array( $this, 'get_video_url'),
+                'get_callback' 	  => array( $this, 'get_thumbnail'),
                 'update_callback' => null,
                 'schema'          => null,
             )
