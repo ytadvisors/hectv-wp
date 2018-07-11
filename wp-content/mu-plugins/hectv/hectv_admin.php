@@ -26,6 +26,20 @@ class HECTV_Admin {
         return get_the_category( $object[ 'id' ] );
     }
 
+    public function get_video_url( $object, $field_name, $request ) {
+        $video_url = "";
+        if(get_field("is_video", $object[ 'id' ]))
+            $video_url = get_field( "video_image", $object[ 'id' ] );
+
+        if(isset($video_url)){
+            if(isset($video_url["sizes"]) && isset($video_url["sizes"]["medium"]))
+                return $video_url["sizes"]["medium"];
+            if(isset($video_url["url"]))
+                return $video_url["url"];
+        }
+        return "";
+    }
+
     public function get_articles($args, $request){
         $parameter_value  = $request->get_param( "articles" );
         if ( ! empty( $parameter_value ) ) {
@@ -75,6 +89,14 @@ class HECTV_Admin {
             '/articles', array(
                 'methods'   => \WP_REST_Server::READABLE,
                 'callback' => array( $this, 'get_articles' ),
+            )
+        );
+        register_rest_field( 'post',
+            'video_url',
+            array(
+                'get_callback' 	  => array( $this, 'get_video_url'),
+                'update_callback' => null,
+                'schema'          => null,
             )
         );
         register_rest_field( 'post',
@@ -129,13 +151,13 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function nullify_empty($value, $post_id, $field)
-    {
-        if (empty($value)) {
-            return null;
+    public function nullify_empty($field){
+
+        if(empty($field["value"])){
+            $field["value"] = null;
         }
 
-        return $value;
+        return $field;
     }
 
     public function init()
@@ -159,9 +181,7 @@ class HECTV_Admin {
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
-        add_filter( 'acf/format_value/type=image', array( $this, 'nullify_empty') );
-        add_filter( 'acf/format_value/name=post_header', array( $this, 'nullify_empty') );
-        add_filter( 'acf/format_value/name=video_image', array( $this, 'nullify_empty') );
+        add_filter( 'acf/prepare_field/type=image', array( $this, 'nullify_empty') );
 
     }
 }
