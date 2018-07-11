@@ -129,16 +129,6 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function nullify_empty($field)
-    {
-
-        if(empty($field["value"])){
-            $field["value"] = null;
-        }
-
-        return $field;
-    }
-
     public function init()
     {
         $this->admin = [
