@@ -101,7 +101,7 @@ class HECTV_Admin {
             )
         );
         register_rest_field( 'post',
-            'categories',
+            'category_list',
             array(
                 'get_callback' 	  => array( $this, 'get_categories'),
                 'update_callback' => null,
