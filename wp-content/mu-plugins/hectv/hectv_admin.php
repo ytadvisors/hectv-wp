@@ -107,9 +107,8 @@ class HECTV_Admin {
                 'update_callback' => null,
                 'schema' 		  => null,
             ) );
-
-
     }
+
     function cors_headers( $headers ) {
 
         $headers['Access-Control-Allow-Origin']      = get_http_origin(); // Can't use wildcard origin for credentials requests, instead set it to the requesting origin
