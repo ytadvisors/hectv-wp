@@ -163,7 +163,7 @@ class HECTV_Admin {
     public function replace_null_array($field){
 
         if(empty($field)){
-            $field = [];
+            $field = null;
         }
 
         return $field;
