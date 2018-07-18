@@ -179,7 +179,8 @@ class HECTV_Admin {
             "magazines" => new Classes\HECTV_Magazines('magazine'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_category', "event", "Categories", true),
             "event_type" => new Classes\HECTV_Taxonomy('event_type', "event", "Tags"),
-            "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true)
+            "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true),
+            "default" => new Classes\HECTV_Routes()
         ];
         add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
@@ -191,6 +192,7 @@ class HECTV_Admin {
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
         add_action("acf/format_value/name=new_row_layout", array($this, 'replace_null_array'), 10, 3);
-
+        $this->admin["default"]->setup_fields("page");
+        $this->admin["default"]->setup_fields("post");
     }
 }

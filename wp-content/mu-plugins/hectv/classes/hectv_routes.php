@@ -80,6 +80,25 @@ class HECTV_Routes  extends \WP_REST_Controller {
         return $args;
     }
 
+    public function get_fields_recursive( $item ) {
+        if ( is_object( $item ) ) {
+            $item->acf = array();
+            if ( $fields = get_fields( $item ) ) {
+                $item->acf = $fields;
+                array_walk_recursive( $item->acf, array($this, 'get_fields_recursive') );
+            }
+        }
+    }
+
+    public function setup_fields($post_type){
+        add_filter( "acf/rest_api/{$post_type}/get_fields", function( $data ) {
+            if ( ! empty( $data ) ) {
+                array_walk_recursive( $data, array($this, 'get_fields_recursive' ));
+            }
+            return $data;
+        } );
+    }
+
     public function setup_params($post_type, $param_list = []){
         $this->param_list = $param_list;
 
@@ -87,6 +106,8 @@ class HECTV_Routes  extends \WP_REST_Controller {
             $function_name = "param_{$param_list[$x]}";
             add_filter("rest_{$post_type}_query", array($this, $function_name), 10, 2);
         }
+
+        $this->setup_fields($post_type);
     }
 
 }
