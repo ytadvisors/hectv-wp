@@ -151,18 +151,18 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function nullify_empty($field){
+    public function nullify_empty($value, $post_id, $field){
 
-        if(empty($field)){
+        if(empty($value)){
             $field = null;
         }
 
         return $field;
     }
 
-    public function replace_null_array($field){
+    public function replace_null_array($value, $post_id, $field){
 
-        if(empty($field)){
+        if(empty($value)){
             $field = null;
         }
 
