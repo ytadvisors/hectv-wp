@@ -191,7 +191,6 @@ class HECTV_Admin {
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
         add_filter( 'acf/format_value/type=image', array( $this, 'nullify_empty') );
-        add_filter('acf/format_value/type=repeater', array( $this, 'replace_null_array'), 100, 3);
 
     }
 }
