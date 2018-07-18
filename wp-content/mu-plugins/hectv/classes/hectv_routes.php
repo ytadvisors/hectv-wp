@@ -13,6 +13,7 @@ class HECTV_Routes  extends \WP_REST_Controller {
 
 
     public $param_list;
+    private $counter;
 
     public function helper_param_compare_values($parameter_name, $comparison, $args, $request){
         $parameter_value   = $request->get_param( $parameter_name );
@@ -85,7 +86,6 @@ class HECTV_Routes  extends \WP_REST_Controller {
             $item->acf = array();
             if ( $fields = get_fields( $item ) ) {
                 $item->acf = $fields;
-                array_walk_recursive( $item->acf, array($this, 'get_fields_recursive') );
             }
         }
     }
