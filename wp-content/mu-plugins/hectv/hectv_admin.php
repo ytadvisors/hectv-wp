@@ -163,7 +163,7 @@ class HECTV_Admin {
     public function replace_null_array($field){
 
         if(empty($field)){
-            $field = null;
+            $field = [];
         }
 
         return $field;
@@ -190,6 +190,9 @@ class HECTV_Admin {
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
+        add_filter('acf/format_value/type=image', array( $this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=relationship', array( $this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=gallery', array( $this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=repeater', array( $this, 'replace_null_array'), 100, 3);
 
     }
