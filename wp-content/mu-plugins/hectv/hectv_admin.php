@@ -193,6 +193,7 @@ class HECTV_Admin {
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
         add_action("acf/format_value/name=new_row_layout", array($this, 'replace_null_array'), 10, 3);
         add_action("acf/format_value/name=event_image", array($this, 'replace_null_array'), 10, 3);
+        add_action("acf/format_value/name=post_header", array($this, 'replace_null_array'), 10, 3);
         $this->admin["default"]->setup_fields("page");
         $this->admin["default"]->setup_fields("post");
     }
