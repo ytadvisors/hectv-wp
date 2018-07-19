@@ -41,14 +41,18 @@ class HECTV_Admin {
         return "";
     }
 
-    public function get_articles($args, $request){
-        $parameter_value  = $request->get_param( "articles" );
-        if ( ! empty( $parameter_value ) ) {
-            $args["meta_query"] = array(array(
-                    'key' => 'is_video',
-                    'value' => 0,
-                    "compare" => "="
-                ));
+    public function get_articles($args, $request = null){
+        if($request) {
+            $parameter_value = $request->get_param("articles");
+            if (!empty($parameter_value)) {
+                $args["meta_query"] = array(
+                    array(
+                        'key' => 'is_video',
+                        'value' => 0,
+                        "compare" => "="
+                    )
+                );
+            }
         }
 
         return $args;
@@ -194,6 +198,9 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=image', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=relationship', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=gallery', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=text', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=tab', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_empty'), 100, 3);
         $this->admin["default"]->setup_fields("page");
         $this->admin["default"]->setup_fields("post");
