@@ -87,6 +87,18 @@ class HECTV_Routes  extends \WP_REST_Controller {
             if ( $fields = get_fields( $item ) ) {
                 $item->acf = $fields;
             }
+            if ( $fields = wp_get_post_categories( $item->ID ) ) {
+                $categories = [];
+                foreach($fields as $field){
+                    $categories[] = array (
+                        "name" => get_cat_name($field),
+                        "link" => get_category_link($field)
+                    );
+                }
+                $item->categories = $categories;
+            } else {
+                $item->categories = null;
+            }
         }
     }
 
