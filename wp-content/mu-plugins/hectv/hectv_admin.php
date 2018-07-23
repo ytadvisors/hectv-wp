@@ -164,14 +164,31 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function replace_null_array($value, $post_id, $field){
+    public function nullify_object($value, $post_id, $field){
 
         if(empty($value)){
             return null;
+        } else if(gettype($value) == "array"){
+            foreach($value as $key => $oldValue){
+                if(empty($oldValue))
+                    $value[$key] = null;
+                else if(gettype($oldValue) == "array")
+                    $value[$key] = $this->nullify_object($oldValue, $post_id, $field);
+            }
         }
 
         return $value;
     }
+
+    public function nullify_array($value, $post_id, $field){
+
+        if(empty($value)){
+            return array();
+        }
+
+        return $value;
+    }
+
 
     public function init()
     {
@@ -202,6 +219,8 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=tab', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/name=post_events', array($this, 'nullify_object'), 100, 3);
+        add_filter('acf/format_value/name=related_posts', array($this, 'nullify_object'), 100, 3);
         $this->admin["default"]->setup_fields("page");
         $this->admin["default"]->setup_fields("post");
     }
