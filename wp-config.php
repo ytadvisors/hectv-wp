@@ -67,6 +67,15 @@ define( 'COMPOSER_PATH', "vendor" );
 define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
 define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
 
+$is_ssl = $_SERVER['FORCE_SSL_ADMIN'] == 1;
+define('FORCE_SSL_ADMIN', $is_ssl);
+//define('FORCE_SSL_LOGIN', $is_ssl);
+if($is_ssl) {
+    if (!$_SERVER['HTTP_X_FORWARDED_PROTO'] || $_SERVER['HTTP_X_FORWARDED_PROTO'] == "https") {
+        $_SERVER['HTTPS'] = 'on';
+    }
+}
+
 /* That's all, stop editing! Happy blogging. */
 
 /** Absolute path to the WordPress directory. */

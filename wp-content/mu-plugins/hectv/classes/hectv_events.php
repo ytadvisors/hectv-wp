@@ -96,6 +96,7 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
     }
 
 
+
     public function register_rest_fields() {
         register_rest_field( $this->post_type,
             'thumbnail',
