@@ -3,8 +3,7 @@
 namespace HECTV;
 
 use HECTV\Classes;
-use HttpRequest;
-use HttpException;
+use \Requests;
 
 /**
  * Class HECTV_Admin
@@ -193,15 +192,12 @@ class HECTV_Admin {
 
     public function run_build($post_ID, $post, $update){
         if(isset($_SERVER['BUILD_URL'])){
-            $request = new HttpRequest($_SERVER['BUILD_URL'], HttpRequest::METH_GET);
-            try {
-                $request->send();
-                if ($request->getResponseCode() == 200) {
-                    //Do something
-                }
-            } catch (HttpException $ex) {
-                //Do something
-            }
+            $url = "http://" . $_SERVER['BUILD_TOKEN'] . "@" . $_SERVER['BUILD_URL'];
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_exec($ch);
+            curl_close($ch);
         }
     }
 
