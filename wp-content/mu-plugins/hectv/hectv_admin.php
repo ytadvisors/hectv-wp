@@ -3,6 +3,8 @@
 namespace HECTV;
 
 use HECTV\Classes;
+use HttpRequest;
+use HttpException;
 
 /**
  * Class HECTV_Admin
@@ -189,6 +191,20 @@ class HECTV_Admin {
         return $value;
     }
 
+    public function run_build($post_ID, $post, $update){
+        if(isset($_SERVER['BUILD_URL'])){
+            $request = new HttpRequest($_SERVER['BUILD_URL'], HttpRequest::METH_GET);
+            try {
+                $request->send();
+                if ($request->getResponseCode() == 200) {
+                    //Do something
+                }
+            } catch (HttpException $ex) {
+                //Do something
+            }
+        }
+    }
+
 
     public function init()
     {
@@ -221,6 +237,11 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/name=post_events', array($this, 'nullify_object'), 100, 3);
         add_filter('acf/format_value/name=related_posts', array($this, 'nullify_object'), 100, 3);
+        add_action( 'save_post', array($this, 'run_build'), 10, 3 );
+        add_action( 'wp_update_nav_menu', array($this, 'run_build'), 10, 3 );
+        add_action( 'create_term', array($this, 'run_build'), 10, 3 );
+        add_action( 'edit_term', array($this, 'run_build'), 10, 3 );
+        add_action( 'delete_term_taxonomy', array($this, 'run_build'), 10, 3 );
         $this->admin["default"]->setup_fields("page");
         $this->admin["default"]->setup_fields("post");
     }
