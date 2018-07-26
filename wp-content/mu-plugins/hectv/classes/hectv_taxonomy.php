@@ -74,7 +74,6 @@ class HECTV_Taxonomy extends HECTV_Routes implements HECTV_Custom_Taxonomy_Inter
             'show_tagcloud'              => true,
             'show_in_rest'               => true,
             'rest_base'                  => $this->post_type,
-            'rewrite' => array('slug' =>  $inflector->pluralize($this->parent_post). "/" . $this->post_type, 'with_front' => false, 'hierarchical' => true),
             'rest_controller_class'      => 'WP_REST_Terms_Controller',
         );
 
