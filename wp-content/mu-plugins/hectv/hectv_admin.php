@@ -24,7 +24,12 @@ class HECTV_Admin {
 
 
     public function get_categories( $object, $field_name, $request ) {
-        return get_the_category( $object[ 'id' ] );
+        $categories =  get_the_category( $object[ 'id' ] );
+        foreach($categories as $category ){
+            $category->link = get_category_link($category->term_id);
+        }
+
+        return $categories;
     }
 
     public function get_thumbnail( $object, $field_name, $request ) {
