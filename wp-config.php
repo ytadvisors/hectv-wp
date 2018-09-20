@@ -67,6 +67,7 @@ define( 'COMPOSER_PATH', "vendor" );
 define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
 define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
 
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
 $is_ssl = $_SERVER['FORCE_SSL_ADMIN'] == 1;
 define('FORCE_SSL_ADMIN', $is_ssl);
 //define('FORCE_SSL_LOGIN', $is_ssl);
@@ -75,6 +76,11 @@ if($is_ssl) {
         $_SERVER['HTTPS'] = 'on';
     }
 }
+
+$table_prefix  = 'wp_';
+
+define("WP_HOME", $protocol . $_SERVER['HTTP_HOST'] );
+define('WP_SITEURL',$protocol . $_SERVER['HTTP_HOST'] );
 
 /* That's all, stop editing! Happy blogging. */
 
