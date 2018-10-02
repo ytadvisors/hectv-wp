@@ -15,6 +15,7 @@ php_value max_execution_time 10000
 php_value max_input_time 10000
 php_value session.gc_maxlifetime 6000
 php_value max_input_vars 100000
+php_value xdebug.max_nesting_level = 300
 
 # END WordPress
 
