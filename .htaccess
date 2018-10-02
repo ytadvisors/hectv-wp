@@ -10,8 +10,10 @@ RewriteRule . /index.php [L]
 # Max upload file sizes
 php_value upload_max_filesize 64M
 php_value post_max_size 2084M
+php_value memory_limit 3G
 php_value max_execution_time 10000
 php_value max_input_time 10000
+php_value session.gc_maxlifetime 6000
 php_value max_input_vars 100000
 
 # END WordPress
