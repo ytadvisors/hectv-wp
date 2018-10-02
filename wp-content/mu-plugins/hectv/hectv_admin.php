@@ -268,8 +268,7 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_repeater'), 100, 3);
         add_filter('acf/format_value/type=post_object', array($this, 'nullify_empty'), 100, 3);
-        add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3);
-        add_action("acf/format_value/name=video_image", array($this, 'copy_empty_post'), 10, 3);
+        add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3); //need to fix
         add_action( 'save_post', array($this, 'run_build'), 10, 3 );
         add_action( 'wp_update_nav_menu', array($this, 'run_build'), 10, 3 );
         add_action( 'create_term', array($this, 'run_build'), 10, 3 );
