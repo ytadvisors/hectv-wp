@@ -9,10 +9,10 @@ RewriteRule . /index.php [L]
 </IfModule>
 # Max upload file sizes
 php_value upload_max_filesize 64M
-php_value post_max_size 1084M
-php_value max_execution_time 1000
-php_value max_input_time 1000
-php_value max_input_vars 10000
+php_value post_max_size 2084M
+php_value max_execution_time 10000
+php_value max_input_time 10000
+php_value max_input_vars 100000
 
 # END WordPress
 
