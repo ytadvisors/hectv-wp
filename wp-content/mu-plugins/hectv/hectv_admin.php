@@ -170,26 +170,57 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function nullify_object($value, $post_id, $field){
+    public function nullify_repeater($value, $post_id, $field){
 
         if(empty($value)){
             return null;
-        } else if(gettype($value) == "array"){
-            foreach($value as $key => $oldValue){
-                if(empty($oldValue))
-                    $value[$key] = null;
-                else if(gettype($oldValue) == "array")
-                    $value[$key] = $this->nullify_object($oldValue, $post_id, $field);
+        } else{
+            $keys = array_keys($value);
+            $newValue = [];
+            foreach($keys as $key){
+                $val = array_filter($value[$key]);
+                if(count($val) > 0)
+                    $newValue[] = $val;
             }
+
+            $newValue = array_filter($newValue);
+            if(count($newValue) === 0)
+                $newValue = null;
         }
 
-        return $value;
+        return $newValue;
     }
 
     public function nullify_array($value, $post_id, $field){
 
         if(empty($value)){
             return array();
+        }
+
+        return $value;
+    }
+
+    public function copy_empty_video($value, $post_id, $field){
+
+        if(empty($value)){
+            $value = get_field("video_image", $post_id);
+        }
+
+        if(empty($value)){
+            return null;
+        }
+
+        return $value;
+    }
+
+    public function copy_empty_post($value, $post_id, $field){
+
+        if(empty($value)){
+            $value = get_field("post_header", $post_id);
+        }
+
+        if(empty($value)){
+            return null;
         }
 
         return $value;
@@ -235,9 +266,10 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=text', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=tab', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
-        add_filter('acf/format_value/type=repeater', array($this, 'nullify_empty'), 100, 3);
-        add_filter('acf/format_value/name=post_events', array($this, 'nullify_object'), 100, 3);
-        add_filter('acf/format_value/name=related_posts', array($this, 'nullify_object'), 100, 3);
+        add_filter('acf/format_value/type=repeater', array($this, 'nullify_repeater'), 100, 3);
+        add_filter('acf/format_value/type=post_object', array($this, 'nullify_empty'), 100, 3);
+        add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3);
+        add_action("acf/format_value/name=video_image", array($this, 'copy_empty_post'), 10, 3);
         add_action( 'save_post', array($this, 'run_build'), 10, 3 );
         add_action( 'wp_update_nav_menu', array($this, 'run_build'), 10, 3 );
         add_action( 'create_term', array($this, 'run_build'), 10, 3 );
