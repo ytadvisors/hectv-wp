@@ -226,7 +226,7 @@ class HECTV_Admin {
         return $value;
     }
 
-    public function run_build($post_ID, $post, $update){
+    public function run_build($post_id){
         if(isset($_SERVER['BUILD_URL'])){
             $url = "http://" . $_SERVER['BUILD_TOKEN'] . "@" . $_SERVER['BUILD_URL'];
             $ch = curl_init();
@@ -269,11 +269,13 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_repeater'), 100, 3);
         add_filter('acf/format_value/type=post_object', array($this, 'nullify_empty'), 100, 3);
         add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3); //need to fix
+
         add_action( 'save_post', array($this, 'run_build'), 10, 3 );
         add_action( 'wp_update_nav_menu', array($this, 'run_build'), 10, 3 );
         add_action( 'create_term', array($this, 'run_build'), 10, 3 );
         add_action( 'edit_term', array($this, 'run_build'), 10, 3 );
         add_action( 'delete_term_taxonomy', array($this, 'run_build'), 10, 3 );
+
         $this->admin["default"]->setup_fields("page");
         $this->admin["default"]->setup_fields("post");
     }
