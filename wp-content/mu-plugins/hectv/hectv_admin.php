@@ -170,6 +170,15 @@ class HECTV_Admin {
         return $value;
     }
 
+    public function empty_space($value, $post_id, $field){
+
+        if(empty($value)){
+            return "";
+        }
+
+        return $value;
+    }
+
     public function nullify_repeater($value, $post_id, $field){
 
         if(empty($value)){
@@ -268,6 +277,7 @@ class HECTV_Admin {
         add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
         add_filter('acf/format_value/type=repeater', array($this, 'nullify_repeater'), 100, 3);
         add_filter('acf/format_value/type=post_object', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/name=embed_url', array($this, 'empty_space'), 100, 3);
         add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3); //need to fix
 
         add_action( 'save_post', array($this, 'run_build'), 10, 3 );
