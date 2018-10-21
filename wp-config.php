@@ -41,6 +41,13 @@ $table_prefix  = 'wp_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
+require_once( ABSPATH . '/vendor/autoload.php' );
+
+if (!class_exists('HECTV\HECTV_Admin')) {
+    $autoloader = require_once(__DIR__ . '/wp-content/mu-plugins/hectv/autoloader.php');
+    $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
+}
+
 define('DB_NAME', $_SERVER['RDS_DB_NAME']);
 define('DB_USER', $_SERVER['RDS_USERNAME']);
 define('DB_PASSWORD', $_SERVER['RDS_PASSWORD']);

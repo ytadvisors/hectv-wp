@@ -32,13 +32,6 @@ error_reporting( E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_ERROR | E_W
  * If neither set of conditions is true, initiate loading the setup process.
  */
 
-require_once( ABSPATH . '/vendor/autoload.php' );
-
-if (!class_exists('HECTV\HECTV_Admin')) {
-    $autoloader = require_once(__DIR__ . '/wp-content/mu-plugins/hectv/autoloader.php');
-    $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
-}
-
 if ( file_exists( ABSPATH . 'wp-config.php') ) {
 
 	/** The config file resides in ABSPATH */

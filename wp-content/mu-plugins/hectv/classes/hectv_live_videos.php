@@ -7,8 +7,12 @@ use HECTV\Lib\HECTV_Custom_Post_Interface;
 class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Interface {
     public $post_type;
     public $param_list;
+    private $db;
 
     function __construct($post_type){
+
+        global $wpdb;
+        $this->db = $wpdb;
 
         $this->post_type = $post_type;
         $this->param_list = [];
@@ -17,6 +21,43 @@ class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Inter
         $this->init();
     }
 
+    function get_live_video(){
+        $date_now = date("Y-m-d H:i:s");
+        $posts = get_posts(
+            array(
+                'post_type'         => $this->post_type,
+                'posts_per_page'    => -1,
+                'meta_query'        => array(
+                    'relation' => 'AND',
+                    array(
+                        'key'     => 'display_date',
+                        'value'   => $date_now,
+                        'compare' => '<=',
+                        "type" => "DATETIME"
+                    ),
+                    array(
+                        'key'     => 'end_date',
+                        'value' => $date_now,
+                        'compare' => '>=',
+                        "type" => "DATETIME"
+                    )
+                ),
+                'orderby'           => 'meta_value_num',
+                'order'             => 'ASC')
+        );
+
+        for($x = 0; $x < count($posts); $x++) {
+            $posts[$x]->acf = get_fields($posts[$x]->ID);
+        }
+        return $posts;
+    }
+
+    function add_custom_live_api(){
+        register_rest_route( "hectv/v1", "$this->post_type/live", array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_live_video'),
+        ));
+    }
     /**
      * Callback function registers the event post type
      */
@@ -58,5 +99,6 @@ class HECTV_Live_Videos extends HECTV_Routes  implements HECTV_Custom_Post_Inter
     public function init()
     {
         add_filter( "init", array( $this, 'register_post_type' ), 0 );
+        add_action( 'rest_api_init', array( $this, 'add_custom_live_api'), 0);
     }
 }
