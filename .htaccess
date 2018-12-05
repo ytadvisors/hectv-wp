@@ -6,10 +6,12 @@ RewriteRule ^index\.php$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.php [L]
-RewriteCond %{HTTP_HOST} ^dev [NC]
-RewriteRule ^/?!(wp-(content|admin|includes))/(.+)$ https://dev.hecmedia.org/preview/$1?id=$2 [R=301,L]
-RewriteCond %{HTTP_HOST} ^prod [NC]
-RewriteRule ^/?!(wp-(content|admin|includes))/(.+)$ https://hecmedia.org/preview/$1?id=$2 [R=301,L]
+RewriteCond %{HTTP_HOST} ^dev.+$ [NC]
+RewriteCond %{REQUEST_URI} !(wp-(content|admin|includes))/.+
+RewriteRule ^(.+)/(.+)/?$ https://dev.hecmedia.org/preview/$1?id=$2 [R=301,L]
+RewriteCond %{HTTP_HOST} ^prod.+$ [NC]
+RewriteCond %{REQUEST_URI} !(wp-(content|admin|includes))/.+
+RewriteRule ^(.+)/(.+)/?$ https://hecmedia.org/preview/$1?id=$2 [R=301,L]
 </IfModule>
 # Max upload file sizes
 php_value upload_max_filesize 64M
