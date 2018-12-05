@@ -4,6 +4,7 @@ RewriteEngine On
 RewriteBase /
 RewriteCond %{HTTP_HOST} ^dev.+$ [NC]
 RewriteCond %{REQUEST_URI} !(wp-(content|admin|includes|json))(/.+)?
+RewriteCond %{REQUEST_URI} !index.php
 RewriteRule ^(.+)$ https://dev.hecmedia.org/preview/$1 [R=301,L]
 RewriteCond %{HTTP_HOST} ^prod.+$ [NC]
 RewriteCond %{REQUEST_URI} !(wp-(content|admin|includes|json))(/.+)?
