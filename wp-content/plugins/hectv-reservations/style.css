@@ -1,9 +1,0 @@
-#reservations { position: relative; }
-#menu { position: absolute; top: 12px; left: 210px; }
-
-#reservations li span.name { display: inline-block; width: 200px; }
-
-div.autocomplete-w1 div.autocomplete { background-color: #fff; border: 1px solid #ccc; padding: 3px; }
-div.autocomplete-w1 div.autocomplete div { padding: 3px; border-bottom: 1px solid #ccc; }
-div.autocomplete-w1 div.autocomplete div:last-child { border-bottom: none; }
-div.autocomplete-w1 div.autocomplete div.selected { background-color: #5CE4FF; }
