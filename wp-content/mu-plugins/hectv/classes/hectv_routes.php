@@ -13,6 +13,7 @@ class HECTV_Routes  extends \WP_REST_Controller {
 
 
     public $param_list;
+    private $processed;
 
     public function helper_param_compare_values($parameter_name, $comparison, $args, $request){
         $parameter_value   = $request->get_param( $parameter_name );
@@ -80,6 +81,68 @@ class HECTV_Routes  extends \WP_REST_Controller {
         return $args;
     }
 
+    public function get_fields_recursive( $item, $originalKey = "" ) {
+        if (gettype($item) === "array") {
+            foreach($item as $key => $value){
+                if($key === "ID" && !isset($this->processed[$value])) {
+                    $this->processed[$value] = 1;
+                    $item["acf"] = null;
+                    $acfFields = get_fields($value);
+                    if($acfFields){
+                        $item["acf"] = $acfFields;
+
+                        //Delete the repeaters from the child.
+                        if($originalKey === "related_post" && isset($item["acf"]["related_posts"])) //prevent endless loop
+                            unset($item["acf"]["related_posts"]);
+                        if($originalKey === "related_event" && isset($item["acf"]["post_events"])) //prevent endless loop
+                            unset($item["acf"]["post_events"]);
+                    }
+
+                    //Add the category
+                    if ($fields = wp_get_post_categories($value)) {
+                        $categories = [];
+                        foreach ($fields as $field) {
+                            $categories[] = array(
+                                "name" => get_cat_name($field),
+                                "link" => get_category_link($field)
+                            );
+                        }
+                        $item["categories"] = $categories;
+                    } else {
+                        $item["categories"] = null;
+                    }
+                }
+                else if (is_object($value)) {
+                    $item[$key] = $this->get_fields_recursive(get_object_vars($value), $key);
+                } else if (gettype($value) === "array") {
+                    $item[$key] = $this->get_fields_recursive($value, $key);
+                } else {
+                    $item[$key] = $value;
+                }
+            }
+        }
+        return $item;
+    }
+
+    public function setup_fields($post_type){
+        add_filter( "acf/rest_api/{$post_type}/get_fields", function( $data, $request ) {
+            $id = null;
+            if (isset($request["id"]))
+                $id = $request["id"];
+            else if(isset($request["ID"]))
+                $id = $request["ID"];
+
+            if($id) {
+                $this->processed[$id] = 1;
+            }
+
+            if ( ! empty( $data ) ) {
+                $data = $this->get_fields_recursive($data);
+            }
+            return $data;
+        }, 10, 2 );
+    }
+
     public function setup_params($post_type, $param_list = []){
         $this->param_list = $param_list;
 
@@ -87,6 +150,8 @@ class HECTV_Routes  extends \WP_REST_Controller {
             $function_name = "param_{$param_list[$x]}";
             add_filter("rest_{$post_type}_query", array($this, $function_name), 10, 2);
         }
+
+        $this->setup_fields($post_type);
     }
 
 }

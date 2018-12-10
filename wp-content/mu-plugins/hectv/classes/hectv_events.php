@@ -83,6 +83,31 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
         return $where;
     }
 
+    public function get_thumbnail( $object, $field_name, $request ) {
+        $thumbnail_url = get_field( "event_image", $object[ 'id' ] );
+
+        if(isset($thumbnail_url)){
+            if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["large"]))
+                return $thumbnail_url["sizes"]["large"];
+            if(isset($thumbnail_url["url"]))
+                return $thumbnail_url["url"];
+        }
+        return "";
+    }
+
+
+
+    public function register_rest_fields() {
+        register_rest_field( $this->post_type,
+            'thumbnail',
+            array(
+                'get_callback' 	  => array( $this, 'get_thumbnail'),
+                'update_callback' => null,
+                'schema'          => null,
+            )
+        );
+    }
+
     /**
      * Callback function registers the event post type
      */
@@ -126,5 +151,6 @@ class HECTV_Events extends HECTV_Routes  implements HECTV_Custom_Post_Interface 
     {
         add_filter( "init", array( $this, 'register_post_type' ), 0 );
         add_filter("posts_where", array( $this, "my_posts_where"));
+        add_action( 'rest_api_init', array($this, 'register_rest_fields' ), 10, 2);
     }
 }

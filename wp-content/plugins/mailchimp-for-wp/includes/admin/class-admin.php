@@ -338,14 +338,14 @@ class MC4WP_Admin {
 		$required_cap = $this->tools->get_required_capability();
 
 		$menu_items = array(
-			'general' => array(
+			array(
 				'title' => __( 'MailChimp API Settings', 'mailchimp-for-wp' ),
 				'text' => __( 'MailChimp', 'mailchimp-for-wp' ),
 				'slug' => '',
 				'callback' => array( $this, 'show_generals_setting_page' ),
 				'position' => 0
 			),
-			'other' => array(
+			array(
 				'title' => __( 'Other Settings', 'mailchimp-for-wp' ),
 				'text' => __( 'Other', 'mailchimp-for-wp' ),
 				'slug' => 'other',
@@ -377,10 +377,12 @@ class MC4WP_Admin {
 		add_menu_page( 'MailChimp for WP', 'MailChimp for WP', $required_cap, 'mailchimp-for-wp', array( $this, 'show_generals_setting_page' ), MC4WP_PLUGIN_URL . 'assets/img/icon.png', '99.68491' );
 
 		// sort submenu items by 'position'
-		uasort( $menu_items, array( $this, 'sort_menu_items_by_position' ) );
+		usort( $menu_items, array( $this, 'sort_menu_items_by_position' ) );
 
 		// add sub-menu items
-		array_walk( $menu_items, array( $this, 'add_menu_item' ) );
+		foreach( $menu_items as $item ) {
+			$this->add_menu_item( $item );
+		}
 	}
 
 	/**
@@ -412,8 +414,9 @@ class MC4WP_Admin {
 	*/
 	public function show_generals_setting_page() {
 		$opts = mc4wp_get_options();
+		$api_key = mc4wp_get_api_key();
 
-		$connected = ! empty( $opts['api_key'] );
+		$connected = ! empty( $api_key );
 		if( $connected ) {
 			try {
 				$connected = $this->get_api()->is_connected();
@@ -435,7 +438,7 @@ class MC4WP_Admin {
 		}
 
 		$lists = $this->mailchimp->get_cached_lists();
-		$obfuscated_api_key = mc4wp_obfuscate_string( $opts['api_key'] );
+		$obfuscated_api_key = mc4wp_obfuscate_string( $api_key );
 		require MC4WP_PLUGIN_DIR . 'includes/views/general-settings.php';
 	}
 
@@ -492,8 +495,8 @@ class MC4WP_Admin {
 		}
 
 		// don't show if api key is set already
-		$options = mc4wp_get_options();
-		if( ! empty( $options['api_key'] ) ) {
+		$api_key = mc4wp_get_api_key();
+		if( ! empty( $api_key ) ) {
 			return;
 		}
 

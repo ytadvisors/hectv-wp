@@ -2,6 +2,14 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase /
+RewriteCond %{HTTP_HOST} ^dev.+$ [NC]
+RewriteCond %{REQUEST_URI} !(wp-(.+))
+RewriteCond %{REQUEST_URI} !index.php
+RewriteRule ^(.+)/(.+)$ https://dev.hecmedia.org/preview/$1/?id=$2 [R=301,L]
+RewriteCond %{HTTP_HOST} ^prod.+$ [NC]
+RewriteCond %{REQUEST_URI} !(wp-(.+))
+RewriteCond %{REQUEST_URI} !index.php
+RewriteRule ^(.+)/(.+)$ https://hecmedia.org/preview/$1/?id=$2 [R=301,L]
 RewriteRule ^index\.php$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -9,10 +17,12 @@ RewriteRule . /index.php [L]
 </IfModule>
 # Max upload file sizes
 php_value upload_max_filesize 64M
-php_value post_max_size 64M
-php_value max_execution_time 1000
-php_value max_input_time 300
-php_value max_input_vars 1000
+php_value post_max_size 2084M
+php_value memory_limit 3G
+php_value max_execution_time 10000
+php_value max_input_time 10000
+php_value session.gc_maxlifetime 6000
+php_value max_input_vars 100000
 
 # END WordPress
 

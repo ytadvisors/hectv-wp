@@ -1,6 +1,25 @@
 Changelog
 ===========
 
+### 1.7.6 - Dec 3, 2018
+
+**Improvements**
+
+- Add warning text to settings that may cause subscribers to be removed from the connected MailChimp list.
+
+
+### 1.7.5 - July 4, 2018
+
+**Improvements**
+
+- Get rid of status indicator on settings page as it's not important nor accurate.
+
+**Additions**
+
+- Add button to settings page to immediately process all pending background jobs.
+
+
+
 ### 1.7.4 - May 28, 2018
 
 **Additions**

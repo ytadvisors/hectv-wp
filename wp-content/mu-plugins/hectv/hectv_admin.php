@@ -3,6 +3,7 @@
 namespace HECTV;
 
 use HECTV\Classes;
+use \Requests;
 
 /**
  * Class HECTV_Admin
@@ -23,17 +24,41 @@ class HECTV_Admin {
 
 
     public function get_categories( $object, $field_name, $request ) {
-        return get_the_category( $object[ 'id' ] );
+        $categories =  get_the_category( $object[ 'id' ] );
+        foreach($categories as $category ){
+            $category->link = get_category_link($category->term_id);
+        }
+
+        return $categories;
     }
 
-    public function get_articles($args, $request){
-        $parameter_value  = $request->get_param( "articles" );
-        if ( ! empty( $parameter_value ) ) {
-            $args["meta_query"] = array(array(
-                    'key' => 'is_video',
-                    'value' => 0,
-                    "compare" => "="
-                ));
+    public function get_thumbnail( $object, $field_name, $request ) {
+        if(get_field("is_video", $object[ 'id' ]))
+            $thumbnail_url = get_field( "video_image", $object[ 'id' ] );
+        else
+            $thumbnail_url = get_field( "post_header", $object[ 'id' ] );
+
+        if(isset($thumbnail_url)){
+            if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["large"]))
+                return $thumbnail_url["sizes"]["large"];
+            if(isset($thumbnail_url["url"]))
+                return $thumbnail_url["url"];
+        }
+        return "";
+    }
+
+    public function get_articles($args, $request = null){
+        if($request) {
+            $parameter_value = $request->get_param("articles");
+            if (!empty($parameter_value)) {
+                $args["meta_query"] = array(
+                    array(
+                        'key' => 'is_video',
+                        'value' => 0,
+                        "compare" => "="
+                    )
+                );
+            }
         }
 
         return $args;
@@ -78,15 +103,22 @@ class HECTV_Admin {
             )
         );
         register_rest_field( 'post',
-            'categories',
+            'thumbnail',
+            array(
+                'get_callback' 	  => array( $this, 'get_thumbnail'),
+                'update_callback' => null,
+                'schema'          => null,
+            )
+        );
+        register_rest_field( 'post',
+            'category_list',
             array(
                 'get_callback' 	  => array( $this, 'get_categories'),
                 'update_callback' => null,
                 'schema' 		  => null,
             ) );
-
-
     }
+
     function cors_headers( $headers ) {
 
         $headers['Access-Control-Allow-Origin']      = get_http_origin(); // Can't use wildcard origin for credentials requests, instead set it to the requesting origin
@@ -129,6 +161,92 @@ class HECTV_Admin {
         return $value;
     }
 
+    public function nullify_empty($value, $post_id, $field){
+
+        if(empty($value)){
+            return null;
+        }
+
+        return $value;
+    }
+
+    public function empty_space($value, $post_id, $field){
+
+        if(empty($value)){
+            return "";
+        }
+
+        return $value;
+    }
+
+    public function nullify_repeater($value, $post_id, $field){
+
+        if(empty($value)){
+            return null;
+        } else{
+            $keys = array_keys($value);
+            $newValue = [];
+            foreach($keys as $key){
+                $val = array_filter($value[$key]);
+                if(count($val) > 0)
+                    $newValue[] = $val;
+            }
+
+            $newValue = array_filter($newValue);
+            if(count($newValue) === 0)
+                $newValue = null;
+        }
+
+        return $newValue;
+    }
+
+    public function nullify_array($value, $post_id, $field){
+
+        if(empty($value)){
+            return array();
+        }
+
+        return $value;
+    }
+
+    public function copy_empty_video($value, $post_id, $field){
+
+        if(empty($value)){
+            $value = get_field("video_image", $post_id);
+        }
+
+        if(empty($value)){
+            return null;
+        }
+
+        return $value;
+    }
+
+    public function copy_empty_post($value, $post_id, $field){
+
+        if(empty($value)){
+            $value = get_field("post_header", $post_id);
+        }
+
+        if(empty($value)){
+            return null;
+        }
+
+        return $value;
+    }
+
+    public function run_build($post_id){
+        if(isset($_SERVER['BUILD_URL'])){
+            $url = "http://" . $_SERVER['BUILD_TOKEN'] . "@" . $_SERVER['BUILD_URL'];
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_exec($ch);
+            curl_close($ch);
+        }
+    }
+
+
     public function init()
     {
         $this->admin = [
@@ -139,7 +257,8 @@ class HECTV_Admin {
             "magazines" => new Classes\HECTV_Magazines('magazine'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_category', "event", "Categories", true),
             "event_type" => new Classes\HECTV_Taxonomy('event_type', "event", "Tags"),
-            "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true)
+            "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true),
+            "default" => new Classes\HECTV_Routes()
         ];
         add_filter("rest_post_query", array($this, "get_articles"), 10, 2);
         add_filter('rest_query_vars', array( $this, 'allow_meta_query' ));
@@ -150,6 +269,24 @@ class HECTV_Admin {
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
+        add_filter('acf/format_value/type=image', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=relationship', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=gallery', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=text', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=tab', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=file', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/type=repeater', array($this, 'nullify_repeater'), 100, 3);
+        add_filter('acf/format_value/type=post_object', array($this, 'nullify_empty'), 100, 3);
+        add_filter('acf/format_value/name=embed_url', array($this, 'empty_space'), 100, 3);
+        add_action("acf/format_value/name=post_header", array($this, 'copy_empty_video'), 10, 3); //need to fix
 
+        add_action( 'save_post', array($this, 'run_build'), 10, 3 );
+        add_action( 'wp_update_nav_menu', array($this, 'run_build'), 10, 3 );
+        add_action( 'create_term', array($this, 'run_build'), 10, 3 );
+        add_action( 'edit_term', array($this, 'run_build'), 10, 3 );
+        add_action( 'delete_term_taxonomy', array($this, 'run_build'), 10, 3 );
+
+        $this->admin["default"]->setup_fields("page");
+        $this->admin["default"]->setup_fields("post");
     }
 }

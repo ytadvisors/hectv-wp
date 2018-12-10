@@ -167,15 +167,17 @@ defined( 'ABSPATH' ) or exit;
 					<td class="nowrap">
 						<label>
 							<input type="radio" name="<?php echo $this->name_attr( 'enable_user_control' ); ?>" value="1" <?php checked( $this->options['enable_user_control'], 1 ); ?> />
-							<?php _e( 'Yes', 'mailchimp-for-wp' ); ?> &nbsp; <em><?php _e( '(recommended)', 'mailchimp-sync'); ?></em>
+							<?php _e( 'Yes', 'mailchimp-for-wp' ); ?> 
 						</label><br />
 						<label>
 							<input type="radio" name="<?php echo $this->name_attr( 'enable_user_control' ); ?>" value="0" <?php checked( $this->options['enable_user_control'], 0 ); ?> />
 							<?php _e( 'No', 'mailchimp-for-wp' ); ?>
 						</label>
 						<p class="help">
-							<?php _e( 'Select "no" if you do not want users to be able to manage their sign-up status from their profile page.', 'mailchimp-for-wp' ); ?> 
-							<?php printf( __( '<strong>Warning: </strong> this may affect your <a href="%s">GDPR compliance</a>.', 'mailchimp-sync' ), 'https://kb.mc4wp.com/gdpr-compliance/#utm_source=wp-plugin&utm_medium=mailchimp-for-wp&utm_campaign=integrations-page' ); ?> 
+							<?php _e( 'Select "yes" if you want users to manage their sign-up status from their profile page.', 'mailchimp-for-wp' ); ?>
+						</p>
+						<p class="help">
+							<?php printf( __( '<strong>Warning: </strong> enabling this may unsubscribe users that opt-in via other sign-up methods.', 'mailchimp-sync' ) ); ?>
 						</p>
 
 					</td>
@@ -228,36 +230,29 @@ defined( 'ABSPATH' ) or exit;
 
 				<hr style="margin: 50px 0;" />
 
-				<h2>
-					<?php
+			
+				<?php 
+				if( $this->options['enabled'] ) { 
+					echo '<h2>' . __( 'Background processing', 'mailchimp-sync' ) . '</h2>';
+					echo '<p>' . __( 'The plugin is currently listening to changes in your users and will automatically keep your userbase synced with the selected MailChimp list.', 'mailchimp-sync' ) . '</p>';
+               
+               if( $this->queue instanceof \MC4WP_Queue ) {
+               	$number_of_pending_jobs = count( $this->queue->all() );
+                  echo '<p>' . sprintf( __( 'There are <strong>%d</strong> background jobs waiting to be processed.', 'mailchimp-sync' ), $number_of_pending_jobs ) . '</p>';
+               		
+               	if( $number_of_pending_jobs > 0 ) {
+               		echo '<p><a class="button" href="' . add_query_arg( array( '_mc4wp_action' => 'process_user_sync_queue' ) ) . '">' . __( 'Process', 'mailchimp-sync' ) . '</a></p>';
+               	}
+               	
+               } 
 
-					_e( 'Status', 'mailchimp-for-wp' );
+               echo '<p class="help">' . sprintf( __( 'Keep an eye on the <a href="%s">debug log</a> for any errors in the background sync.', 'mailchimp-sync' ), admin_url( 'admin.php?page=mailchimp-for-wp-other' ) ) . '</p>';
 
-					$text = $status_indicator->subscriber_count . '/' . $status_indicator->user_count;
-					echo sprintf( '<span class="status" style="background-color: %s;">', '#' . $this->percentage_to_color( $status_indicator->progress, 200 ) ) . $text . '</span>';
-					?>
-				</h2>
+					echo '<hr style="margin: 50px 0;" />';
+				} 
+				?>
 
-				<?php if( $this->options['enabled'] ) { ?>
-					<p><?php _e( 'Right now, the plugin is listening to changes in your users and will automatically keep your userbase synced with the selected MailChimp list.', 'mailchimp-sync' ); ?></p>
-                    <?php if( $this->queue instanceof \MC4WP_Queue ) {
-                        echo '<p>' . sprintf( __( 'There are <strong>%d</strong> background jobs waiting to be processed.', 'mailchimp-sync' ), count( $this->queue->all() ) ) . '</p>';
-                    } ?>
-				<?php } else { ?>
-					<p><?php _e( 'The plugin is currently not listening to any changes in your users.', 'mailchimp-sync' ); ?></p>
-				<?php } ?>
-
-				<?php if( has_filter( 'mailchimp_sync_should_sync_user' ) ) {
-					echo '<div class="notice inline notice-warning">';
-					echo '<p>' . sprintf( __( "It seems that you're using the %s filter, which means that the numbers shown here will be a little off.", 'mailchimp-sync' ), '<code>mailchimp_sync_should_sync_user</code>' ) . '</p>';
-					echo '</div>';
-				} ?>
-
-				<div class="notice inline notice-info">
-					<p><?php printf( __( 'Need some help debugging? Take a look at the <a href="%s">debug log</a>.', 'mailchimp-sync' ), admin_url( 'admin.php?page=mailchimp-for-wp-other' ) ); ?></p>
-				</div>
-
-				<hr style="margin: 50px 0;" />
+				
 
 				<h2><?php _e( 'Manual Synchronization', 'mailchimp-sync' ); ?></h2>
 

@@ -41,6 +41,13 @@ $table_prefix  = 'wp_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
+require_once( ABSPATH . '/vendor/autoload.php' );
+
+if (!class_exists('HECTV\HECTV_Admin')) {
+    $autoloader = require_once(__DIR__ . '/wp-content/mu-plugins/hectv/autoloader.php');
+    $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
+}
+
 define('DB_NAME', $_SERVER['RDS_DB_NAME']);
 define('DB_USER', $_SERVER['RDS_USERNAME']);
 define('DB_PASSWORD', $_SERVER['RDS_PASSWORD']);
@@ -62,11 +69,25 @@ define('JWT_AUTH_CORS_ENABLE', true);
 define('WP_DEBUG', $_SERVER['WP_DEBUG'] == 1);
 define('WP_DEBUG_LOG', $_SERVER['WP_DEBUG_LOG'] == 1);
 define('WP_AUTO_UPDATE_CORE', false);
-define("WP_HOME", $_SERVER['WP_HOME'] . "/");
 define( 'COMPOSER_PATH', "vendor" );
 
 define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
 define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
+
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+$is_ssl = $_SERVER['FORCE_SSL_ADMIN'] == 1;
+define('FORCE_SSL_ADMIN', $is_ssl);
+//define('FORCE_SSL_LOGIN', $is_ssl);
+if($is_ssl) {
+    if (!$_SERVER['HTTP_X_FORWARDED_PROTO'] || $_SERVER['HTTP_X_FORWARDED_PROTO'] == "https") {
+        $_SERVER['HTTPS'] = 'on';
+    }
+}
+
+$table_prefix  = 'wp_';
+
+define("WP_HOME", $protocol . $_SERVER['HTTP_HOST'] );
+define('WP_SITEURL',$protocol . $_SERVER['HTTP_HOST'] );
 
 /* That's all, stop editing! Happy blogging. */
 
