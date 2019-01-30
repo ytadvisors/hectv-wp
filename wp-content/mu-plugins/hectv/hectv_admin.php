@@ -23,15 +23,6 @@ class HECTV_Admin {
     }
 
 
-    public function get_categories( $object, $field_name, $request ) {
-        $categories =  get_the_category( $object[ 'id' ] );
-        foreach($categories as $category ){
-            $category->link = get_category_link($category->term_id);
-        }
-
-        return $categories;
-    }
-
     public function get_thumbnail( $object, $field_name, $request ) {
         if(get_field("is_video", $object[ 'id' ]))
             $thumbnail_url = get_field( "video_image", $object[ 'id' ] );
@@ -110,13 +101,6 @@ class HECTV_Admin {
                 'schema'          => null,
             )
         );
-        register_rest_field( 'post',
-            'category_list',
-            array(
-                'get_callback' 	  => array( $this, 'get_categories'),
-                'update_callback' => null,
-                'schema' 		  => null,
-            ) );
     }
 
     function cors_headers( $headers ) {
@@ -255,6 +239,7 @@ class HECTV_Admin {
             "schedule" => new Classes\HECTV_Schedules('schedules'),
             'live_videos' => new Classes\HECTV_Live_Videos('livevideos'),
             "magazines" => new Classes\HECTV_Magazines('magazine'),
+            "users" => new Classes\HECTV_Users('users'),
             "event_categories" => new Classes\HECTV_Taxonomy('event_category', "event", "Categories", true),
             "event_type" => new Classes\HECTV_Taxonomy('event_type', "event", "Tags"),
             "type" => new Classes\HECTV_Taxonomy('type', "magazine", "Type", true),
