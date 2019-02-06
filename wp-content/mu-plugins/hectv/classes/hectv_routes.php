@@ -84,12 +84,12 @@ class HECTV_Routes  extends \WP_REST_Controller {
     public function get_fields_recursive( $item, $originalKey = "" ) {
         if (gettype($item) === "array") {
             foreach($item as $key => $value){
-                if($key === "ID" && !isset($this->processed[$value])) {
-                    $this->processed[$value] = 1;
+                if($key === "ID") {
                     $item["acf"] = null;
                     $acfFields = get_fields($value);
-                    if($acfFields){
+                    if($acfFields && !isset($this->processed[$value])){
                         $item["acf"] = $acfFields;
+                        $this->processed[$value] = 1;
 
                         //Delete the repeaters from the child.
                         if($originalKey === "related_post" && isset($item["acf"]["related_posts"])) //prevent endless loop
