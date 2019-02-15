@@ -290,7 +290,6 @@ class HECTV_Users extends HECTV_Routes
     {
         $email = $request->get_param('username');
         $password = $request->get_param('password');
-        $site = $this->get_request_site($request);
 
         if (!$email || !$password) {
             return new WP_Error(
