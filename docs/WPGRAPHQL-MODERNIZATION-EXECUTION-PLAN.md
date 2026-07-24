@@ -143,3 +143,37 @@ Each phase records:
 - staging screenshots and endpoint checks;
 - reviewer identity and exact reviewed commit;
 - deployment or rollback identifiers when applicable.
+
+## Execution ownership and monitoring
+
+Jerome owns implementation. Kronos monitors the program and holds its gates.
+Planning approval does not transfer production-deploy authority.
+
+| Work item | Owner | Kronos monitoring gate |
+|---|---|---|
+| Reproducible staging baseline | Jerome | Review manifest, secret scan, dependency/licensing boundary, and clean-start proof |
+| Modern GraphQL schema migration | Jerome | Review schema diff, mutation blocking, mocked payment tests, and contract results |
+| Frontend query migration | Jerome | Review PR/CI state, full integration results, and rendered staging evidence |
+| Client-feed status update | Jerome | Review for accuracy, client-safe wording, and absence of premature completion claims |
+| Production rollout package | Jerome | Review backup/rollback evidence and present a separate approval request to Yomi |
+
+Jerome posts progress evidence and blockers to the queue task at each exit gate.
+Kronos keeps the execution task open until the corresponding evidence is verified,
+escalates missing authority or licensed dependencies, and prevents production work
+from starting without Yomi's separate explicit approval.
+
+### Client-feed update requirement
+
+After this plan is approved, Jerome publishes a concise HEC Media client-feed
+update that:
+
+- reports discovery of the deprecated/custom WPGraphQL version;
+- explains that production remains unchanged and operational;
+- describes the staging-first backend and frontend upgrade;
+- identifies compatibility testing and rollback preparation as safeguards;
+- states the next client-visible milestone;
+- omits credentials, private topology, internal agent mechanics, and unverified
+  completion claims.
+
+Jerome posts a second feed update when staging verification is complete or when
+a material blocker changes the expected timeline.
