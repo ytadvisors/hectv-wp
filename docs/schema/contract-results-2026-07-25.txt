@@ -1,0 +1,23 @@
+Contract suite against http://localhost:8092/graphql
+
+
+==== RESULTS ====
+PASS Introspection
+PASS GeneralSettings
+PASS HomePageInfo
+PASS PageLayout
+PASS ScheduleLayout
+PASS AllCategories
+PASS ArticlesInfo
+PASS CategoryIdInfo
+PASS MagazineList
+PASS EventCategories
+PASS LiveVideos
+PASS allEvents
+PASS EventDayInfo
+PASS PageTemplate
+PASS SearchResults
+PASS MutationBlocked
+
+PASS=16 FAIL=0
+Query root fields snapshot: /tmp/hec-schema-query-fields.txt (      56 fields)
