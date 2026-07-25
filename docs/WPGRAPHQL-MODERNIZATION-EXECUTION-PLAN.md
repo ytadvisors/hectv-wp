@@ -44,6 +44,32 @@ isolated worker-mba WordPress staging environment before production changes.
 7. Any production rollout must have both an Elastic Beanstalk application
    version rollback and a database snapshot restore procedure recorded and
    verified before deployment.
+8. Client-feed communications may be drafted internally, but no draft may be
+   published, sent, or otherwise made externally visible until Yomi has
+   approved that exact final communication. This approval is independent of
+   staging approval and of the separate production-rollout approval.
+
+## Recovered and custom component provenance
+
+The staging compatibility package may contain only the components below. This
+inventory is completed before a component is copied into the harness, and its
+record carries the source-bundle checksum, recovery date, owner, license, and
+the commit that introduced the staging-only replacement. No licensed source is
+copied into this repository or any deliverable.
+
+| Component | Provenance and owner | License/disposition |
+|---|---|---|
+| `hectv` mu-plugin 0.7 | HEC-owned custom code recovered from the active production bundle; HEC Media owns the site-specific implementation. | Retain only in the access-controlled staging compatibility package; repository records interfaces, tests, and checksums—not recovered source. |
+| `hectv-basic` theme | HEC-owned custom theme recovered from the active production bundle; HEC Media owns the site-specific implementation. | Same controlled-package treatment; no redistribution in this repository. |
+| `WP GraphQL - YT Advisors` 0.4.0 | Recovered custom fork from the active production bundle. Its authorship and upstream delta must be established from the recovery manifest before reuse. | Do not redistribute the fork. Replace with supported upstream WPGraphQL plus HEC-owned compatibility code only after provenance and license review. |
+| `WPGraphQL for Advanced Custom Fields - YT Advisors` 0.3.1 | Recovered custom fork from the active production bundle. Its authorship and upstream delta must be established from the recovery manifest before reuse. | Do not redistribute the fork. Use licensed ACF only from the client's authorized installation; document interfaces and replace extensions with supported, separately licensed dependencies where possible. |
+| Custom meta-query extension 0.1.0 | Recovered custom GraphQL extension; ownership and original author are recorded in the recovery manifest before any staging use. | No source redistribution. Reimplement only the required behavior as newly authored HEC-owned compatibility code with tests, or use supported upstream APIs. |
+| Custom tax-query extension 0.1.0 | Recovered custom GraphQL extension; ownership and original author are recorded in the recovery manifest before any staging use. | No source redistribution. Reimplement only the required behavior as newly authored HEC-owned compatibility code with tests, or use supported upstream APIs. |
+| ACF field definitions and ACF-related components | Production database-held configuration and licensed ACF-related components; ownership of HEC's field model is HEC Media, while plugin code remains subject to its vendor license. | Recreate field shapes from a data-free manifest and local fixtures. Do not export production records, embed licensed plugin source, or commit license-restricted artifacts. |
+
+If provenance, ownership, or license rights cannot be verified for any recovered
+component, it is excluded from staging and the issue is escalated to Yomi and
+Kronos; it is never silently copied or redistributed.
 
 ## Phase 1 — Reproducible staging baseline
 
@@ -154,7 +180,7 @@ Planning approval does not transfer production-deploy authority.
 | Reproducible staging baseline | Jerome | Review manifest, secret scan, dependency/licensing boundary, and clean-start proof |
 | Modern GraphQL schema migration | Jerome | Review schema diff, mutation blocking, mocked payment tests, and contract results |
 | Frontend query migration | Jerome | Review PR/CI state, full integration results, and rendered staging evidence |
-| Client-feed status update | Jerome | Review for accuracy, client-safe wording, and absence of premature completion claims |
+| Client-feed status update | Jerome drafts; Yomi approves exact wording before publication | Kronos reviews the draft for accuracy, client-safe wording, and absence of premature completion claims; no external publication occurs without Yomi's exact-communication approval |
 | Production rollout package | Jerome | Review backup/rollback evidence and present a separate approval request to Yomi |
 
 Jerome posts progress evidence and blockers to the queue task at each exit gate.
@@ -164,7 +190,7 @@ from starting without Yomi's separate explicit approval.
 
 ### Client-feed update requirement
 
-After this plan is approved, Jerome publishes a concise HEC Media client-feed
+After this plan is approved, Jerome may draft a concise HEC Media client-feed
 update that:
 
 - reports discovery of the deprecated/custom WPGraphQL version;
@@ -175,5 +201,8 @@ update that:
 - omits credentials, private topology, internal agent mechanics, and unverified
   completion claims.
 
-Jerome posts a second feed update when staging verification is complete or when
-a material blocker changes the expected timeline.
+Before either update is published, Yomi must approve the exact final text and
+the intended publication surface. A staging or plan approval does not satisfy
+this gate. Jerome may prepare a second draft when staging verification is
+complete or when a material blocker changes the expected timeline, but it uses
+the same exact-text approval gate.
