@@ -92,8 +92,9 @@ GET/POST, selected REST GET/HEAD/OPTIONS namespaces, and uploads are forwarded;
 every other request returns 403. This also closes WordPress's `rest_route`
 query-string bypass because neither `/` nor the REST discovery root is
 forwarded. A staging-only must-use plugin also rejects authentication and every
-non-read REST method before WordPress dispatch. Cron, mail, and payments remain
-disabled.
+non-read REST method before WordPress dispatch, and rejects GraphQL mutation
+operations before resolver execution. The staging JWT secret is unique, so
+production tokens are invalid here. Cron, mail, and payments remain disabled.
 
 Never enable public read-only mode while the staging runtime database user has
 write privileges. Refresh requires temporary admin credentials and must return
