@@ -13,10 +13,14 @@ class HECTV_Payment
 
     private $customer_id;
     private $stripe_token;
+    private $payments_disabled = false;
 
     function __construct($stripe_token = "", $stripe_customer_id = ""){
+        $this->payments_disabled = $this->get_env_var("HECTV_DISABLE_PAYMENTS") === "1";
         $api_key = $this->get_env_var("STRIPE_SECRET_KEY");
-        Stripe::setApiKey($api_key);
+        if (!$this->payments_disabled && $api_key) {
+            Stripe::setApiKey($api_key);
+        }
         $this->stripe_token = $stripe_token;
         $this->customer_id = $stripe_customer_id;
     }
@@ -45,6 +49,10 @@ class HECTV_Payment
     }
 
     public function create_payment($item, $price, $description = "", $meta_data = array()){
+        if ($this->payments_disabled) {
+            return new \WP_Error('payment_disabled', 'Payments are disabled in validation mode', array('status' => 503));
+        }
+
         if($description == "")
             $description = $item;
 
@@ -59,6 +67,10 @@ class HECTV_Payment
     }
 
     public function change_payment_plan($plan_id){
+        if ($this->payments_disabled) {
+            return new \WP_Error('payment_disabled', 'Payments are disabled in validation mode', array('status' => 503));
+        }
+
         $plan_price = $this->get_plan_price($plan_id);
         if($plan_price >= 0) {
             //change subscription
@@ -85,6 +97,10 @@ class HECTV_Payment
     }
 
     public function start_payment_plan($email, $plan_id){
+        if ($this->payments_disabled) {
+            return new \WP_Error('payment_disabled', 'Payments are disabled in validation mode', array('status' => 503));
+        }
+
         $plan_price = $this->get_plan_price($plan_id);
         if($plan_price > 0){
             try{

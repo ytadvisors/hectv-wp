@@ -84,8 +84,9 @@ define('DISABLE_WP_CRON', hectv_env('DISABLE_WP_CRON', '0') === '1');
 define('WP_AUTO_UPDATE_CORE', false);
 define( 'COMPOSER_PATH', "vendor" );
 
-define('STRIPE_PUB_KEY', hectv_env('STRIPE_KEY', ''));
-define('STRIPE_SECRET_KEY', hectv_env('STRIPE_SECRET_KEY', ''));
+$payments_disabled = hectv_env('HECTV_DISABLE_PAYMENTS', '0') === '1';
+define('STRIPE_PUB_KEY', $payments_disabled ? '' : hectv_env('STRIPE_KEY', ''));
+define('STRIPE_SECRET_KEY', $payments_disabled ? '' : hectv_env('STRIPE_SECRET_KEY', ''));
 
 $https = isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : '';
 $server_port = isset($_SERVER['SERVER_PORT']) ? (int) $_SERVER['SERVER_PORT'] : 80;
@@ -103,8 +104,9 @@ if($is_ssl) {
 $table_prefix  = 'wp_';
 
 $canonical_host = hectv_env('HECTV_CANONICAL_HOST');
+$allowed_hosts = array_filter(array_map('trim', explode(',', hectv_env('HECTV_ALLOWED_HOSTS', ''))));
 $request_host = isset($_SERVER['HTTP_HOST']) ? strtolower(explode(':', $_SERVER['HTTP_HOST'])[0]) : '';
-if ($canonical_host && $request_host && $request_host !== strtolower($canonical_host)) {
+if ($canonical_host && $request_host && $request_host !== strtolower($canonical_host) && !in_array($request_host, array_map('strtolower', $allowed_hosts), true)) {
     header('HTTP/1.1 400 Bad Request');
     exit('Invalid host');
 }

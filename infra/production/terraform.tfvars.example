@@ -1,0 +1,5 @@
+container_image       = "850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-production:<immutable-tag>"
+production_secret_arn = "arn:aws:secretsmanager:us-east-2:850335719356:secret:<production-secret>"
+desired_count         = 0
+validation_mode       = true
+allowed_ipv4_cidrs    = ["24.107.201.123/32"]
