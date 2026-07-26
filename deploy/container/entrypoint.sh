@@ -30,8 +30,48 @@ if [ "${HECTV_ENVIRONMENT:-}" = "staging" ] && [ -z "${LOGGED_IN_SALT:-}" ]; the
 fi
 
 mkdir -p /var/www/html/wp-content/uploads
-if [ "${HECTV_ENVIRONMENT:-}" != "production" ]; then
+if [ "${HECTV_ENVIRONMENT:-}" != "production" ] && [ "${HECTV_PUBLIC_READ_ONLY:-0}" != "1" ]; then
   chown www-data:www-data /var/www/html/wp-content/uploads
+fi
+
+if [ "${HECTV_PUBLIC_READ_ONLY:-0}" = "1" ]; then
+  case "$RDS_DB_NAME" in
+    *_staging) ;;
+    *) echo "Public read-only mode requires an _staging database." >&2; exit 1 ;;
+  esac
+
+  php <<'PHP'
+<?php
+$db = @new mysqli(
+    getenv('RDS_HOSTNAME'),
+    getenv('RDS_USERNAME'),
+    getenv('RDS_PASSWORD'),
+    getenv('RDS_DB_NAME')
+);
+if ($db->connect_errno) {
+    fwrite(STDERR, "Could not verify public staging database grants.\n");
+    exit(1);
+}
+$result = $db->query('SHOW GRANTS FOR CURRENT_USER');
+$select_only = false;
+while ($row = $result->fetch_row()) {
+    $grant = $row[0];
+    if (preg_match('/^GRANT USAGE ON \*\.\*/i', $grant)) {
+        continue;
+    }
+    if (preg_match('/^GRANT SELECT ON `?' . preg_quote(getenv('RDS_DB_NAME'), '/') . '`?\.\*/i', $grant)) {
+        $select_only = true;
+        continue;
+    }
+    fwrite(STDERR, "Public staging database user has a non-read-only grant.\n");
+    exit(1);
+}
+if (!$select_only) {
+    fwrite(STDERR, "Public staging database user lacks its SELECT-only grant.\n");
+    exit(1);
+}
+echo "Public staging database SELECT-only grant verified.\n";
+PHP
 fi
 
 if [ "${HECTV_ENVIRONMENT:-}" = "production" ]; then

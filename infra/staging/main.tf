@@ -96,7 +96,9 @@ resource "aws_iam_role_policy" "task_efs" {
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
-      Action = [
+      Action = var.public_read_only_mode ? [
+        "elasticfilesystem:ClientMount",
+        ] : [
         "elasticfilesystem:ClientMount",
         "elasticfilesystem:ClientWrite",
       ]
@@ -216,6 +218,13 @@ resource "aws_lb" "wordpress" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
+
+  lifecycle {
+    precondition {
+      condition     = !contains(var.allowed_ipv4_cidrs, "0.0.0.0/0") || var.public_read_only_mode
+      error_message = "Public staging ingress requires public_read_only_mode=true."
+    }
+  }
 }
 
 resource "aws_lb_target_group" "wordpress" {
@@ -264,6 +273,78 @@ resource "aws_lb_listener" "https" {
   }
 }
 
+resource "aws_lb_listener_rule" "allow_staging_graphql" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.wordpress.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/graphql"]
+    }
+  }
+
+  condition {
+    http_request_method {
+      values = ["GET", "POST"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.wordpress.arn
+  }
+
+  condition {
+    http_request_method {
+      values = ["GET", "HEAD", "OPTIONS"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = [
+        "/wp-json/wp/v2/*",
+        "/wp-json/wp-api-menus/v2/*",
+        "/wp-json/hectv/v1/livevideos/live",
+        "/wp-content/uploads/*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "block_all_other_staging_requests" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "This staging route is not public."
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
 resource "aws_ecs_task_definition" "wordpress" {
   family                   = local.name
   requires_compatibilities = ["FARGATE"]
@@ -308,6 +389,7 @@ resource "aws_ecs_task_definition" "wordpress" {
       { name = "HECTV_DISABLE_OUTBOUND", value = "1" },
       { name = "HECTV_DISABLE_PAYMENTS", value = "1" },
       { name = "HECTV_ENVIRONMENT", value = "staging" },
+      { name = "HECTV_PUBLIC_READ_ONLY", value = var.public_read_only_mode ? "1" : "0" },
       { name = "HTTP_HOST", value = var.staging_hostname },
       { name = "WP_DEBUG", value = "0" },
       { name = "WP_DEBUG_LOG", value = "1" },
@@ -321,7 +403,7 @@ resource "aws_ecs_task_definition" "wordpress" {
     mountPoints = [{
       sourceVolume  = "uploads"
       containerPath = "/var/www/html/wp-content/uploads"
-      readOnly      = false
+      readOnly      = var.public_read_only_mode
     }]
     logConfiguration = {
       logDriver = "awslogs"

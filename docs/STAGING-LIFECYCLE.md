@@ -20,7 +20,7 @@ export PROD_DB_NAME='<production database name loaded from the approved secret>'
 export DB_HOST='Aurora writer endpoint'
 export DB_ADMIN_USER='runtime-loaded admin user'
 export DB_ADMIN_PASSWORD='runtime-loaded admin password'
-export STAGING_HEALTH_URL='https://staging-wp.hectv.org/wp-json/'
+export STAGING_HEALTH_URL='https://staging-wp.hectv.org/wp-json/wp/v2/types'
 ```
 
 The staging Secrets Manager object must contain staging-only salts and API
@@ -79,6 +79,27 @@ Stopping ECS does not delete the logical database. Its incremental cost is
 storage, backup storage, and any I/O it generated while used. Refresh it before
 the next release cycle.
 
+## Public frontend integration
+
+`development.hecmedia.org` uses Lambda@Edge and GitHub Actions runners whose
+egress addresses are not stable office/VPN CIDRs. To let that frontend read
+WordPress, set `public_read_only_mode=true` and allow HTTPS from
+`0.0.0.0/0` only after changing the `hectv_staging_app` database grants to
+`SELECT` on `hectv_staging.*`. The container refuses to start unless it verifies
+that this is the runtime user's only database grant. Public read-only mode makes
+the EFS uploads mount read-only and changes the ALB to an allowlist: GraphQL
+GET/POST, selected REST GET/HEAD/OPTIONS namespaces, and uploads are forwarded;
+every other request returns 403. This also closes WordPress's `rest_route`
+query-string bypass because neither `/` nor the REST discovery root is
+forwarded. A staging-only must-use plugin also rejects authentication and every
+non-read REST method before WordPress dispatch, and rejects GraphQL mutation
+operations before resolver execution. The staging JWT secret is unique, so
+production tokens are invalid here. Cron, mail, and payments remain disabled.
+
+Never enable public read-only mode while the staging runtime database user has
+write privileges. Refresh requires temporary admin credentials and must return
+the runtime user to SELECT-only before restarting staging.
+
 ## Safety properties
 
 - Refresh refuses a target without an `_staging` suffix.
@@ -94,7 +115,9 @@ the next release cycle.
 - Passwords are passed through `MYSQL_PWD`, not command arguments or logs.
 - Staging uploads use the `/staging-uploads` EFS Access Point, never the
   production uploads root.
-- The ALB requires explicit office/VPN CIDRs and rejects `0.0.0.0/0`.
+- Public ALB ingress requires explicit `public_read_only_mode=true`, sensitive
+  routes are blocked at the listener, and the runtime database user must be
+  SELECT-only.
 - WordPress pins and validates the staging host instead of trusting `Host`.
 - Unique staging salts and Stripe test keys are mandatory.
 - Production DNS and the production ECS/EB service are not modified.

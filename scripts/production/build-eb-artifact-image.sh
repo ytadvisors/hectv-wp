@@ -67,6 +67,8 @@ git -C "$repo_root" show "${ECS_CONFIG_REVISION}:deploy/container/healthz" >"$co
 git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-config.php" >"$context/wp-config.php"
 git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv/classes/hectv_payment.php" \
   >"$context/wp-content/mu-plugins/hectv/classes/hectv_payment.php"
+git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv-public-read-only.php" \
+  >"$context/wp-content/mu-plugins/hectv-public-read-only.php"
 
 short_bundle_sha="${actual_sha:0:12}"
 short_config_revision="${ECS_CONFIG_REVISION:0:7}"

@@ -30,12 +30,18 @@ variable "staging_hostname" {
 
 variable "allowed_ipv4_cidrs" {
   type        = list(string)
-  description = "Office/VPN CIDRs allowed to reach staging. Public 0.0.0.0/0 is forbidden."
+  description = "CIDRs allowed to reach staging. Public ingress requires public_read_only_mode."
 
   validation {
-    condition     = length(var.allowed_ipv4_cidrs) > 0 && !contains(var.allowed_ipv4_cidrs, "0.0.0.0/0")
-    error_message = "Provide at least one restricted CIDR; 0.0.0.0/0 is forbidden."
+    condition     = length(var.allowed_ipv4_cidrs) > 0
+    error_message = "Provide at least one staging ingress CIDR."
   }
+}
+
+variable "public_read_only_mode" {
+  type        = bool
+  default     = false
+  description = "Allows public HTTPS only when the database user is SELECT-only and sensitive WordPress paths are blocked."
 }
 
 variable "certificate_arn" {
