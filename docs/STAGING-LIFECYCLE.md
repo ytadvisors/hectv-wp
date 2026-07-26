@@ -59,7 +59,9 @@ The refresh script requires staging desired count zero. It creates an Aurora
 snapshot, takes a transaction-consistent dump, recreates only the `_staging`
 database, performs a serialization-safe URL rewrite with WP-CLI, clears
 WordPress cron state, and verifies that tables exist. The service also sets
-`DISABLE_WP_CRON=1` and disables PHP mail delivery.
+`DISABLE_WP_CRON=1`, disables PHP mail delivery, and sets
+`HECTV_DISABLE_PAYMENTS=1`. Payment credentials are removed from the PHP
+process before Apache starts, and payment operations return a 503 response.
 
 ```bash
 bash scripts/staging/stop.sh
@@ -83,6 +85,8 @@ the next release cycle.
 - Refresh refuses to run while the staging service is active.
 - Refresh requires both ECS desired and running task counts to be zero.
 - Source and target database names must differ.
+- The staging task disables payment operations even if Stripe keys are present
+  in the runtime secret.
 - A manual Aurora snapshot must become available before staging is recreated.
 - Pre-refresh snapshots are retained for recovery and must be pruned under the
   approved backup-retention policy, never automatically by the refresh.

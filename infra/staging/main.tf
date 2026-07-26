@@ -306,6 +306,7 @@ resource "aws_ecs_task_definition" "wordpress" {
       { name = "FORCE_SSL_ADMIN", value = "1" },
       { name = "HECTV_CANONICAL_HOST", value = var.staging_hostname },
       { name = "HECTV_DISABLE_OUTBOUND", value = "1" },
+      { name = "HECTV_DISABLE_PAYMENTS", value = "1" },
       { name = "HECTV_ENVIRONMENT", value = "staging" },
       { name = "HTTP_HOST", value = var.staging_hostname },
       { name = "WP_DEBUG", value = "0" },
