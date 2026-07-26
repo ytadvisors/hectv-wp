@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/common.sh"
 
 require_command aws
 require_command curl
+assert_staging_service
 assert_staging_database
 assert_staging_url
 : "${STAGING_DESIRED_COUNT:=1}"

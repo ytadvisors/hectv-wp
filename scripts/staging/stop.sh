@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 require_command aws
+assert_staging_service
 
 aws ecs update-service \
   --cluster "$ECS_CLUSTER" \
@@ -29,4 +30,3 @@ done
 
 echo "Timed out waiting for staging tasks to stop." >&2
 exit 1
-

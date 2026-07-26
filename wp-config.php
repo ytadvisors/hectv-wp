@@ -71,7 +71,8 @@ define('AUTH_SALT',        hectv_env('AUTH_SALT'));
 define('SECURE_AUTH_SALT', hectv_env('SECURE_AUTH_SALT'));
 define('LOGGED_IN_SALT',   hectv_env('LOGGED_IN_SALT'));
 define('NONCE_SALT',       hectv_env('NONCE_SALT'));
-define('JWT_AUTH_SECRET_KEY', hectv_env('JWT_AUTH_SECRET_KEY'));
+$jwt_auth_secret = hectv_env('JWT_AUTH_SECRET_KEY', hectv_env('AUTH_KEY'));
+define('JWT_AUTH_SECRET_KEY', $jwt_auth_secret);
 if (hectv_env('AWS_ACCESS_KEY_ID') !== null && hectv_env('AWS_SECRET_ACCESS_KEY') !== null) {
     define('AWS_ACCESS_KEY_ID', hectv_env('AWS_ACCESS_KEY_ID'));
     define('AWS_SECRET_ACCESS_KEY', hectv_env('AWS_SECRET_ACCESS_KEY'));

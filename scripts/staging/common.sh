@@ -10,6 +10,17 @@ set -euo pipefail
 
 export AWS_PROFILE AWS_REGION ECS_CLUSTER ECS_SERVICE STAGING_DB_NAME STAGING_URL
 
+assert_staging_service() {
+  local expected_cluster="hectv-wp"
+  local expected_service="hectv-wp-staging"
+
+  if [[ "$ECS_CLUSTER" != "$expected_cluster" ]] || [[ "$ECS_SERVICE" != "$expected_service" ]]; then
+    echo "Refusing non-staging ECS target: cluster=$ECS_CLUSTER service=$ECS_SERVICE" >&2
+    echo "Expected cluster=$expected_cluster service=$expected_service." >&2
+    exit 1
+  fi
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "Required command is not installed: $1" >&2

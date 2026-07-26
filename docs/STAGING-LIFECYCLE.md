@@ -41,6 +41,18 @@ Only HEC's `wp-content`, Composer vendor tree, configuration, and rewrite rules
 are layered onto that core. Database upgrades therefore occur only in
 `hectv_staging`; production Aurora tables are never the target.
 
+The lifecycle scripts are hard-pinned to ECS cluster `hectv-wp` and service
+`hectv-wp-staging`. They refuse any other cluster/service pair before making an
+AWS call, even if environment variables try to override the target.
+
+`JWT_AUTH_SECRET_KEY` must be present in the staging runtime secret. For
+backward-compatible production startup, `wp-config.php` falls back to the
+existing `AUTH_KEY` when the dedicated JWT value is absent. Before a production
+deployment, pre-seed `JWT_AUTH_SECRET_KEY` with the production JWT secret to
+preserve already-issued tokens; otherwise users with old tokens must sign in
+again once, while newly issued tokens remain stable through the `AUTH_KEY`
+fallback.
+
 ## Refresh and start
 
 The refresh script requires staging desired count zero. It creates an Aurora

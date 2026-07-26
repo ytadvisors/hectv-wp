@@ -13,6 +13,7 @@ require_value DB_HOST
 require_value PROD_DB_NAME
 require_value DB_ADMIN_USER
 require_value DB_ADMIN_PASSWORD
+assert_staging_service
 assert_staging_database
 assert_staging_url
 
