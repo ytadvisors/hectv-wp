@@ -60,11 +60,7 @@ mail.add_x_header = Off
 EOF
 fi
 
-if [ "${HECTV_DISABLE_PAYMENTS:-0}" = "1" ]; then
-  unset STRIPE_KEY STRIPE_SECRET_KEY
-fi
-
-if [ "${HECTV_ENVIRONMENT:-}" = "staging" ]; then
+if [ "${HECTV_ENVIRONMENT:-}" = "staging" ] && [ "${HECTV_DISABLE_PAYMENTS:-0}" != "1" ]; then
   case "${STRIPE_KEY:-}" in
     pk_test_*) ;;
     *) echo "Staging requires a Stripe test publishable key." >&2; exit 1 ;;
@@ -73,6 +69,10 @@ if [ "${HECTV_ENVIRONMENT:-}" = "staging" ]; then
     sk_test_*) ;;
     *) echo "Staging requires a Stripe test secret key." >&2; exit 1 ;;
   esac
+fi
+
+if [ "${HECTV_DISABLE_PAYMENTS:-0}" = "1" ]; then
+  unset STRIPE_KEY STRIPE_SECRET_KEY
 fi
 
 exec "$@"
