@@ -10,3 +10,7 @@ wp-content/wonolog/*
 !.elasticbeanstalk/*.global.yml
 .DS_Store
 */DS_Store
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
