@@ -103,8 +103,9 @@ if($is_ssl) {
 $table_prefix  = 'wp_';
 
 $canonical_host = hectv_env('HECTV_CANONICAL_HOST');
+$allowed_hosts = array_filter(array_map('trim', explode(',', hectv_env('HECTV_ALLOWED_HOSTS', ''))));
 $request_host = isset($_SERVER['HTTP_HOST']) ? strtolower(explode(':', $_SERVER['HTTP_HOST'])[0]) : '';
-if ($canonical_host && $request_host && $request_host !== strtolower($canonical_host)) {
+if ($canonical_host && $request_host && $request_host !== strtolower($canonical_host) && !in_array($request_host, array_map('strtolower', $allowed_hosts), true)) {
     header('HTTP/1.1 400 Bad Request');
     exit('Invalid host');
 }
