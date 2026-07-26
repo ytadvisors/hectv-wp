@@ -2,8 +2,8 @@
 .github
 .ebextensions
 wp-content/uploads
+wp-content/plugins/wp-all-import-pro
 *.log
 Dockerfile*
 infra
 tests
-

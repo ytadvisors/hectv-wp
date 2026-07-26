@@ -1,21 +1,14 @@
-FROM php:8.2-apache
+FROM wordpress:php8.2-apache@sha256:680df6fd52a1ec7948deb6ca5fa57f1bca0d5d062396ffd0c57b8b4f24adc23f
 
 ARG APP_REVISION=unknown
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libfreetype6-dev \
-        libjpeg62-turbo-dev \
-        libpng-dev \
-        libzip-dev \
-        curl \
-        unzip \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j2 gd mysqli zip \
-    && a2enmod headers rewrite \
-    && rm -rf /var/lib/apt/lists/*
+RUN rm -rf /var/www/html/* \
+    && cp -a /usr/src/wordpress/. /var/www/html/ \
+    && a2enmod headers rewrite
 
-COPY . /var/www/html
+COPY wp-content /var/www/html/wp-content
+COPY vendor /var/www/html/vendor
+COPY wp-config.php .htaccess /var/www/html/
 COPY deploy/container/php.ini /usr/local/etc/php/conf.d/hectv.ini
 COPY deploy/container/entrypoint.sh /usr/local/bin/hectv-entrypoint
 COPY deploy/container/healthz /var/www/html/healthz

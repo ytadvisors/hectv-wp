@@ -28,6 +28,19 @@ credentials. Stripe keys must be `pk_test_*` and `sk_test_*`; the container
 refuses to start with live keys. Do not copy production payment, email, or
 campaign credentials into the staging secret.
 
+The legacy `wp-all-import-pro` bundle is deliberately excluded from the PHP 8.2
+staging image. Its vendored PHPExcel code uses syntax removed in PHP 8 and the
+plugin is not required for content-review or release-validation workflows.
+Production source and the existing EB runtime are not modified by that image
+exclusion. Reintroducing imports requires a separately licensed, PHP
+8-compatible plugin update and its own validation.
+
+The staging image also takes WordPress core from the digest-pinned official
+WordPress PHP 8.2 image instead of copying the repository's WordPress 4.9.8 core.
+Only HEC's `wp-content`, Composer vendor tree, configuration, and rewrite rules
+are layered onto that core. Database upgrades therefore occur only in
+`hectv_staging`; production Aurora tables are never the target.
+
 ## Refresh and start
 
 The refresh script requires staging desired count zero. It creates an Aurora
