@@ -216,6 +216,13 @@ resource "aws_lb" "wordpress" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
+
+  lifecycle {
+    precondition {
+      condition     = !contains(var.allowed_ipv4_cidrs, "0.0.0.0/0") || var.public_read_only_mode
+      error_message = "Public staging ingress requires public_read_only_mode=true."
+    }
+  }
 }
 
 resource "aws_lb_target_group" "wordpress" {
@@ -261,6 +268,58 @@ resource "aws_lb_listener" "https" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.wordpress.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "block_staging_admin" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 10
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Administrative access is disabled on staging."
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = [
+        "/wp-admin*",
+        "/wp-login.php",
+        "/xmlrpc.php",
+        "/wp-json/jwt-auth*",
+        "/wp-json/wp/v2/users*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "block_staging_sensitive_api" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 20
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "This staging API route is disabled."
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = [
+        "/wp-json/wp/v2/settings*",
+        "/wp-json/wp/v2/plugins*",
+        "/wp-json/wp/v2/application-passwords*",
+      ]
+    }
   }
 }
 
