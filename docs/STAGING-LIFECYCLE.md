@@ -20,7 +20,7 @@ export PROD_DB_NAME='<production database name loaded from the approved secret>'
 export DB_HOST='Aurora writer endpoint'
 export DB_ADMIN_USER='runtime-loaded admin user'
 export DB_ADMIN_PASSWORD='runtime-loaded admin password'
-export STAGING_HEALTH_URL='https://staging-wp.hectv.org/wp-json/'
+export STAGING_HEALTH_URL='https://staging-wp.hectv.org/wp-json/wp/v2/types'
 ```
 
 The staging Secrets Manager object must contain staging-only salts and API
@@ -90,8 +90,10 @@ that this is the runtime user's only database grant. Public read-only mode makes
 the EFS uploads mount read-only and changes the ALB to an allowlist: GraphQL
 GET/POST, selected REST GET/HEAD/OPTIONS namespaces, and uploads are forwarded;
 every other request returns 403. This also closes WordPress's `rest_route`
-query-string bypass because `/` is not forwarded. Cron, mail, and payments
-remain disabled.
+query-string bypass because neither `/` nor the REST discovery root is
+forwarded. A staging-only must-use plugin also rejects authentication and every
+non-read REST method before WordPress dispatch. Cron, mail, and payments remain
+disabled.
 
 Never enable public read-only mode while the staging runtime database user has
 write privileges. Refresh requires temporary admin credentials and must return

@@ -315,7 +315,6 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
   condition {
     path_pattern {
       values = [
-        "/wp-json/",
         "/wp-json/wp/v2/*",
         "/wp-json/wp-api-menus/v2/*",
         "/wp-json/hectv/v1/livevideos/live",
