@@ -72,9 +72,14 @@ define('SECURE_AUTH_SALT', hectv_env('SECURE_AUTH_SALT'));
 define('LOGGED_IN_SALT',   hectv_env('LOGGED_IN_SALT'));
 define('NONCE_SALT',       hectv_env('NONCE_SALT'));
 define('JWT_AUTH_SECRET_KEY', hectv_env('JWT_AUTH_SECRET_KEY'));
+if (hectv_env('AWS_ACCESS_KEY_ID') !== null && hectv_env('AWS_SECRET_ACCESS_KEY') !== null) {
+    define('AWS_ACCESS_KEY_ID', hectv_env('AWS_ACCESS_KEY_ID'));
+    define('AWS_SECRET_ACCESS_KEY', hectv_env('AWS_SECRET_ACCESS_KEY'));
+}
 define('JWT_AUTH_CORS_ENABLE', true);
 define('WP_DEBUG', hectv_env('WP_DEBUG', '0') === '1');
 define('WP_DEBUG_LOG', hectv_env('WP_DEBUG_LOG', '0') === '1');
+define('DISABLE_WP_CRON', hectv_env('DISABLE_WP_CRON', '0') === '1');
 define('WP_AUTO_UPDATE_CORE', false);
 define( 'COMPOSER_PATH', "vendor" );
 
@@ -96,7 +101,13 @@ if($is_ssl) {
 
 $table_prefix  = 'wp_';
 
-$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : hectv_env('HTTP_HOST', 'localhost');
+$canonical_host = hectv_env('HECTV_CANONICAL_HOST');
+$request_host = isset($_SERVER['HTTP_HOST']) ? strtolower(explode(':', $_SERVER['HTTP_HOST'])[0]) : '';
+if ($canonical_host && $request_host && $request_host !== strtolower($canonical_host)) {
+    header('HTTP/1.1 400 Bad Request');
+    exit('Invalid host');
+}
+$http_host = $canonical_host ? $canonical_host : ($request_host ? $request_host : hectv_env('HTTP_HOST', 'localhost'));
 define("WP_HOME", $protocol . $http_host );
 define('WP_SITEURL',$protocol . $http_host );
 

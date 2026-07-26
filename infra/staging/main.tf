@@ -23,6 +23,8 @@ locals {
   ])
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_ecr_repository" "wordpress" {
   name                 = local.name
   image_tag_mutability = "IMMUTABLE"
@@ -87,6 +89,27 @@ resource "aws_iam_role" "task" {
   })
 }
 
+resource "aws_iam_role_policy" "task_efs" {
+  name = "mount-staging-uploads"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+      ]
+      Resource = "arn:aws:elasticfilesystem:${var.aws_region}:${data.aws_caller_identity.current.account_id}:file-system/${var.efs_file_system_id}"
+      Condition = {
+        StringEquals = {
+          "elasticfilesystem:AccessPointArn" = aws_efs_access_point.staging.arn
+        }
+      }
+    }]
+  })
+}
+
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb"
   description = "Public HTTPS for the on-demand HEC staging origin"
@@ -99,7 +122,7 @@ resource "aws_security_group_rule" "alb_http" {
   protocol          = "tcp"
   from_port         = 80
   to_port           = 80
-  cidr_blocks       = ["0.0.0.0/0"]
+  cidr_blocks       = var.allowed_ipv4_cidrs
 }
 
 resource "aws_security_group_rule" "alb_https" {
@@ -108,7 +131,7 @@ resource "aws_security_group_rule" "alb_https" {
   protocol          = "tcp"
   from_port         = 443
   to_port           = 443
-  cidr_blocks       = ["0.0.0.0/0"]
+  cidr_blocks       = var.allowed_ipv4_cidrs
 }
 
 resource "aws_security_group_rule" "alb_to_task" {
@@ -164,6 +187,29 @@ resource "aws_security_group_rule" "aurora_from_staging" {
   description              = "MySQL from HEC staging ECS tasks"
 }
 
+resource "aws_efs_access_point" "staging" {
+  file_system_id = var.efs_file_system_id
+
+  posix_user {
+    uid = 33
+    gid = 33
+  }
+
+  root_directory {
+    path = "/staging-uploads"
+    creation_info {
+      owner_uid   = 33
+      owner_gid   = 33
+      permissions = "0755"
+    }
+  }
+
+  tags = {
+    Name        = "${local.name}-uploads"
+    Environment = "staging"
+  }
+}
+
 resource "aws_lb" "wordpress" {
   name               = local.name
   internal           = false
@@ -181,7 +227,7 @@ resource "aws_lb_target_group" "wordpress" {
 
   health_check {
     enabled             = true
-    path                = "/wp-json/"
+    path                = "/healthz"
     matcher             = "200-399"
     healthy_threshold   = 2
     unhealthy_threshold = 3
@@ -238,6 +284,11 @@ resource "aws_ecs_task_definition" "wordpress" {
       file_system_id     = var.efs_file_system_id
       transit_encryption = "ENABLED"
       root_directory     = "/"
+
+      authorization_config {
+        access_point_id = aws_efs_access_point.staging.id
+        iam             = "ENABLED"
+      }
     }
   }
 
@@ -251,7 +302,11 @@ resource "aws_ecs_task_definition" "wordpress" {
       protocol      = "tcp"
     }]
     environment = [
+      { name = "DISABLE_WP_CRON", value = "1" },
       { name = "FORCE_SSL_ADMIN", value = "1" },
+      { name = "HECTV_CANONICAL_HOST", value = var.staging_hostname },
+      { name = "HECTV_DISABLE_OUTBOUND", value = "1" },
+      { name = "HECTV_ENVIRONMENT", value = "staging" },
       { name = "HTTP_HOST", value = var.staging_hostname },
       { name = "WP_DEBUG", value = "0" },
       { name = "WP_DEBUG_LOG", value = "1" },

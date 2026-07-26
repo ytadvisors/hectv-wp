@@ -8,11 +8,13 @@ source "$SCRIPT_DIR/common.sh"
 require_command aws
 require_command mysql
 require_command mysqldump
+require_command wp
 require_value DB_HOST
 require_value PROD_DB_NAME
 require_value DB_ADMIN_USER
 require_value DB_ADMIN_PASSWORD
 assert_staging_database
+assert_staging_url
 
 if [[ "$PROD_DB_NAME" == "$STAGING_DB_NAME" ]]; then
   echo "Source and staging database names must differ." >&2
@@ -20,8 +22,9 @@ if [[ "$PROD_DB_NAME" == "$STAGING_DB_NAME" ]]; then
 fi
 
 desired="$(service_desired_count)"
-if [[ "$desired" != "0" ]]; then
-  echo "Refusing refresh while staging service desiredCount=$desired; stop staging first." >&2
+running="$(service_running_count)"
+if [[ "$desired" != "0" ]] || [[ "$running" != "0" ]]; then
+  echo "Refusing refresh while staging service desiredCount=$desired runningCount=$running; stop staging first." >&2
   exit 1
 fi
 
@@ -66,6 +69,42 @@ MYSQL_PWD="$DB_ADMIN_PASSWORD" mysql \
   --user="$DB_ADMIN_USER" \
   "$STAGING_DB_NAME" <"$dump_file"
 
+production_url="$(
+  MYSQL_PWD="$DB_ADMIN_PASSWORD" mysql \
+    --host="$DB_HOST" \
+    --user="$DB_ADMIN_USER" \
+    --batch --skip-column-names \
+    "$STAGING_DB_NAME" \
+    --execute="SELECT option_value FROM wp_options WHERE option_name='siteurl' LIMIT 1;"
+)"
+
+if [[ ! "$production_url" =~ ^https?:// ]]; then
+  echo "Could not determine a safe production site URL from the imported database." >&2
+  exit 1
+fi
+
+echo "Rewriting imported URLs for the isolated staging hostname."
+RDS_DB_NAME="$STAGING_DB_NAME" \
+RDS_USERNAME="$DB_ADMIN_USER" \
+RDS_PASSWORD="$DB_ADMIN_PASSWORD" \
+RDS_HOSTNAME="$DB_HOST" \
+HTTP_HOST="${STAGING_URL#https://}" \
+HECTV_CANONICAL_HOST="${STAGING_URL#https://}" \
+FORCE_SSL_ADMIN=1 \
+wp --path="${WP_PATH:-$(cd "$SCRIPT_DIR/../.." && pwd)}" \
+  search-replace "$production_url" "$STAGING_URL" \
+  --all-tables-with-prefix \
+  --skip-columns=guid \
+  --precise \
+  --skip-plugins \
+  --skip-themes
+
+MYSQL_PWD="$DB_ADMIN_PASSWORD" mysql \
+  --host="$DB_HOST" \
+  --user="$DB_ADMIN_USER" \
+  "$STAGING_DB_NAME" \
+  --execute="UPDATE wp_options SET option_value='$STAGING_URL' WHERE option_name IN ('siteurl','home'); DELETE FROM wp_options WHERE option_name='cron';"
+
 table_count="$(
   MYSQL_PWD="$DB_ADMIN_PASSWORD" mysql \
     --host="$DB_HOST" \
@@ -81,4 +120,3 @@ fi
 
 echo "Staging database refresh complete: $table_count tables."
 echo "Safety snapshot: $snapshot_id"
-

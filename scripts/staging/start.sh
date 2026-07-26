@@ -8,6 +8,7 @@ source "$SCRIPT_DIR/common.sh"
 require_command aws
 require_command curl
 assert_staging_database
+assert_staging_url
 : "${STAGING_DESIRED_COUNT:=1}"
 require_value STAGING_HEALTH_URL
 
@@ -30,4 +31,3 @@ curl --fail --silent --show-error \
   "$STAGING_HEALTH_URL" >/dev/null
 
 echo "Staging is running and healthy at $STAGING_HEALTH_URL"
-

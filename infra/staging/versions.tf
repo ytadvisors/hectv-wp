@@ -1,6 +1,8 @@
 terraform {
   required_version = ">= 1.5"
 
+  backend "s3" {}
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -13,4 +15,3 @@ provider "aws" {
   region  = var.aws_region
   profile = var.aws_profile
 }
-

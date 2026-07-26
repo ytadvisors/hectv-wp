@@ -28,6 +28,16 @@ variable "staging_hostname" {
   default = "staging-wp.hectv.org"
 }
 
+variable "allowed_ipv4_cidrs" {
+  type        = list(string)
+  description = "Office/VPN CIDRs allowed to reach staging. Public 0.0.0.0/0 is forbidden."
+
+  validation {
+    condition     = length(var.allowed_ipv4_cidrs) > 0 && !contains(var.allowed_ipv4_cidrs, "0.0.0.0/0")
+    error_message = "Provide at least one restricted CIDR; 0.0.0.0/0 is forbidden."
+  }
+}
+
 variable "certificate_arn" {
   type    = string
   default = "arn:aws:acm:us-east-2:850335719356:certificate/14816e9d-ed69-43ec-aa83-68e25026e613"
@@ -69,4 +79,3 @@ variable "desired_count" {
     error_message = "desired_count must be 0, 1, or 2."
   }
 }
-
