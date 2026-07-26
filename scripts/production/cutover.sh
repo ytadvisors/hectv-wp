@@ -85,13 +85,20 @@ alb_security_group="$(
     --query 'LoadBalancers[0].SecurityGroups[0]' \
     --output text
 )"
-public_https="$(
+alb_security_group_json="$(
   "$AWS_BIN" ec2 describe-security-groups \
     --profile "$AWS_PROFILE" \
     --region "$AWS_REGION" \
     --group-ids "$alb_security_group" \
-    --query 'length(SecurityGroups[0].IpPermissions[?FromPort==`443` && ToPort==`443`].IpRanges[?CidrIp==`0.0.0.0/0`])' \
-    --output text
+    --output json
+)"
+public_https="$(
+  jq '[
+    .SecurityGroups[0].IpPermissions[]
+    | select(.IpProtocol == "tcp" and .FromPort == 443 and .ToPort == 443)
+    | .IpRanges[]?
+    | select(.CidrIp == "0.0.0.0/0")
+  ] | length' <<<"$alb_security_group_json"
 )"
 if [[ "$public_https" == "0" ]]; then
   echo "Refusing cutover before production HTTPS ingress is enabled." >&2
