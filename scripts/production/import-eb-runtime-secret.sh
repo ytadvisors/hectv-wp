@@ -62,7 +62,7 @@ def legacy_constant(name):
         raise SystemExit("Legacy constant is missing: " + name)
     return ast.literal_eval(match.group(2) + match.group(3) + match.group(2))
 
-runtime.setdefault("LOGGED_IN_SALT", runtime.get("LOGGED_IN_KEY"))
+runtime.setdefault("LOGGED_IN_SALT", "")
 runtime.setdefault("JWT_AUTH_SECRET_KEY", legacy_constant("JWT_AUTH_SECRET_KEY"))
 runtime.setdefault("STRIPE_KEY", "")
 runtime.setdefault("STRIPE_SECRET_KEY", "")
@@ -76,7 +76,7 @@ required = {
     "STRIPE_SECRET_KEY",
 }
 missing = sorted(key for key in required if not runtime.get(key))
-missing = [key for key in missing if key not in {"STRIPE_KEY", "STRIPE_SECRET_KEY"}]
+missing = [key for key in missing if key not in {"LOGGED_IN_SALT", "STRIPE_KEY", "STRIPE_SECRET_KEY"}]
 if missing:
     raise SystemExit("Refusing incomplete production secret; missing: " + ", ".join(missing))
 

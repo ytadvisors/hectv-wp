@@ -84,8 +84,9 @@ define('DISABLE_WP_CRON', hectv_env('DISABLE_WP_CRON', '0') === '1');
 define('WP_AUTO_UPDATE_CORE', false);
 define( 'COMPOSER_PATH', "vendor" );
 
-define('STRIPE_PUB_KEY', hectv_env('STRIPE_KEY', ''));
-define('STRIPE_SECRET_KEY', hectv_env('STRIPE_SECRET_KEY', ''));
+$payments_disabled = hectv_env('HECTV_DISABLE_PAYMENTS', '0') === '1';
+define('STRIPE_PUB_KEY', $payments_disabled ? '' : hectv_env('STRIPE_KEY', ''));
+define('STRIPE_SECRET_KEY', $payments_disabled ? '' : hectv_env('STRIPE_SECRET_KEY', ''));
 
 $https = isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : '';
 $server_port = isset($_SERVER['SERVER_PORT']) ? (int) $_SERVER['SERVER_PORT'] : 80;

@@ -21,6 +21,10 @@ migration is stable.
   changed by Terraform.
 - The existing Elastic Beanstalk environment is never modified or terminated.
 - Production uploads mount the existing EFS root.
+- The EFS access point enforces the Elastic Beanstalk `webapp` identity
+  (`uid=500`, `gid=500`) for compatibility with existing upload directories.
+- Every production task must pass a write-and-remove probe in the newest
+  existing uploads year/month directory before Apache starts.
 - Production database and EFS security groups grant only the ECS task security
   group.
 - Runtime credentials are read from a dedicated Secrets Manager object.
@@ -34,14 +38,50 @@ migration is stable.
 2. Create the production runtime secret with
    `scripts/production/import-eb-runtime-secret.sh`.
 3. Initialize Terraform and apply only the ECR repository target.
-4. Build and push `Dockerfile.production` with the current commit as an
-   immutable tag.
+4. Build and push `Dockerfile.production` for `linux/arm64` with the current
+   commit as an immutable tag:
+
+   ```bash
+   docker buildx build \
+     --platform linux/arm64 \
+     -f Dockerfile.production \
+     --build-arg APP_REVISION="$(git rev-parse HEAD)" \
+     --tag "$ECR_REPOSITORY:$(git rev-parse HEAD)" \
+     --push .
+   ```
+
 5. Run a complete Terraform plan with `desired_count = 0`.
 6. Apply the reviewed plan.
-7. Confirm ALB health endpoint and DNS for `prod-wp-ecs.hectv.org`.
+7. Confirm the ACM certificate covers `prod-wp-ecs.hectv.org`, then confirm
+   the ALB health endpoint and DNS.
 8. Take an Aurora snapshot.
-9. Start one ECS task with WordPress cron disabled for direct-origin validation.
+9. Keep `validation_mode=true`, restrict `allowed_ipv4_cidrs` to the approved
+   office/VPN addresses, and start one ECS task for direct-origin validation.
+   Validation mode disables WordPress cron, PHP mail, and Stripe credentials.
 10. Perform the cutover only after the validation checklist passes.
+
+## Validation rules
+
+Validation uses the live production database and uploads because this is a
+lift-and-shift origin test. The origin must never be public during this phase.
+Use read-mostly probes and do not submit checkout/payment flows, edit content,
+upload media, or exercise administrative writes. Confirm the task logs contain
+`Production EFS write probe passed` for an existing uploads year/month path.
+
+Before running `cutover.sh`:
+
+1. Set `validation_mode=false`.
+2. Change `allowed_ipv4_cidrs` to the approved production ingress, including
+   `0.0.0.0/0` for the current public origin behavior.
+3. Apply the reviewed Terraform changes to register the normal-runtime task
+   definition.
+4. Scale the ECS service to desired count two.
+5. Wait for two running tasks and two healthy ALB targets.
+6. Re-run production smoke tests.
+
+`cutover.sh` independently verifies two healthy targets, cron/mail/payments
+enabled, public HTTPS ingress, the expected Elastic Beanstalk DNS target, and a
+successful origin health check before taking the snapshot or changing DNS.
 
 ## Cutover rollback
 

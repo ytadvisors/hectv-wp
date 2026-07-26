@@ -28,11 +28,12 @@ validation_flags="$(
     --profile "$AWS_PROFILE" \
     --region "$AWS_REGION" \
     --task-definition "$task_definition" \
-    --query 'taskDefinition.containerDefinitions[0].environment[?name==`DISABLE_WP_CRON` || name==`HECTV_DISABLE_OUTBOUND`].[name,value]' \
+    --query 'taskDefinition.containerDefinitions[0].environment[?name==`DISABLE_WP_CRON` || name==`HECTV_DISABLE_OUTBOUND` || name==`HECTV_DISABLE_PAYMENTS`].[name,value]' \
     --output text
 )"
 grep -q $'DISABLE_WP_CRON\t1' <<<"$validation_flags"
 grep -q $'HECTV_DISABLE_OUTBOUND\t1' <<<"$validation_flags"
+grep -q $'HECTV_DISABLE_PAYMENTS\t1' <<<"$validation_flags"
 
 "$AWS_BIN" ecs update-service \
   --profile "$AWS_PROFILE" \

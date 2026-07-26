@@ -36,7 +36,6 @@ variable "production_hostname" {
 variable "allowed_ipv4_cidrs" {
   type        = list(string)
   description = "CIDRs allowed to reach the public production origin."
-  default     = ["0.0.0.0/0"]
 }
 
 variable "certificate_arn" {
@@ -63,6 +62,18 @@ variable "efs_file_system_id" {
 variable "efs_security_group_id" {
   type    = string
   default = "sg-26c1f14c"
+}
+
+variable "efs_posix_uid" {
+  type        = number
+  default     = 500
+  description = "Elastic Beanstalk webapp UID enforced by the production EFS access point."
+}
+
+variable "efs_posix_gid" {
+  type        = number
+  default     = 500
+  description = "Elastic Beanstalk webapp GID enforced by the production EFS access point."
 }
 
 variable "aurora_security_group_id" {

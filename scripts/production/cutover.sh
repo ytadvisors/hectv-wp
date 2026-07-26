@@ -49,11 +49,12 @@ runtime_flags="$(
     --profile "$AWS_PROFILE" \
     --region "$AWS_REGION" \
     --task-definition "$task_definition" \
-    --query 'taskDefinition.containerDefinitions[0].environment[?name==`DISABLE_WP_CRON` || name==`HECTV_DISABLE_OUTBOUND`].[name,value]' \
+    --query 'taskDefinition.containerDefinitions[0].environment[?name==`DISABLE_WP_CRON` || name==`HECTV_DISABLE_OUTBOUND` || name==`HECTV_DISABLE_PAYMENTS`].[name,value]' \
     --output text
 )"
 grep -q $'DISABLE_WP_CRON\t0' <<<"$runtime_flags"
 grep -q $'HECTV_DISABLE_OUTBOUND\t0' <<<"$runtime_flags"
+grep -q $'HECTV_DISABLE_PAYMENTS\t0' <<<"$runtime_flags"
 
 healthy="$(
   "$AWS_BIN" elbv2 describe-target-health \
@@ -65,6 +66,35 @@ healthy="$(
 )"
 if (( healthy < 2 )); then
   echo "Refusing cutover with only $healthy healthy ALB targets." >&2
+  exit 1
+fi
+
+load_balancer_arn="$(
+  "$AWS_BIN" elbv2 describe-target-groups \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --target-group-arns "$target_group" \
+    --query 'TargetGroups[0].LoadBalancerArns[0]' \
+    --output text
+)"
+alb_security_group="$(
+  "$AWS_BIN" elbv2 describe-load-balancers \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --load-balancer-arns "$load_balancer_arn" \
+    --query 'LoadBalancers[0].SecurityGroups[0]' \
+    --output text
+)"
+public_https="$(
+  "$AWS_BIN" ec2 describe-security-groups \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --group-ids "$alb_security_group" \
+    --query 'length(SecurityGroups[0].IpPermissions[?FromPort==`443` && ToPort==`443`].IpRanges[?CidrIp==`0.0.0.0/0`])' \
+    --output text
+)"
+if [[ "$public_https" == "0" ]]; then
+  echo "Refusing cutover before production HTTPS ingress is enabled." >&2
   exit 1
 fi
 

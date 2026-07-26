@@ -89,6 +89,27 @@ resource "aws_iam_role" "task" {
   })
 }
 
+resource "aws_iam_role_policy" "task_efs" {
+  name = "mount-production-uploads"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+      ]
+      Resource = "arn:aws:elasticfilesystem:${var.aws_region}:850335719356:file-system/${var.efs_file_system_id}"
+      Condition = {
+        StringEquals = {
+          "elasticfilesystem:AccessPointArn" = aws_efs_access_point.production.arn
+        }
+      }
+    }]
+  })
+}
+
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb"
   description = "Public HTTPS for the parallel HEC production origin"
@@ -111,6 +132,13 @@ resource "aws_security_group_rule" "alb_https" {
   from_port         = 443
   to_port           = 443
   cidr_blocks       = var.allowed_ipv4_cidrs
+
+  lifecycle {
+    precondition {
+      condition     = !var.validation_mode || !contains(var.allowed_ipv4_cidrs, "0.0.0.0/0")
+      error_message = "validation_mode requires restricted office/VPN CIDRs; 0.0.0.0/0 is forbidden."
+    }
+  }
 }
 
 resource "aws_security_group_rule" "alb_to_task" {
@@ -164,6 +192,24 @@ resource "aws_security_group_rule" "aurora_from_production" {
   from_port                = 3306
   to_port                  = 3306
   description              = "MySQL from HEC production ECS tasks"
+}
+
+resource "aws_efs_access_point" "production" {
+  file_system_id = var.efs_file_system_id
+
+  posix_user {
+    uid = var.efs_posix_uid
+    gid = var.efs_posix_gid
+  }
+
+  root_directory {
+    path = "/"
+  }
+
+  tags = {
+    Name        = "${local.name}-uploads"
+    Environment = "production"
+  }
 }
 
 resource "aws_lb" "wordpress" {
@@ -240,6 +286,11 @@ resource "aws_ecs_task_definition" "wordpress" {
       file_system_id     = var.efs_file_system_id
       transit_encryption = "ENABLED"
       root_directory     = "/"
+
+      authorization_config {
+        access_point_id = aws_efs_access_point.production.id
+        iam             = "ENABLED"
+      }
     }
   }
 
@@ -258,6 +309,7 @@ resource "aws_ecs_task_definition" "wordpress" {
       { name = "HECTV_ALLOWED_HOSTS", value = "${var.production_hostname},${var.origin_hostname}" },
       { name = "HECTV_CANONICAL_HOST", value = var.production_hostname },
       { name = "HECTV_DISABLE_OUTBOUND", value = var.validation_mode ? "1" : "0" },
+      { name = "HECTV_DISABLE_PAYMENTS", value = var.validation_mode ? "1" : "0" },
       { name = "HECTV_ENVIRONMENT", value = "production" },
       { name = "HTTP_HOST", value = var.production_hostname },
       { name = "WP_DEBUG", value = "0" },
