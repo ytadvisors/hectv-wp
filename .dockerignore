@@ -1,0 +1,9 @@
+.git
+.github
+.ebextensions
+wp-content/uploads
+*.log
+Dockerfile*
+infra
+tests
+

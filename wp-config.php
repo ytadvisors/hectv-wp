@@ -48,46 +48,57 @@ if (!class_exists('HECTV\HECTV_Admin')) {
     $autoloader('HECTV\\', __DIR__ . "/wp-content/mu-plugins/hectv/");
 }
 
-define('DB_NAME', $_SERVER['RDS_DB_NAME']);
-define('DB_USER', $_SERVER['RDS_USERNAME']);
-define('DB_PASSWORD', $_SERVER['RDS_PASSWORD']);
-define('DB_HOST', $_SERVER['RDS_HOSTNAME']);
+function hectv_env($name, $default = null) {
+    $value = getenv($name);
+    if ($value !== false) {
+        return $value;
+    }
+
+    return isset($_SERVER[$name]) ? $_SERVER[$name] : $default;
+}
+
+define('DB_NAME', hectv_env('RDS_DB_NAME'));
+define('DB_USER', hectv_env('RDS_USERNAME'));
+define('DB_PASSWORD', hectv_env('RDS_PASSWORD'));
+define('DB_HOST', hectv_env('RDS_HOSTNAME'));
 define('DB_CHARSET', 'utf8');
 define('DB_COLLATE', '');
-define('AUTH_KEY',         $_SERVER['AUTH_KEY']);
-define('SECURE_AUTH_KEY',  $_SERVER['SECURE_AUTH_KEY']);
-define('LOGGED_IN_KEY',    $_SERVER['LOGGED_IN_KEY']);
-define('NONCE_KEY',        $_SERVER['NONCE_KEY']);
-define('AUTH_SALT',        $_SERVER['AUTH_SALT']);
-define('SECURE_AUTH_SALT', $_SERVER['SECURE_AUTH_SALT']);
-define('LOGGED_IN_SALT',   $_SERVER['LOGGED_IN_SALT']);
-define('NONCE_SALT',       $_SERVER['NONCE_SALT']);
-define('AWS_ACCESS_KEY_ID',$_SERVER['AWS_ACCESS_KEY_ID']);
-define('AWS_SECRET_ACCESS_KEY',	$_SERVER['AWS_SECRET_ACCESS_KEY']);
-define('JWT_AUTH_SECRET_KEY', 'R[/(_(.9s(y[YT.|C]3eH,ukOIk y|bH<n`8TvBN:GnttP5_Z|`d!t|t6E>$Qpp,');
+define('AUTH_KEY',         hectv_env('AUTH_KEY'));
+define('SECURE_AUTH_KEY',  hectv_env('SECURE_AUTH_KEY'));
+define('LOGGED_IN_KEY',    hectv_env('LOGGED_IN_KEY'));
+define('NONCE_KEY',        hectv_env('NONCE_KEY'));
+define('AUTH_SALT',        hectv_env('AUTH_SALT'));
+define('SECURE_AUTH_SALT', hectv_env('SECURE_AUTH_SALT'));
+define('LOGGED_IN_SALT',   hectv_env('LOGGED_IN_SALT'));
+define('NONCE_SALT',       hectv_env('NONCE_SALT'));
+define('JWT_AUTH_SECRET_KEY', hectv_env('JWT_AUTH_SECRET_KEY'));
 define('JWT_AUTH_CORS_ENABLE', true);
-define('WP_DEBUG', $_SERVER['WP_DEBUG'] == 1);
-define('WP_DEBUG_LOG', $_SERVER['WP_DEBUG_LOG'] == 1);
+define('WP_DEBUG', hectv_env('WP_DEBUG', '0') === '1');
+define('WP_DEBUG_LOG', hectv_env('WP_DEBUG_LOG', '0') === '1');
 define('WP_AUTO_UPDATE_CORE', false);
 define( 'COMPOSER_PATH', "vendor" );
 
-define('STRIPE_PUB_KEY',$_SERVER['STRIPE_KEY']);
-define('STRIPE_SECRET_KEY',	$_SERVER['STRIPE_SECRET_KEY']);
+define('STRIPE_PUB_KEY', hectv_env('STRIPE_KEY', ''));
+define('STRIPE_SECRET_KEY', hectv_env('STRIPE_SECRET_KEY', ''));
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$is_ssl = $_SERVER['FORCE_SSL_ADMIN'] == 1;
+$https = isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : '';
+$server_port = isset($_SERVER['SERVER_PORT']) ? (int) $_SERVER['SERVER_PORT'] : 80;
+$forwarded_proto = isset($_SERVER['HTTP_X_FORWARDED_PROTO']) ? $_SERVER['HTTP_X_FORWARDED_PROTO'] : '';
+$protocol = (($https && $https !== 'off') || $server_port === 443 || $forwarded_proto === 'https') ? "https://" : "http://";
+$is_ssl = hectv_env('FORCE_SSL_ADMIN', '0') === '1';
 define('FORCE_SSL_ADMIN', $is_ssl);
 //define('FORCE_SSL_LOGIN', $is_ssl);
 if($is_ssl) {
-    if (!$_SERVER['HTTP_X_FORWARDED_PROTO'] || $_SERVER['HTTP_X_FORWARDED_PROTO'] == "https") {
+    if (!$forwarded_proto || $forwarded_proto === "https") {
         $_SERVER['HTTPS'] = 'on';
     }
 }
 
 $table_prefix  = 'wp_';
 
-define("WP_HOME", $protocol . $_SERVER['HTTP_HOST'] );
-define('WP_SITEURL',$protocol . $_SERVER['HTTP_HOST'] );
+$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : hectv_env('HTTP_HOST', 'localhost');
+define("WP_HOME", $protocol . $http_host );
+define('WP_SITEURL',$protocol . $http_host );
 
 /* That's all, stop editing! Happy blogging. */
 

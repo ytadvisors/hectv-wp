@@ -1,0 +1,3 @@
+container_image    = "850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-staging:<immutable-tag>"
+staging_secret_arn = "arn:aws:secretsmanager:us-east-2:850335719356:secret:<staging-secret>"
+desired_count      = 0
