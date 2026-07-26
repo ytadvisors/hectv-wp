@@ -6,10 +6,11 @@ WordPress or PHP upgrade.
 
 ## Compatibility boundary
 
-Cutover 1 deliberately keeps the repository's WordPress 4.9.8 core and the
-digest-pinned PHP 7.1 Apache runtime. This is temporary compatibility debt, but
-it prevents the hosting migration from upgrading production database tables or
-removing the legacy `wp-all-import-pro` plugin. PHP/WordPress/plugin
+Cutover 1 deliberately uses the exact source bundle deployed by Elastic
+Beanstalk, checksum-pinned before the build, and the digest-pinned PHP 7.1
+Apache runtime. The ECS compatibility files are overlaid from a reviewed Git
+revision. This prevents the hosting migration from changing the live WordPress
+core, plugins, themes, or production database schema. PHP/WordPress/plugin
 modernization is a separate, client-validated release after the hosting
 migration is stable.
 
@@ -21,8 +22,8 @@ migration is stable.
   changed by Terraform.
 - The existing Elastic Beanstalk environment is never modified or terminated.
 - Production uploads mount the existing EFS root.
-- The EFS access point enforces the Elastic Beanstalk `webapp` identity
-  (`uid=500`, `gid=500`) for compatibility with existing upload directories.
+- The EFS access point enforces the verified owner of the live uploads root
+  (`uid=498`, `gid=496`) for compatibility with existing upload directories.
 - Every production task must pass a write-and-remove probe in the newest
   existing uploads year/month directory before Apache starts.
 - Production database and EFS security groups grant only the ECS task security
@@ -38,17 +39,16 @@ migration is stable.
 2. Create the production runtime secret with
    `scripts/production/import-eb-runtime-secret.sh`.
 3. Initialize Terraform and apply only the ECR repository target.
-4. Build and push `Dockerfile.production` for `linux/arm64` with the current
-   commit as an immutable tag:
+4. Record the SHA-256 checksum of the exact Elastic Beanstalk source bundle,
+   then build and push it with the reviewed ECS compatibility revision:
 
    ```bash
-   docker buildx build \
-     --platform linux/arm64 \
-     -f Dockerfile.production \
-     --build-arg APP_REVISION="$(git rev-parse HEAD)" \
-     --tag "$ECR_REPOSITORY:$(git rev-parse HEAD)" \
-     --push .
+   EB_VERSION=app-1fa0b-221111_100259934756 \
+   EXPECTED_BUNDLE_SHA256=be0e9761964581599c99f2683c66034c33c798861be45c6b480f19732e229579 \
+     bash scripts/production/build-eb-artifact-image.sh
    ```
+
+   Record the emitted immutable image URI and digest in `terraform.tfvars`.
 
 5. Run a complete Terraform plan with `desired_count = 0`.
 6. Apply the reviewed plan.
