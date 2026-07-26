@@ -48,7 +48,13 @@ migration is stable.
      bash scripts/production/build-eb-artifact-image.sh
    ```
 
-   Record the emitted immutable image URI and digest in `terraform.tfvars`.
+   The reviewed inputs above deterministically produce the validated tag
+   `eb-app-1fa0b-221111-be0e97619645-cfg952aa68`. Record the emitted
+   digest-pinned URI in `terraform.tfvars`, for example:
+
+   ```hcl
+   container_image = "850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-production@sha256:b32c8d2f3282dab4eb2639ef7024bff16b70530fa01c751905fed184d30dd402"
+   ```
 
 5. Run a complete Terraform plan with `desired_count = 0`.
 6. Apply the reviewed plan.

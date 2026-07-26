@@ -69,13 +69,32 @@ git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv/cla
   >"$context/wp-content/mu-plugins/hectv/classes/hectv_payment.php"
 
 short_bundle_sha="${actual_sha:0:12}"
-short_config_revision="${ECS_CONFIG_REVISION:0:8}"
-safe_version="$(tr -c 'A-Za-z0-9_.-' '-' <<<"$EB_VERSION" | sed 's/-$//')"
+short_config_revision="${ECS_CONFIG_REVISION:0:7}"
+# EB app versions include a deployment timestamp after "_". The stable prefix
+# plus the bundle checksum already uniquely identifies the source artifact.
+version_prefix="${EB_VERSION%%_*}"
+safe_version="$(tr -c 'A-Za-z0-9_.-' '-' <<<"$version_prefix" | sed 's/-$//')"
 image_tag="eb-${safe_version}-${short_bundle_sha}-cfg${short_config_revision}"
 image_uri="${ECR_REPOSITORY}:${image_tag}"
 
 docker build --platform linux/arm64 -f "$context/Dockerfile.production" -t "$image_uri" "$context"
 docker push "$image_uri"
 
+repository_name="${ECR_REPOSITORY##*/}"
+image_digest="$(
+  "$AWS_BIN" ecr describe-images \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --repository-name "$repository_name" \
+    --image-ids "imageTag=$image_tag" \
+    --query 'imageDetails[0].imageDigest' \
+    --output text
+)"
+if [[ ! "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+  echo "ECR did not return a valid digest for $image_uri" >&2
+  exit 1
+fi
+
 echo "Built immutable production image: $image_uri"
+echo "Digest-pinned production image: ${ECR_REPOSITORY}@${image_digest}"
 echo "Elastic Beanstalk bundle SHA-256: $actual_sha"
