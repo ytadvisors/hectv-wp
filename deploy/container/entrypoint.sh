@@ -60,6 +60,10 @@ mail.add_x_header = Off
 EOF
 fi
 
+if [ "${HECTV_DISABLE_PAYMENTS:-0}" = "1" ]; then
+  unset STRIPE_KEY STRIPE_SECRET_KEY
+fi
+
 if [ "${HECTV_ENVIRONMENT:-}" = "staging" ]; then
   case "${STRIPE_KEY:-}" in
     pk_test_*) ;;

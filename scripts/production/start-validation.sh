@@ -49,4 +49,4 @@ grep -q $'HECTV_DISABLE_PAYMENTS\t1' <<<"$validation_flags"
 
 curl --fail --silent --show-error --retry 12 --retry-delay 5 "$ORIGIN_HEALTH_URL"
 echo
-echo "Parallel production origin is healthy with cron and outbound mail disabled."
+echo "Parallel production origin is healthy with cron, outbound mail, and payments disabled."
