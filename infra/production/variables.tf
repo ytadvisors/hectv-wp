@@ -66,14 +66,14 @@ variable "efs_security_group_id" {
 
 variable "efs_posix_uid" {
   type        = number
-  default     = 500
-  description = "Elastic Beanstalk webapp UID enforced by the production EFS access point."
+  default     = 498
+  description = "Verified UID owning the live Elastic Beanstalk EFS uploads root."
 }
 
 variable "efs_posix_gid" {
   type        = number
-  default     = 500
-  description = "Elastic Beanstalk webapp GID enforced by the production EFS access point."
+  default     = 496
+  description = "Verified GID owning the live Elastic Beanstalk EFS uploads root."
 }
 
 variable "aurora_security_group_id" {
