@@ -88,7 +88,7 @@ WordPress, set `public_read_only_mode=true` and allow HTTPS from
 `SELECT` on `hectv_staging.*`. The container refuses to start unless it verifies
 that this is the runtime user's only database grant. Public read-only mode makes
 the EFS uploads mount read-only and changes the ALB to an allowlist: GraphQL
-GET/POST, selected REST GET/HEAD/OPTIONS namespaces, and uploads are forwarded;
+GET/POST, selected REST GET namespaces, and uploads are forwarded;
 every other request returns 403. This also closes WordPress's `rest_route`
 query-string bypass because neither `/` nor the REST discovery root is
 forwarded. A staging-only must-use plugin also rejects authentication and every
