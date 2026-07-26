@@ -308,7 +308,7 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
 
   condition {
     http_request_method {
-      values = ["GET", "HEAD", "OPTIONS"]
+      values = ["GET"]
     }
   }
 
