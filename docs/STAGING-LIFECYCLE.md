@@ -85,10 +85,13 @@ the next release cycle.
 egress addresses are not stable office/VPN CIDRs. To let that frontend read
 WordPress, set `public_read_only_mode=true` and allow HTTPS from
 `0.0.0.0/0` only after changing the `hectv_staging_app` database grants to
-`SELECT` on `hectv_staging.*`. Public read-only mode installs ALB rules that
-return 403 for WordPress administration, login, XML-RPC, JWT authentication,
-user, settings, plugin, and application-password routes. Cron, mail, and
-payments remain disabled.
+`SELECT` on `hectv_staging.*`. The container refuses to start unless it verifies
+that this is the runtime user's only database grant. Public read-only mode makes
+the EFS uploads mount read-only and changes the ALB to an allowlist: GraphQL
+GET/POST, selected REST GET/HEAD/OPTIONS namespaces, and uploads are forwarded;
+every other request returns 403. This also closes WordPress's `rest_route`
+query-string bypass because `/` is not forwarded. Cron, mail, and payments
+remain disabled.
 
 Never enable public read-only mode while the staging runtime database user has
 write privileges. Refresh requires temporary admin credentials and must return
