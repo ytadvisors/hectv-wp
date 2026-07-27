@@ -291,7 +291,10 @@ resource "aws_lb_listener_rule" "allow_staging_graphql" {
 
   condition {
     http_request_method {
-      values = ["GET", "POST"]
+      # OPTIONS is required for browser CORS preflight. WordPress/WPGraphQL
+      # remains responsible for the allow-origin response, while application
+      # mutations continue to be rejected by the public-read-only MU plugin.
+      values = ["GET", "POST", "OPTIONS"]
     }
   }
 }
