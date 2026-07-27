@@ -69,6 +69,8 @@ git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv/cla
   >"$context/wp-content/mu-plugins/hectv/classes/hectv_payment.php"
 git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv-public-read-only.php" \
   >"$context/wp-content/mu-plugins/hectv-public-read-only.php"
+git -C "$repo_root" show "${ECS_CONFIG_REVISION}:wp-content/mu-plugins/hectv-staging-content-controls.php" \
+  >"$context/wp-content/mu-plugins/hectv-staging-content-controls.php"
 
 short_bundle_sha="${actual_sha:0:12}"
 short_config_revision="${ECS_CONFIG_REVISION:0:7}"
