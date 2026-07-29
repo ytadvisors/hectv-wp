@@ -98,14 +98,33 @@ production tokens are invalid here. Cron, mail, and payments remain disabled.
 
 Client editing uses the separate `hectv-wp-staging-admin` ECS service and
 `staging_admin_secret_arn`. The ALB sends `/wp-admin`, `/wp-login.php`, REST
-writes, and authenticated REST reads to that service. Anonymous REST reads and
-all static assets remain on the public service, so the public site does not
-depend on an editor service that is normally scaled to zero. Its database user
-is `hectv_staging_editor`, which has DML privileges only on
+writes carrying a standard WordPress authentication cookie, and authenticated
+REST reads to that service. WordPress still validates the cookie, capability,
+and REST nonce; the ALB cookie match is routing, not authentication. Anonymous
+REST reads and all static assets remain on the public service, so the public
+site does not depend on an editor service that is normally scaled to zero. Its
+database user is `hectv_staging_editor`, which has DML privileges only on
 `hectv_staging.*`; its EFS mount is writable. The public GraphQL/REST service
 uses `hectv_staging_app`, which must retain only `USAGE` plus `SELECT` on
 `hectv_staging.*`, and a read-only EFS mount. The services never share a
 database credential or task role.
+
+The HTTPS listener order is deliberate:
+
+| Priority | Match | Target |
+| --- | --- | --- |
+| 10 | `/graphql`, GET/POST/OPTIONS | public read-only service |
+| 15 | `/wp-json/*`, GET + WordPress auth cookie | editor service |
+| 16 | `/wp-json/*`, POST/PUT/PATCH/DELETE + WordPress auth cookie | editor service |
+| 20 | approved anonymous REST GETs and uploads | public read-only service |
+| 30 | `/wp-admin`, `/wp-admin/*`, `/wp-login.php` | editor service |
+| 100 | everything else | fixed 403 |
+
+Priorities 15 and 16 must remain ahead of the anonymous REST rule at 20.
+Removing the cookie condition from editor REST writes would broaden the
+writable target's internet-facing surface and requires a separate security
+review. Cookie-authenticated REST is supported for client editing; JWT or
+application-password editing is not enabled on this staging listener.
 
 Never enable public read-only mode while the public runtime database user has
 write privileges. Refresh requires temporary admin credentials and must return

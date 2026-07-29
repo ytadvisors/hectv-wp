@@ -386,7 +386,7 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
 resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
   count        = var.public_read_only_mode ? 1 : 0
   listener_arn = aws_lb_listener.https.arn
-  priority     = 25
+  priority     = 16
 
   action {
     type             = "forward"
@@ -404,12 +404,22 @@ resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
       values = ["/wp-json/*"]
     }
   }
+
+  condition {
+    http_header {
+      http_header_name = "Cookie"
+      values = [
+        "*wordpress_logged_in_*",
+        "*wordpress_sec_*",
+      ]
+    }
+  }
 }
 
 resource "aws_lb_listener_rule" "allow_staging_admin_rest_authenticated_reads" {
   count        = var.public_read_only_mode ? 1 : 0
   listener_arn = aws_lb_listener.https.arn
-  priority     = 26
+  priority     = 15
 
   action {
     type             = "forward"
