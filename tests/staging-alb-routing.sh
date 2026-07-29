@@ -19,12 +19,14 @@ grep -Fq 'priority     = 20' "$TF"
 grep -Fq 'resource "aws_lb_listener_rule" "allow_staging_public_assets"' "$TF"
 grep -Fq 'for_each     = var.public_read_only_mode ? local.public_asset_groups : {}' "$TF"
 grep -Fq 'target_group_arn = aws_lb_target_group.wordpress.arn' "$TF"
-test "$(grep -Ec 'priority = 2[1-6]' "$TF")" -eq 6
-grep -Fq 'paths    = ["/wp-includes/*.js", "/wp-includes/*.css", "/wp-includes/*.png", "/wp-includes/*.gif"]' "$TF"
-grep -Fq 'paths    = ["/wp-content/*.js", "/wp-content/*.css", "/wp-content/*.png", "/wp-content/*.gif"]' "$TF"
+test "$(grep -Ec 'priority = (18|19)' "$TF")" -eq 2
+grep -Fq 'regex    = "^/wp-includes/.*\\.(js|css|png|gif|svg|jpg|jpeg|webp|woff|woff2|ttf|eot)$"' "$TF"
+grep -Fq 'regex    = "^/wp-content/.*\\.(js|css|png|gif|svg|jpg|jpeg|webp|woff|woff2|ttf|eot)$"' "$TF"
+grep -Fq 'regex_values = [each.value.regex]' "$TF"
 grep -Fq 'Priorities 15–17 must remain ahead of the anonymous REST rule at 20.' "$DOC"
 grep -Fq 'at most five match values per listener rule' "$DOC"
-grep -Fq 'must target the public read-only service' "$DOC"
+grep -Fq 'target the public read-only service' "$DOC"
+grep -Fq 'not match every nested editor path' "$DOC"
 
 if grep -Fq 'allow_staging_admin_assets' "$TF"; then
   echo "Broad admin asset routing must not return." >&2
