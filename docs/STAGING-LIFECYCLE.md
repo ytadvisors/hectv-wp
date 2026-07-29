@@ -118,6 +118,7 @@ The HTTPS listener order is deliberate:
 | 16 | `/wp-json/*`, POST/PUT + WordPress auth cookie | editor service |
 | 17 | `/wp-json/*`, PATCH/DELETE + WordPress auth cookie | editor service |
 | 20 | approved anonymous REST GETs and uploads | public read-only service |
+| 21–26 | extension-limited GETs under `/wp-includes` and `/wp-content` | public read-only service |
 | 30 | `/wp-admin`, `/wp-admin/*`, `/wp-login.php` | editor service |
 | 100 | everything else | fixed 403 |
 
@@ -125,6 +126,11 @@ Priorities 15–17 must remain ahead of the anonymous REST rule at 20. AWS
 permits at most five match values per listener rule, so the four write methods
 must remain split across priorities 16 and 17 when both accepted WordPress
 cookie patterns and the path match are present.
+WordPress login and editor pages load core/plugin CSS, JavaScript, images, and
+fonts from `/wp-includes` and `/wp-content`. Those extension-limited GET rules
+must target the public read-only service so the editor remains functional
+without coupling public assets to the writable admin service. PHP and other
+executable extensions are intentionally excluded.
 Removing the cookie condition from editor REST writes would broaden the
 writable target's internet-facing surface and requires a separate security
 review. Cookie-authenticated REST is supported for client editing; JWT or
