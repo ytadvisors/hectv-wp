@@ -383,7 +383,7 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
   }
 }
 
-resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes_post_put" {
   count        = var.public_read_only_mode ? 1 : 0
   listener_arn = aws_lb_listener.https.arn
   priority     = 16
@@ -395,7 +395,40 @@ resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
 
   condition {
     http_request_method {
-      values = ["POST", "PUT", "PATCH", "DELETE"]
+      values = ["POST", "PUT"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/wp-json/*"]
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "Cookie"
+      values = [
+        "*wordpress_logged_in_*",
+        "*wordpress_sec_*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes_patch_delete" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 17
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.admin.arn
+  }
+
+  condition {
+    http_request_method {
+      values = ["PATCH", "DELETE"]
     }
   }
 
