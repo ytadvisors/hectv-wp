@@ -133,6 +133,11 @@ not match every nested editor path. These extension-limited GET rules must
 target the public read-only service so the editor remains functional without
 coupling public assets to the writable admin service. PHP and other executable
 extensions are intentionally excluded.
+
+`PathPatternConfig.RegexValues` is supported by the AWS ELBv2 API and by the
+locked HashiCorp AWS provider used here (`v6.56.0`). Before apply, operators
+must run both `terraform validate` and a remote-state `terraform plan`; a string
+grep test alone is not evidence that the provider schema accepts the rule.
 Removing the cookie condition from editor REST writes would broaden the
 writable target's internet-facing surface and requires a separate security
 review. Cookie-authenticated REST is supported for client editing; JWT or

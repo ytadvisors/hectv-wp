@@ -27,6 +27,8 @@ grep -Fq 'Priorities 15–17 must remain ahead of the anonymous REST rule at 20.
 grep -Fq 'at most five match values per listener rule' "$DOC"
 grep -Fq 'target the public read-only service' "$DOC"
 grep -Fq 'not match every nested editor path' "$DOC"
+grep -Fq '`PathPatternConfig.RegexValues` is supported by the AWS ELBv2 API' "$DOC"
+grep -Fq 'must run both `terraform validate` and a remote-state `terraform plan`' "$DOC"
 
 if grep -Fq 'allow_staging_admin_assets' "$TF"; then
   echo "Broad admin asset routing must not return." >&2
