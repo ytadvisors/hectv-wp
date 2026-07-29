@@ -74,7 +74,7 @@ function hectv_staging_default_topbar_ctas()
     return array(
         array(
             'label' => 'Subscribe',
-            'url' => '/subscribe',
+            'url' => '/newsletter',
             'style' => 'primary',
         ),
         array(

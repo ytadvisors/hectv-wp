@@ -10,7 +10,10 @@ output "ecs_service_name" {
   value = aws_ecs_service.wordpress.name
 }
 
+output "ecs_admin_service_name" {
+  value = aws_ecs_service.admin.name
+}
+
 output "staging_url" {
   value = "https://${var.staging_hostname}"
 }
-

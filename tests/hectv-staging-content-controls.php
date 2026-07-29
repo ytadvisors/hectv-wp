@@ -71,7 +71,7 @@ assert_same(
     array(
         array(
             'label' => 'Subscribe',
-            'url' => '/subscribe',
+            'url' => '/newsletter',
             'style' => 'primary',
         ),
         array(

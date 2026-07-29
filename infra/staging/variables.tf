@@ -56,7 +56,13 @@ variable "container_image" {
 
 variable "staging_secret_arn" {
   type        = string
-  description = "Secrets Manager JSON secret containing staging runtime values."
+  description = "Secrets Manager JSON secret containing the SELECT-only public staging runtime values."
+  sensitive   = true
+}
+
+variable "staging_admin_secret_arn" {
+  type        = string
+  description = "Secrets Manager JSON secret containing the writable staging editor runtime values."
   sensitive   = true
 }
 
@@ -83,5 +89,16 @@ variable "desired_count" {
   validation {
     condition     = contains([0, 1, 2], var.desired_count)
     error_message = "desired_count must be 0, 1, or 2."
+  }
+}
+
+variable "admin_desired_count" {
+  type        = number
+  default     = 0
+  description = "Writable staging editor task count. Keep zero outside an explicit client review window."
+
+  validation {
+    condition     = contains([0, 1], var.admin_desired_count)
+    error_message = "admin_desired_count must be 0 or 1."
   }
 }

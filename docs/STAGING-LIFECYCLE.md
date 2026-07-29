@@ -96,9 +96,19 @@ non-read REST method before WordPress dispatch, and rejects GraphQL mutation
 operations before resolver execution. The staging JWT secret is unique, so
 production tokens are invalid here. Cron, mail, and payments remain disabled.
 
-Never enable public read-only mode while the staging runtime database user has
+Client editing uses the separate `hectv-wp-staging-admin` ECS service and
+`staging_admin_secret_arn`. The ALB sends only `/wp-admin`, `/wp-login.php`, and
+the static assets required by those screens to that service. Its database user
+is `hectv_staging_editor`, which has DML privileges only on
+`hectv_staging.*`; its EFS mount is writable. The public GraphQL/REST service
+uses `hectv_staging_app`, which must retain only `USAGE` plus `SELECT` on
+`hectv_staging.*`, and a read-only EFS mount. The services never share a
+database credential or task role.
+
+Never enable public read-only mode while the public runtime database user has
 write privileges. Refresh requires temporary admin credentials and must return
-the runtime user to SELECT-only before restarting staging.
+the public runtime user to SELECT-only before restarting staging. Start the
+writable admin service only for an explicit client review window.
 
 ## Safety properties
 
@@ -116,8 +126,11 @@ the runtime user to SELECT-only before restarting staging.
 - Staging uploads use the `/staging-uploads` EFS Access Point, never the
   production uploads root.
 - Public ALB ingress requires explicit `public_read_only_mode=true`, sensitive
-  routes are blocked at the listener, and the runtime database user must be
-  SELECT-only.
+  public routes are blocked at the listener, and the public runtime database
+  user must be SELECT-only.
+- The writable admin service uses a distinct Secrets Manager secret, task role,
+  target group, and database user; its routes never reach the public target
+  group.
 - WordPress pins and validates the staging host instead of trusting `Host`.
 - Unique staging salts and Stripe test keys are mandatory.
 - Production DNS and the production ECS/EB service are not modified.
