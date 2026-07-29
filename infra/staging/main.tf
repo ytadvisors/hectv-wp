@@ -1,29 +1,13 @@
 locals {
   name = "hectv-wp-staging"
   public_asset_groups = {
-    includes_core = {
-      priority = 21
-      paths    = ["/wp-includes/*.js", "/wp-includes/*.css", "/wp-includes/*.png", "/wp-includes/*.gif"]
+    includes_assets = {
+      priority = 18
+      regex    = "^/wp-includes/.*\\.(js|css|png|gif|svg|jpg|jpeg|webp|woff|woff2|ttf|eot)$"
     }
-    includes_images = {
-      priority = 22
-      paths    = ["/wp-includes/*.svg", "/wp-includes/*.jpg", "/wp-includes/*.jpeg", "/wp-includes/*.webp"]
-    }
-    includes_fonts = {
-      priority = 23
-      paths    = ["/wp-includes/*.woff", "/wp-includes/*.woff2", "/wp-includes/*.ttf", "/wp-includes/*.eot"]
-    }
-    content_core = {
-      priority = 24
-      paths    = ["/wp-content/*.js", "/wp-content/*.css", "/wp-content/*.png", "/wp-content/*.gif"]
-    }
-    content_images = {
-      priority = 25
-      paths    = ["/wp-content/*.svg", "/wp-content/*.jpg", "/wp-content/*.jpeg", "/wp-content/*.webp"]
-    }
-    content_fonts = {
-      priority = 26
-      paths    = ["/wp-content/*.woff", "/wp-content/*.woff2", "/wp-content/*.ttf", "/wp-content/*.eot"]
+    content_assets = {
+      priority = 19
+      regex    = "^/wp-content/.*\\.(js|css|png|gif|svg|jpg|jpeg|webp|woff|woff2|ttf|eot)$"
     }
   }
   secret_keys = toset([
@@ -526,7 +510,7 @@ resource "aws_lb_listener_rule" "allow_staging_public_assets" {
 
   condition {
     path_pattern {
-      values = each.value.paths
+      regex_values = [each.value.regex]
     }
   }
 }
