@@ -1,31 +1,5 @@
 locals {
   name = "hectv-wp-staging"
-  admin_asset_groups = {
-    includes_core = {
-      priority = 21
-      paths    = ["/wp-includes/*.js", "/wp-includes/*.css", "/wp-includes/*.png", "/wp-includes/*.gif"]
-    }
-    includes_images = {
-      priority = 22
-      paths    = ["/wp-includes/*.svg", "/wp-includes/*.jpg", "/wp-includes/*.jpeg", "/wp-includes/*.webp"]
-    }
-    includes_fonts = {
-      priority = 23
-      paths    = ["/wp-includes/*.woff", "/wp-includes/*.woff2", "/wp-includes/*.ttf", "/wp-includes/*.eot"]
-    }
-    content_core = {
-      priority = 24
-      paths    = ["/wp-content/*.js", "/wp-content/*.css", "/wp-content/*.png", "/wp-content/*.gif"]
-    }
-    content_images = {
-      priority = 25
-      paths    = ["/wp-content/*.svg", "/wp-content/*.jpg", "/wp-content/*.jpeg", "/wp-content/*.webp"]
-    }
-    content_fonts = {
-      priority = 26
-      paths    = ["/wp-content/*.woff", "/wp-content/*.woff2", "/wp-content/*.ttf", "/wp-content/*.eot"]
-    }
-  }
   secret_keys = toset([
     "API_KEY",
     "API_URL",
@@ -409,10 +383,33 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
   }
 }
 
-resource "aws_lb_listener_rule" "allow_staging_admin_assets" {
-  for_each     = var.public_read_only_mode ? local.admin_asset_groups : {}
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
+  count        = var.public_read_only_mode ? 1 : 0
   listener_arn = aws_lb_listener.https.arn
-  priority     = each.value.priority
+  priority     = 25
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.admin.arn
+  }
+
+  condition {
+    http_request_method {
+      values = ["POST", "PUT", "PATCH", "DELETE"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/wp-json/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_authenticated_reads" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 26
 
   action {
     type             = "forward"
@@ -427,7 +424,17 @@ resource "aws_lb_listener_rule" "allow_staging_admin_assets" {
 
   condition {
     path_pattern {
-      values = each.value.paths
+      values = ["/wp-json/*"]
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "Cookie"
+      values = [
+        "*wordpress_logged_in_*",
+        "*wordpress_sec_*",
+      ]
     }
   }
 }

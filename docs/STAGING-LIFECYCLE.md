@@ -97,8 +97,10 @@ operations before resolver execution. The staging JWT secret is unique, so
 production tokens are invalid here. Cron, mail, and payments remain disabled.
 
 Client editing uses the separate `hectv-wp-staging-admin` ECS service and
-`staging_admin_secret_arn`. The ALB sends only `/wp-admin`, `/wp-login.php`, and
-the static assets required by those screens to that service. Its database user
+`staging_admin_secret_arn`. The ALB sends `/wp-admin`, `/wp-login.php`, REST
+writes, and authenticated REST reads to that service. Anonymous REST reads and
+all static assets remain on the public service, so the public site does not
+depend on an editor service that is normally scaled to zero. Its database user
 is `hectv_staging_editor`, which has DML privileges only on
 `hectv_staging.*`; its EFS mount is writable. The public GraphQL/REST service
 uses `hectv_staging_app`, which must retain only `USAGE` plus `SELECT` on
