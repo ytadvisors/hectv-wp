@@ -63,14 +63,17 @@ resource "aws_iam_role_policy_attachment" "execution" {
 }
 
 resource "aws_iam_role_policy" "execution_secret" {
-  name = "read-staging-runtime-secret"
+  name = "read-staging-runtime-secrets"
   role = aws_iam_role.execution.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
-      Resource = var.staging_secret_arn
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
+      Resource = [
+        var.staging_secret_arn,
+        var.staging_admin_secret_arn,
+      ]
     }]
   })
 }
@@ -99,6 +102,41 @@ resource "aws_iam_role_policy" "task_efs" {
       Action = var.public_read_only_mode ? [
         "elasticfilesystem:ClientMount",
         ] : [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+      ]
+      Resource = "arn:aws:elasticfilesystem:${var.aws_region}:${data.aws_caller_identity.current.account_id}:file-system/${var.efs_file_system_id}"
+      Condition = {
+        StringEquals = {
+          "elasticfilesystem:AccessPointArn" = aws_efs_access_point.staging.arn
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role" "admin_task" {
+  name = "${local.name}-admin-task"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "admin_task_efs" {
+  name = "mount-write-staging-uploads"
+  role = aws_iam_role.admin_task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
         "elasticfilesystem:ClientMount",
         "elasticfilesystem:ClientWrite",
       ]
@@ -245,6 +283,24 @@ resource "aws_lb_target_group" "wordpress" {
   }
 }
 
+resource "aws_lb_target_group" "admin" {
+  name        = "hectv-wp-stg-admin"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+
+  health_check {
+    enabled             = true
+    path                = "/healthz"
+    matcher             = "200-399"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 10
+    interval            = 30
+  }
+}
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.wordpress.arn
   port              = 80
@@ -322,6 +378,93 @@ resource "aws_lb_listener_rule" "allow_staging_rest_reads" {
         "/wp-json/wp-api-menus/v2/*",
         "/wp-json/hectv/v1/livevideos/live",
         "/wp-content/uploads/*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_writes" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 16
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.admin.arn
+  }
+
+  condition {
+    http_request_method {
+      values = ["POST", "PUT", "PATCH", "DELETE"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/wp-json/*"]
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "Cookie"
+      values = [
+        "*wordpress_logged_in_*",
+        "*wordpress_sec_*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_admin_rest_authenticated_reads" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 15
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.admin.arn
+  }
+
+  condition {
+    http_request_method {
+      values = ["GET"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/wp-json/*"]
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "Cookie"
+      values = [
+        "*wordpress_logged_in_*",
+        "*wordpress_sec_*",
+      ]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "allow_staging_admin" {
+  count        = var.public_read_only_mode ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 30
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.admin.arn
+  }
+
+  condition {
+    path_pattern {
+      values = [
+        "/wp-admin",
+        "/wp-admin/*",
+        "/wp-login.php",
       ]
     }
   }
@@ -419,6 +562,77 @@ resource "aws_ecs_task_definition" "wordpress" {
   }])
 }
 
+resource "aws_ecs_task_definition" "admin" {
+  family                   = "${local.name}-admin"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 1024
+  memory                   = 2048
+  execution_role_arn       = aws_iam_role.execution.arn
+  task_role_arn            = aws_iam_role.admin_task.arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
+  volume {
+    name = "uploads"
+    efs_volume_configuration {
+      file_system_id     = var.efs_file_system_id
+      transit_encryption = "ENABLED"
+      root_directory     = "/"
+
+      authorization_config {
+        access_point_id = aws_efs_access_point.staging.id
+        iam             = "ENABLED"
+      }
+    }
+  }
+
+  container_definitions = jsonencode([{
+    name      = "wordpress"
+    image     = var.container_image
+    essential = true
+    portMappings = [{
+      containerPort = 80
+      hostPort      = 80
+      protocol      = "tcp"
+    }]
+    environment = [
+      { name = "DISABLE_WP_CRON", value = "1" },
+      { name = "FORCE_SSL_ADMIN", value = "1" },
+      { name = "HECTV_CANONICAL_HOST", value = var.staging_hostname },
+      { name = "HECTV_DISABLE_OUTBOUND", value = "1" },
+      { name = "HECTV_DISABLE_PAYMENTS", value = "1" },
+      { name = "HECTV_ENVIRONMENT", value = "staging" },
+      { name = "HECTV_PUBLIC_READ_ONLY", value = "0" },
+      { name = "HTTP_HOST", value = var.staging_hostname },
+      { name = "WP_DEBUG", value = "0" },
+      { name = "WP_DEBUG_LOG", value = "1" },
+    ]
+    secrets = [
+      for key in local.secret_keys : {
+        name      = key
+        valueFrom = "${var.staging_admin_secret_arn}:${key}::"
+      }
+    ]
+    mountPoints = [{
+      sourceVolume  = "uploads"
+      containerPath = "/var/www/html/wp-content/uploads"
+      readOnly      = false
+    }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.wordpress.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "wordpress"
+      }
+    }
+  }])
+}
+
 resource "aws_ecs_service" "wordpress" {
   name            = local.name
   cluster         = aws_ecs_cluster.wordpress.id
@@ -439,6 +653,37 @@ resource "aws_ecs_service" "wordpress" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.wordpress.arn
+    container_name   = "wordpress"
+    container_port   = 80
+  }
+
+  depends_on = [aws_lb_listener.https]
+
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
+
+resource "aws_ecs_service" "admin" {
+  name            = "${local.name}-admin"
+  cluster         = aws_ecs_cluster.wordpress.id
+  task_definition = aws_ecs_task_definition.admin.arn
+  desired_count   = var.admin_desired_count
+  launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  network_configuration {
+    subnets          = var.public_subnet_ids
+    security_groups  = [aws_security_group.task.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.admin.arn
     container_name   = "wordpress"
     container_port   = 80
   }
