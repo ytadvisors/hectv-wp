@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: HEC staging content controls
- * Description: Staging-only controls for article header-image sizing and header action links.
+ * Description: Staging-only controls for HEC site content and article editing.
  */
 
 if (getenv('HECTV_ENVIRONMENT') !== 'staging') {
@@ -10,6 +10,11 @@ if (getenv('HECTV_ENVIRONMENT') !== 'staging') {
 
 define('HECTV_HEADER_IMAGE_SIZE_META', 'hectv_header_image_size');
 define('HECTV_TOPBAR_CTAS_OPTION', 'hectv_topbar_ctas');
+define('HECTV_SITE_CONTENT_OPTION', 'hectv_site_content');
+define(
+    'HECTV_FOR_EDUCATORS_APPROVED_IMAGE',
+    'https://asset.ytadvisors.com/client-documents/hecmedia/media-library/3ca97ec68430409a-For-Educators.jpg'
+);
 
 function hectv_staging_header_image_sizes()
 {
@@ -64,11 +69,134 @@ function hectv_staging_sanitize_topbar_ctas($value)
     return array_slice($ctas, 0, 5);
 }
 
+function hectv_staging_default_topbar_ctas()
+{
+    return array(
+        array(
+            'label' => 'Subscribe',
+            'url' => '/subscribe',
+            'style' => 'primary',
+        ),
+        array(
+            'label' => 'Support',
+            'url' => '/support',
+            'style' => 'secondary',
+        ),
+    );
+}
+
 function hectv_staging_get_topbar_ctas()
 {
-    $ctas = get_option(HECTV_TOPBAR_CTAS_OPTION, array());
+    $ctas = get_option(
+        HECTV_TOPBAR_CTAS_OPTION,
+        hectv_staging_default_topbar_ctas()
+    );
 
     return is_array($ctas) ? array_values($ctas) : array();
+}
+
+function hectv_staging_default_site_content()
+{
+    return array(
+        'forEducators' => array(
+            'imageUrl' => HECTV_FOR_EDUCATORS_APPROVED_IMAGE,
+            'destinationUrl' => '/category/education',
+        ),
+        'trendingPostIds' => array(),
+        'spotlightTitle' => 'Spotlight STL',
+        'footerLinks' => array(
+            array('label' => 'Arts', 'url' => '/category/arts'),
+            array('label' => 'Education', 'url' => '/category/education'),
+            array('label' => 'Business', 'url' => '/category/business'),
+        ),
+        'mobileRailFirst' => true,
+    );
+}
+
+function hectv_staging_sanitize_link($value, $fallback)
+{
+    $value = is_array($value) ? $value : array();
+    $label = isset($value['label'])
+        ? sanitize_text_field($value['label'])
+        : $fallback['label'];
+    $url = isset($value['url']) ? esc_url_raw($value['url']) : $fallback['url'];
+
+    return array(
+        'label' => $label !== '' ? $label : $fallback['label'],
+        'url' => $url !== '' ? $url : $fallback['url'],
+    );
+}
+
+function hectv_staging_sanitize_site_content($value)
+{
+    $defaults = hectv_staging_default_site_content();
+    $value = is_array($value) ? $value : array();
+    $for_educators = isset($value['forEducators'])
+        && is_array($value['forEducators'])
+        ? $value['forEducators']
+        : array();
+
+    $image_url = isset($for_educators['imageUrl'])
+        ? esc_url_raw($for_educators['imageUrl'])
+        : '';
+    $destination_url = isset($for_educators['destinationUrl'])
+        ? esc_url_raw($for_educators['destinationUrl'])
+        : '';
+
+    $trending_ids = array();
+    $raw_trending = isset($value['trendingPostIds'])
+        ? $value['trendingPostIds']
+        : array();
+    if (is_string($raw_trending)) {
+        $raw_trending = preg_split('/[\s,]+/', $raw_trending);
+    }
+    foreach ((array) $raw_trending as $post_id) {
+        $post_id = absint($post_id);
+        if ($post_id > 0 && !in_array($post_id, $trending_ids, true)) {
+            $trending_ids[] = $post_id;
+        }
+    }
+
+    $footer_links = array();
+    $raw_footer_links = isset($value['footerLinks'])
+        ? (array) $value['footerLinks']
+        : array();
+    foreach ($defaults['footerLinks'] as $index => $fallback) {
+        $footer_links[] = hectv_staging_sanitize_link(
+            isset($raw_footer_links[$index])
+                ? $raw_footer_links[$index]
+                : array(),
+            $fallback
+        );
+    }
+
+    $spotlight_title = isset($value['spotlightTitle'])
+        ? sanitize_text_field($value['spotlightTitle'])
+        : '';
+
+    return array(
+        'forEducators' => array(
+            'imageUrl' => $image_url !== ''
+                ? $image_url
+                : $defaults['forEducators']['imageUrl'],
+            'destinationUrl' => $destination_url !== ''
+                ? $destination_url
+                : $defaults['forEducators']['destinationUrl'],
+        ),
+        'trendingPostIds' => array_slice($trending_ids, 0, 4),
+        'spotlightTitle' => $spotlight_title !== ''
+            ? $spotlight_title
+            : $defaults['spotlightTitle'],
+        'footerLinks' => $footer_links,
+        'mobileRailFirst' => !empty($value['mobileRailFirst']),
+    );
+}
+
+function hectv_staging_get_site_content()
+{
+    return hectv_staging_sanitize_site_content(
+        get_option(HECTV_SITE_CONTENT_OPTION, hectv_staging_default_site_content())
+    );
 }
 
 add_action('init', function () {
@@ -79,6 +207,17 @@ add_action('init', function () {
             'type' => 'array',
             'sanitize_callback' => 'hectv_staging_sanitize_topbar_ctas',
             'default' => array(),
+            'show_in_rest' => false,
+        )
+    );
+
+    register_setting(
+        'hectv_staging_content_controls',
+        HECTV_SITE_CONTENT_OPTION,
+        array(
+            'type' => 'array',
+            'sanitize_callback' => 'hectv_staging_sanitize_site_content',
+            'default' => hectv_staging_default_site_content(),
             'show_in_rest' => false,
         )
     );
@@ -116,6 +255,42 @@ add_action('graphql_register_types', function () {
         )
     );
 
+    register_graphql_object_type(
+        'HectvContentLink',
+        array(
+            'fields' => array(
+                'label' => array('type' => 'String'),
+                'url' => array('type' => 'String'),
+            ),
+        )
+    );
+
+    register_graphql_object_type(
+        'HectvForEducators',
+        array(
+            'fields' => array(
+                'imageUrl' => array('type' => 'String'),
+                'destinationUrl' => array('type' => 'String'),
+            ),
+        )
+    );
+
+    register_graphql_object_type(
+        'HectvSiteContent',
+        array(
+            'description' => 'Staging-only client-editable HEC site presentation.',
+            'fields' => array(
+                'forEducators' => array('type' => 'HectvForEducators'),
+                'trendingPostIds' => array('type' => array('list_of' => 'Int')),
+                'spotlightTitle' => array('type' => 'String'),
+                'footerLinks' => array(
+                    'type' => array('list_of' => 'HectvContentLink'),
+                ),
+                'mobileRailFirst' => array('type' => 'Boolean'),
+            ),
+        )
+    );
+
     register_graphql_field(
         'RootQuery',
         'topbarCtas',
@@ -123,6 +298,17 @@ add_action('graphql_register_types', function () {
             'type' => array('list_of' => 'HectvTopbarCta'),
             'resolve' => function () {
                 return hectv_staging_get_topbar_ctas();
+            },
+        )
+    );
+
+    register_graphql_field(
+        'RootQuery',
+        'hectvSiteContent',
+        array(
+            'type' => 'HectvSiteContent',
+            'resolve' => function () {
+                return hectv_staging_get_site_content();
             },
         )
     );
@@ -190,16 +376,118 @@ function hectv_staging_render_header_actions_page()
             HECTV_TOPBAR_CTAS_OPTION,
             hectv_staging_sanitize_topbar_ctas($rows)
         );
+
+        update_option(
+            HECTV_SITE_CONTENT_OPTION,
+            hectv_staging_sanitize_site_content(
+                isset($_POST['hectv_site_content'])
+                    ? $_POST['hectv_site_content']
+                    : array()
+            )
+        );
         echo '<div class="notice notice-success"><p>Header actions saved.</p></div>';
     }
 
     $ctas = hectv_staging_get_topbar_ctas();
+    $site_content = hectv_staging_get_site_content();
     ?>
     <div class="wrap">
         <h1>HEC Header Actions</h1>
         <p>Add up to five linked buttons displayed beside the social icons.</p>
         <form method="post">
             <?php wp_nonce_field('hectv_header_actions_save', 'hectv_header_actions_nonce'); ?>
+            <h2>For Educators</h2>
+            <table class="form-table">
+                <tr>
+                    <th><label for="hectv_for_educators_image">Image URL</label></th>
+                    <td>
+                        <input
+                            class="large-text"
+                            id="hectv_for_educators_image"
+                            name="hectv_site_content[forEducators][imageUrl]"
+                            value="<?php echo esc_attr($site_content['forEducators']['imageUrl']); ?>"
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="hectv_for_educators_destination">Destination</label></th>
+                    <td>
+                        <input
+                            class="large-text"
+                            id="hectv_for_educators_destination"
+                            name="hectv_site_content[forEducators][destinationUrl]"
+                            value="<?php echo esc_attr($site_content['forEducators']['destinationUrl']); ?>"
+                        >
+                    </td>
+                </tr>
+            </table>
+
+            <h2>Homepage sections</h2>
+            <table class="form-table">
+                <tr>
+                    <th><label for="hectv_trending_ids">Trending Now post IDs</label></th>
+                    <td>
+                        <input
+                            class="large-text"
+                            id="hectv_trending_ids"
+                            name="hectv_site_content[trendingPostIds]"
+                            value="<?php echo esc_attr(implode(', ', $site_content['trendingPostIds'])); ?>"
+                        >
+                        <p class="description">Optional ordered list; the site displays at most four.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="hectv_spotlight_title">Spotlight heading</label></th>
+                    <td>
+                        <input
+                            class="regular-text"
+                            id="hectv_spotlight_title"
+                            name="hectv_site_content[spotlightTitle]"
+                            value="<?php echo esc_attr($site_content['spotlightTitle']); ?>"
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th>Mobile order</th>
+                    <td>
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="hectv_site_content[mobileRailFirst]"
+                                value="1"
+                                <?php checked($site_content['mobileRailFirst']); ?>
+                            >
+                            Show right-rail content before the remaining feed on mobile
+                        </label>
+                    </td>
+                </tr>
+            </table>
+
+            <h2>Footer links</h2>
+            <table class="widefat striped">
+                <thead><tr><th>Label</th><th>Link</th></tr></thead>
+                <tbody>
+                    <?php foreach ($site_content['footerLinks'] as $index => $link) : ?>
+                        <tr>
+                            <td>
+                                <input
+                                    name="hectv_site_content[footerLinks][<?php echo esc_attr($index); ?>][label]"
+                                    value="<?php echo esc_attr($link['label']); ?>"
+                                >
+                            </td>
+                            <td>
+                                <input
+                                    class="large-text"
+                                    name="hectv_site_content[footerLinks][<?php echo esc_attr($index); ?>][url]"
+                                    value="<?php echo esc_attr($link['url']); ?>"
+                                >
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h2>Header actions</h2>
             <table class="widefat striped">
                 <thead>
                     <tr>
@@ -263,6 +551,13 @@ add_action('add_meta_boxes', function () {
         'side'
     );
 });
+
+// The legacy staging install can render a blank block editor when its REST
+// dependencies are unavailable. Keep draft creation/editing usable without
+// changing production by using the server-rendered editor only in staging.
+add_filter('use_block_editor_for_post_type', function ($use_block_editor, $post_type) {
+    return $post_type === 'post' ? false : $use_block_editor;
+}, 100, 2);
 
 function hectv_staging_render_header_image_size_metabox($post)
 {
