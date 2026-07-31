@@ -1,3 +1,8 @@
+# The reviewed EB-derived staging image contains the licensed/legacy GraphQL
+# plugins used by the existing HEC frontend. Keep this source immutable: the
+# final runtime remains the PHP 8.2 image below.
+FROM 850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-staging@sha256:0d41405fcd2d1316b2965ec90494b35cc5a219aa3eb9ff576f042318f25c510c AS legacy-plugins
+
 FROM wordpress:php8.2-apache@sha256:680df6fd52a1ec7948deb6ca5fa57f1bca0d5d062396ffd0c57b8b4f24adc23f
 
 ARG APP_REVISION=unknown
@@ -8,6 +13,16 @@ RUN rm -rf /var/www/html/* \
 
 COPY wp-content /var/www/html/wp-content
 COPY vendor /var/www/html/vendor
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/advanced-cron-manager /var/www/html/wp-content/plugins/advanced-cron-manager
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/classic-editor /var/www/html/wp-content/plugins/classic-editor
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/wp-graphiql /var/www/html/wp-content/plugins/wp-graphiql
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/wp-graphql /var/www/html/wp-content/plugins/wp-graphql
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/wp-graphql-meta-query /var/www/html/wp-content/plugins/wp-graphql-meta-query
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/wp-graphql-tax-query /var/www/html/wp-content/plugins/wp-graphql-tax-query
+COPY --from=legacy-plugins /var/www/html/wp-content/plugins/zapier /var/www/html/wp-content/plugins/zapier
+# This owned compatibility layer replaces legacy wp-graphql-acf. Copying both
+# lets the legacy plugin overwrite Post.postDetails with an incomplete type.
+COPY staging-harness/mu-plugins/hectv-graphql-compat.php /var/www/html/wp-content/mu-plugins/hectv-graphql-compat.php
 COPY wp-config.php .htaccess /var/www/html/
 COPY deploy/container/php.ini /usr/local/etc/php/conf.d/hectv.ini
 COPY deploy/container/entrypoint.sh /usr/local/bin/hectv-entrypoint
