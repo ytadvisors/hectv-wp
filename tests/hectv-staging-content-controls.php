@@ -38,11 +38,6 @@ function absint($value)
     return abs((int) $value);
 }
 
-function get_option($key, $default = false)
-{
-    return $default;
-}
-
 require dirname(__DIR__) . '/wp-content/mu-plugins/hectv-staging-content-controls.php';
 
 function assert_same($expected, $actual, $message)
@@ -73,9 +68,20 @@ assert_same(
 );
 
 assert_same(
-    array(),
-    hectv_staging_get_topbar_ctas(),
-    'An unset staging CTA option should allow the menu fallback to run.'
+    array(
+        array(
+            'label' => 'Subscribe',
+            'url' => '/newsletter',
+            'style' => 'primary',
+        ),
+        array(
+            'label' => 'Support',
+            'url' => '/support',
+            'style' => 'secondary',
+        ),
+    ),
+    hectv_staging_default_topbar_ctas(),
+    'Default staging actions should omit Get Involved.'
 );
 
 $site_content = hectv_staging_sanitize_site_content(
