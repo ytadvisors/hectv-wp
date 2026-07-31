@@ -7,8 +7,7 @@ WordPress database.**
 | Surface | Location in repo |
 |---------|------------------|
 | MU-plugin loader | `wp-content/mu-plugins/hectv-cms-fields.php` |
-| ACF Post Details (PHP) | `wp-content/mu-plugins/hectv-cms-fields/register-acf.php` |
-| ACF Local JSON | `wp-content/mu-plugins/hectv-cms-fields/acf-json/` |
+| ACF Trending extension (PHP) | `wp-content/mu-plugins/hectv-cms-fields/register-acf.php` |
 | Site settings admin | `…/site-settings.php` → **Settings → HEC Site Settings** |
 | Header Actions menu | `…/menus.php` → **Appearance → Menus** |
 | GraphQL | `…/graphql.php` |
@@ -18,8 +17,11 @@ WordPress database.**
 
 ## 1. Post Details (per post)
 
-ACF field group **Post Details** on `post`. Meta keys match existing production
-consumers (`get_field( 'is_video' )`, etc.).
+Production's database-backed ACF field group **Post Details** remains the owner of
+its legacy fields and `field_5…` keys. The MU-plugin does not duplicate or replace
+that group. It attaches the git-owned `is_trending` field to Post Details at runtime.
+If Post Details is absent (for example in a clean local harness), it creates a
+separate **HEC Post Controls** fallback group containing only Trending.
 
 | Field label | Meta key | Type | Notes |
 |-------------|----------|------|--------|
@@ -116,7 +118,8 @@ query SiteChrome {
 
 GraphQL:
 
-- `topbarCtas { label url style }` — resolved from this menu (staging option list wins if set)
+- `topbarCtas { label url style }` — resolved from staging's saved CTA option when it
+  contains rows; an empty or never-saved option falls back to this menu.
 - Or standard `menus(where: { slug: "header-actions" }) { … }`
 
 ### Editorial process
@@ -126,8 +129,9 @@ GraphQL:
 3. Add custom links: **Subscribe**, **Support**.
 4. Save. No deploy required.
 
-Local/staging seed creates Subscribe + Support when the location is empty
-(`HECTV_ENVIRONMENT=local|staging` or `HECTV_CMS_SEED_MENUS`).
+Local/staging seed creates Subscribe + Support once when the location is empty
+(`HECTV_ENVIRONMENT=local|staging` or `HECTV_CMS_SEED_MENUS=true`). Defining
+`HECTV_CMS_SEED_MENUS` as `false` does not enable seeding.
 
 ---
 
@@ -160,10 +164,12 @@ Support/Subscribe menu items.
 
 ## 6. Changing field definitions
 
-1. Edit `register-acf.php` **and** `acf-json/group_hectv_post_details.json`.
+1. Edit the PHP definition in `register-acf.php`. Do not add an ACF Local JSON
+   save-path filter: it would capture unrelated admin-managed groups.
 2. Extend `graphql.php` if the frontend contract changes.
 3. Ship branch → PR → merge (same as other hectv-wp changes).
 4. Deploy/restart WordPress so the MU-plugin reloads.
 
-Never rely on hand-editing ACF field groups only in production admin without
-exporting back to this package.
+Legacy Post Details fields remain production-managed until their original ACF keys
+are explicitly exported and reconciled. New git-owned fields must use stable keys
+and attach to the existing group without cloning it.

@@ -251,14 +251,21 @@ function hectv_cms_render_site_settings_page() {
 					var att = frame.state().get('selection').first().toJSON();
 					input.value = att.id;
 					var url = (att.sizes && att.sizes.medium) ? att.sizes.medium.url : att.url;
-					preview.innerHTML = '<img src="' + url + '" alt="" style="max-width:240px;height:auto;" />';
+					var image = document.createElement('img');
+					image.src = url;
+					image.alt = '';
+					image.style.maxWidth = '240px';
+					image.style.height = 'auto';
+					preview.replaceChildren(image);
 				});
 				frame.open();
 			});
 			document.getElementById('hectv-educators-clear').addEventListener('click', function (e) {
 				e.preventDefault();
 				input.value = '0';
-				preview.innerHTML = '<em>No image selected.</em>';
+				var empty = document.createElement('em');
+				empty.textContent = 'No image selected.';
+				preview.replaceChildren(empty);
 			});
 		})();
 		</script>

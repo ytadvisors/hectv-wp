@@ -1,9 +1,11 @@
 <?php
 /**
- * ACF Local JSON + PHP field group registration for Post Details.
+ * ACF registration for the git-owned Trending field.
  *
- * Field groups are defined in git (this file + acf-json/). They load even when
- * the ACF admin UI has never been opened. ACF free 5.x is sufficient.
+ * Production already owns a database-backed "Post Details" group with legacy
+ * field keys. Re-registering that group under new keys creates duplicate admin
+ * panels, so this package adds only its new field to the existing group. A
+ * standalone fallback group is used only when Post Details is not installed.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -11,154 +13,94 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Point ACF Local JSON at this package so field groups stay in git.
+ * Locate the existing production Post Details field group.
+ *
+ * @return string|null
  */
-add_filter(
-	'acf/settings/save_json',
-	static function ( $path ) {
-		return HECTV_CMS_FIELDS_DIR . '/acf-json';
+function hectv_cms_post_details_group_key() {
+	if ( ! function_exists( 'acf_get_field_groups' ) ) {
+		return null;
 	}
-);
 
-add_filter(
-	'acf/settings/load_json',
-	static function ( $paths ) {
-		// Prefer our package first; keep other paths as fallbacks.
-		array_unshift( $paths, HECTV_CMS_FIELDS_DIR . '/acf-json' );
-		return $paths;
+	foreach ( acf_get_field_groups( array( 'post_type' => 'post' ) ) as $group ) {
+		if ( isset( $group['title'], $group['key'] ) && $group['title'] === 'Post Details' ) {
+			return (string) $group['key'];
+		}
 	}
-);
+
+	return null;
+}
 
 /**
- * Register Post Details field group in PHP (works without opening ACF UI).
- * Keys match production meta keys already consumed by hectv REST + staging GraphQL.
+ * Check whether a field name is already present in a group.
+ *
+ * @param string $group_key ACF field group key.
+ * @param string $field_name ACF field name.
+ * @return bool
  */
+function hectv_cms_group_has_field( $group_key, $field_name ) {
+	if ( ! function_exists( 'acf_get_fields' ) ) {
+		return false;
+	}
+
+	foreach ( (array) acf_get_fields( $group_key ) as $field ) {
+		if ( isset( $field['name'] ) && $field['name'] === $field_name ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 add_action(
 	'acf/init',
 	static function () {
-		if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+		if ( ! function_exists( 'acf_add_local_field' ) || ! function_exists( 'acf_add_local_field_group' ) ) {
 			return;
 		}
 
-		acf_add_local_field_group(
-			array(
-				'key'                   => 'group_hectv_post_details',
-				'title'                 => 'Post Details',
-				'fields'                => array(
-					array(
-						'key'           => 'field_hectv_is_video',
-						'label'         => 'Is Video',
-						'name'          => 'is_video',
-						'type'          => 'true_false',
-						'instructions'  => 'Mark this post as a video item.',
-						'ui'            => 1,
-						'default_value' => 0,
-					),
-					array(
-						'key'           => 'field_hectv_is_trending',
-						'label'         => 'Trending',
-						'name'          => 'is_trending',
-						'type'          => 'true_false',
-						'instructions'  => 'Include this post in the Trending Now rail when it is a video (or any post the frontend maps).',
-						'ui'            => 1,
-						'default_value' => 0,
-					),
-					array(
-						'key'          => 'field_hectv_youtube_id',
-						'label'        => 'YouTube ID',
-						'name'         => 'youtube_id',
-						'type'         => 'text',
-						'instructions' => 'YouTube video id (not the full URL).',
-						'conditional_logic' => array(
-							array(
-								array(
-									'field'    => 'field_hectv_is_video',
-									'operator' => '==',
-									'value'    => '1',
-								),
-							),
-						),
-					),
-					array(
-						'key'   => 'field_hectv_vimeo_id',
-						'label' => 'Vimeo ID',
-						'name'  => 'vimeo_id',
-						'type'  => 'text',
-						'conditional_logic' => array(
-							array(
-								array(
-									'field'    => 'field_hectv_is_video',
-									'operator' => '==',
-									'value'    => '1',
-								),
-							),
-						),
-					),
-					array(
-						'key'   => 'field_hectv_embed_url',
-						'label' => 'Embed URL',
-						'name'  => 'embed_url',
-						'type'  => 'url',
-					),
-					array(
-						'key'           => 'field_hectv_post_header',
-						'label'         => 'Post Header',
-						'name'          => 'post_header',
-						'type'          => 'image',
-						'return_format' => 'array',
-						'preview_size'  => 'medium',
-						'library'       => 'all',
-					),
-					array(
-						'key'           => 'field_hectv_video_image',
-						'label'         => 'Video Image',
-						'name'          => 'video_image',
-						'type'          => 'image',
-						'return_format' => 'array',
-						'preview_size'  => 'medium',
-						'library'       => 'all',
-					),
-					array(
-						'key'           => 'field_hectv_show_podcasts',
-						'label'         => 'Show Podcasts',
-						'name'          => 'show_podcasts',
-						'type'          => 'true_false',
-						'ui'            => 1,
-						'default_value' => 0,
-					),
-					array(
-						'key'           => 'field_hectv_hide_page_thumbnail',
-						'label'         => 'Hide Page Thumbnail',
-						'name'          => 'hide_page_thumbnail',
-						'type'          => 'true_false',
-						'ui'            => 1,
-						'default_value' => 0,
-					),
-					array(
-						'key'           => 'field_hectv_poll_for_updates',
-						'label'         => 'Poll For Updates',
-						'name'          => 'poll_for_updates',
-						'type'          => 'true_false',
-						'ui'            => 1,
-						'default_value' => 0,
-					),
-				),
-				'location'              => array(
-					array(
+		$parent = hectv_cms_post_details_group_key();
+		if ( ! $parent ) {
+			$parent = 'group_hectv_post_controls';
+			acf_add_local_field_group(
+				array(
+					'key'                   => $parent,
+					'title'                 => 'HEC Post Controls',
+					'fields'                => array(),
+					'location'              => array(
 						array(
-							'param'    => 'post_type',
-							'operator' => '==',
-							'value'    => 'post',
+							array(
+								'param'    => 'post_type',
+								'operator' => '==',
+								'value'    => 'post',
+							),
 						),
 					),
-				),
-				'menu_order'            => 0,
-				'position'              => 'normal',
-				'style'                 => 'default',
-				'label_placement'       => 'top',
-				'instruction_placement' => 'label',
-				'active'                => true,
-				'show_in_rest'          => 0,
+					'menu_order'            => 0,
+					'position'              => 'normal',
+					'style'                 => 'default',
+					'label_placement'       => 'top',
+					'instruction_placement' => 'label',
+					'active'                => true,
+					'show_in_rest'          => 0,
+				)
+			);
+		}
+
+		if ( hectv_cms_group_has_field( $parent, HECTV_META_IS_TRENDING ) ) {
+			return;
+		}
+
+		acf_add_local_field(
+			array(
+				'key'           => 'field_hectv_is_trending',
+				'parent'        => $parent,
+				'label'         => 'Trending',
+				'name'          => 'is_trending',
+				'type'          => 'true_false',
+				'instructions'  => 'Include this post in the Trending Now rail.',
+				'ui'            => 1,
+				'default_value' => 0,
 			)
 		);
 	}

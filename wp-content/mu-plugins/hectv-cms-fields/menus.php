@@ -85,6 +85,7 @@ function hectv_cms_get_header_action_items() {
 function hectv_cms_ensure_default_header_actions_menu() {
 	$menu_name = 'Header Actions';
 	$menu_slug = 'header-actions';
+	$created   = false;
 	$menu      = wp_get_nav_menu_object( $menu_slug );
 	if ( ! $menu ) {
 		$menu = wp_get_nav_menu_object( $menu_name );
@@ -92,19 +93,16 @@ function hectv_cms_ensure_default_header_actions_menu() {
 	if ( ! $menu ) {
 		$menu_id = wp_create_nav_menu( $menu_name );
 		if ( is_wp_error( $menu_id ) ) {
-			return;
+			return false;
 		}
+		$created = true;
 	} else {
 		$menu_id = (int) $menu->term_id;
 	}
 
 	$existing = wp_get_nav_menu_items( $menu_id );
 	if ( is_array( $existing ) && count( $existing ) > 0 ) {
-		// Already curated — only ensure location assignment.
-		$locations = get_nav_menu_locations();
-		$locations[ HECTV_MENU_HEADER_ACTIONS ] = $menu_id;
-		set_theme_mod( 'nav_menu_locations', $locations );
-		return;
+		return true;
 	}
 
 	$defaults = array(
@@ -135,23 +133,35 @@ function hectv_cms_ensure_default_header_actions_menu() {
 		);
 	}
 
-	$locations = get_nav_menu_locations();
-	$locations[ HECTV_MENU_HEADER_ACTIONS ] = $menu_id;
-	set_theme_mod( 'nav_menu_locations', $locations );
+	if ( $created ) {
+		$locations = get_nav_menu_locations();
+		$locations[ HECTV_MENU_HEADER_ACTIONS ] = $menu_id;
+		set_theme_mod( 'nav_menu_locations', $locations );
+	}
+
+	return true;
 }
 
 // Seed defaults once after theme setup when the location is empty.
 add_action(
 	'init',
 	static function () {
-		// Only auto-seed in non-production local/staging harnesses.
-		$env = getenv( 'HECTV_ENVIRONMENT' );
-		if ( $env !== 'staging' && $env !== 'local' && ! defined( 'HECTV_CMS_SEED_MENUS' ) ) {
+		$env              = getenv( 'HECTV_ENVIRONMENT' );
+		$environment_seed = $env === 'staging' || $env === 'local';
+		$explicit_seed    = defined( 'HECTV_CMS_SEED_MENUS' ) && HECTV_CMS_SEED_MENUS;
+		if ( ! $environment_seed && ! $explicit_seed ) {
 			return;
 		}
+		if ( get_option( 'hectv_cms_header_actions_seeded', false ) ) {
+			return;
+		}
+
 		$locations = get_nav_menu_locations();
-		if ( empty( $locations[ HECTV_MENU_HEADER_ACTIONS ] ) ) {
-			hectv_cms_ensure_default_header_actions_menu();
+		if (
+			empty( $locations[ HECTV_MENU_HEADER_ACTIONS ] )
+			&& hectv_cms_ensure_default_header_actions_menu()
+		) {
+			update_option( 'hectv_cms_header_actions_seeded', 1, false );
 		}
 	},
 	20

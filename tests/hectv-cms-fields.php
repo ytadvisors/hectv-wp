@@ -25,20 +25,10 @@ foreach ( array( 'register-acf.php', 'site-settings.php', 'menus.php', 'graphql.
 	assert_true( file_exists( "$pkg/$f" ), "package file $f" );
 }
 
-$json = $pkg . '/acf-json/group_hectv_post_details.json';
-assert_true( file_exists( $json ), 'acf-json group present' );
-$data = json_decode( file_get_contents( $json ), true );
-assert_true( is_array( $data ) && ( $data['key'] ?? '' ) === 'group_hectv_post_details', 'acf group key' );
-
-$names = array();
-foreach ( $data['fields'] as $field ) {
-	$names[] = $field['name'];
-}
-assert_true( in_array( 'is_trending', $names, true ), 'is_trending in ACF JSON' );
-assert_true( in_array( 'is_video', $names, true ), 'is_video in ACF JSON' );
-
 $src = file_get_contents( $pkg . '/register-acf.php' );
 assert_true( strpos( $src, "name'          => 'is_trending'" ) !== false || strpos( $src, "'is_trending'" ) !== false, 'PHP registers is_trending' );
+assert_true( strpos( $src, 'acf/settings/save_json' ) === false, 'does not hijack global ACF JSON saves' );
+assert_true( strpos( $src, "'title'                 => 'Post Details'" ) === false, 'does not clone Post Details' );
 
 $gql = file_get_contents( $pkg . '/graphql.php' );
 assert_true( strpos( $gql, 'trendingSettings' ) !== false, 'GraphQL trendingSettings' );
@@ -46,11 +36,13 @@ assert_true( strpos( $gql, 'forEducators' ) !== false, 'GraphQL forEducators' );
 assert_true( strpos( $gql, 'trendingPosts' ) !== false, 'GraphQL trendingPosts' );
 assert_true( strpos( $gql, 'isTrending' ) !== false, 'GraphQL isTrending' );
 assert_true( strpos( $gql, 'topbarCtas' ) !== false, 'GraphQL topbarCtas' );
+assert_true( strpos( $gql, 'HectvForEducatorsCard' ) !== false, 'GraphQL educator type is collision-free' );
 
 $menus = file_get_contents( $pkg . '/menus.php' );
 assert_true( strpos( $menus, 'header_actions' ) !== false, 'menu location header_actions' );
 assert_true( strpos( $menus, 'Subscribe' ) !== false, 'default Subscribe item' );
 assert_true( strpos( $menus, 'Support' ) !== false, 'default Support item' );
+assert_true( strpos( $menus, "defined( 'HECTV_CMS_SEED_MENUS' ) && HECTV_CMS_SEED_MENUS" ) !== false, 'menu seed requires truthy constant' );
 
 $settings = file_get_contents( $pkg . '/site-settings.php' );
 assert_true( strpos( $settings, 'hectv_trending_max_videos' ) !== false, 'max videos option' );

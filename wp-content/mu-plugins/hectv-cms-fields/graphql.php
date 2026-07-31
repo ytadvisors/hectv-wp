@@ -36,7 +36,7 @@ add_action(
 		);
 
 		register_graphql_object_type(
-			'HectvForEducators',
+			'HectvForEducatorsCard',
 			array(
 				'description' => 'Site-wide For Educators logo card.',
 				'fields'      => array(
@@ -53,10 +53,7 @@ add_action(
 			)
 		);
 
-		// topbar CTA type may already exist (staging content controls).
-		if ( ! function_exists( 'register_graphql_object_type' ) ) {
-			return;
-		}
+		// Topbar CTA type may already exist (staging content controls).
 		// register_graphql_object_type is not idempotent on all versions — guard
 		// by only defining HectvTopbarCta when our staging plugin did not.
 		// WPGraphQL does not expose a public "type exists" helper; re-registering
@@ -81,7 +78,7 @@ add_action(
 			'RootQuery',
 			'forEducators',
 			array(
-				'type'        => 'HectvForEducators',
+				'type'        => 'HectvForEducatorsCard',
 				'description' => 'For Educators logo image + link for the home rail.',
 				'resolve'     => static function () {
 					$edu     = hectv_cms_get_educators_settings();
