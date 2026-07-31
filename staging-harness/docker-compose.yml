@@ -51,13 +51,19 @@ services:
       WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
       WORDPRESS_DEBUG: 1
+      HECTV_ENVIRONMENT: local
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME', 'http://localhost:8092');
         define('WP_SITEURL', 'http://localhost:8092');
         define('GRAPHQL_DEBUG', true);
+        define('HECTV_CMS_SEED_MENUS', true);
+        putenv('HECTV_ENVIRONMENT=local');
     volumes:
       - staging_wp_data:/var/www/html
       - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      # Git-canonical CMS fields (Post Details, site settings, menus, GraphQL).
+      - ../wp-content/mu-plugins/hectv-cms-fields.php:/var/www/html/wp-content/mu-plugins/hectv-cms-fields.php:ro
+      - ../wp-content/mu-plugins/hectv-cms-fields:/var/www/html/wp-content/mu-plugins/hectv-cms-fields:ro
     ports:
       - "127.0.0.1:8092:80"
     healthcheck:
@@ -81,6 +87,8 @@ services:
     volumes:
       - staging_wp_data:/var/www/html
       - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ../wp-content/mu-plugins/hectv-cms-fields.php:/var/www/html/wp-content/mu-plugins/hectv-cms-fields.php:ro
+      - ../wp-content/mu-plugins/hectv-cms-fields:/var/www/html/wp-content/mu-plugins/hectv-cms-fields:ro
       - ./seed.sh:/seed.sh:ro
     entrypoint: ["wp"]
     command: ["--info"]

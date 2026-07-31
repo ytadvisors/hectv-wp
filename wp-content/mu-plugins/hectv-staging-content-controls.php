@@ -89,7 +89,7 @@ function hectv_staging_get_topbar_ctas()
 {
     $ctas = get_option(
         HECTV_TOPBAR_CTAS_OPTION,
-        hectv_staging_default_topbar_ctas()
+        array()
     );
 
     return is_array($ctas) ? array_values($ctas) : array();
