@@ -347,7 +347,7 @@ class Inflections
 	 */
 	public function human($rule, $replacement)
 	{
-		$r0 = $rule{0};
+		$r0 = $rule[0];
 
 		if ($r0 != '/' && $r0 != '#' && $r0 != '~')
 		{
