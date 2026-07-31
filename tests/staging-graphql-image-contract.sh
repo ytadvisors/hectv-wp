@@ -4,15 +4,19 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dockerfile="$repo_root/Dockerfile"
 
-required_sources=(
-  "wp-graphql"
-  "wp-graphql-meta-query"
-  "wp-graphql-tax-query"
-)
+if ! grep -Fq "wp-graphql.2.18.0.zip" "$dockerfile"; then
+  echo "Staging image does not pin modern WPGraphQL 2.18.0." >&2
+  exit 1
+fi
 
-for plugin in "${required_sources[@]}"; do
-  if ! grep -Fq "COPY --from=legacy-plugins /var/www/html/wp-content/plugins/$plugin " "$dockerfile"; then
-    echo "Staging image omits required GraphQL plugin: $plugin" >&2
+if ! grep -Fq "COPY --from=wpgraphql /opt/plugins/wp-graphql " "$dockerfile"; then
+  echo "Staging image omits the modern WPGraphQL build stage." >&2
+  exit 1
+fi
+
+for plugin in wp-graphql wp-graphql-meta-query wp-graphql-tax-query; do
+  if grep -Fq "COPY --from=legacy-plugins /var/www/html/wp-content/plugins/$plugin " "$dockerfile"; then
+    echo "Staging image still copies incompatible legacy plugin: $plugin" >&2
     exit 1
   fi
 done
