@@ -52,6 +52,14 @@ gql "Introspection" '{ __typename }'
 
 gql "GeneralSettings" '{ generalSettings { title url } }'
 
+gql "CmsContentControls" \
+  '{
+    trendingSettings { maxVideos }
+    forEducators { label url image { sourceUrl } }
+    trendingPosts(first: 3) { databaseId title isTrending }
+    topbarCtas { label url style }
+  }'
+
 gql "HomePageInfo" \
   'query HomePageInfo($uri: String!) {
     pageData: pageBy(uri: $uri) {
