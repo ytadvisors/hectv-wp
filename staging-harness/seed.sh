@@ -73,6 +73,17 @@ wpcli menu item add-custom podcasts "Main Feed" "https://example.com/podcast" ||
 # Assign locations if theme supports them (harmless if not).
 wpcli menu location assign header primary 2>/dev/null || true
 
+echo "== header actions menu (Support / Subscribe) =="
+# Menu location registered by hectv-cms-fields (Header Actions).
+wpcli menu create "Header Actions" 2>/dev/null || true
+# Clear prior items for determinism.
+for item_id in $(wpcli menu item list "Header Actions" --format=ids 2>/dev/null || true); do
+  wpcli menu item delete "$item_id" || true
+done
+wpcli menu item add-custom "Header Actions" "Subscribe" "http://127.0.0.1:8092/newsletter" || true
+wpcli menu item add-custom "Header Actions" "Support" "http://127.0.0.1:8092/support" || true
+wpcli menu location assign "Header Actions" header_actions 2>/dev/null || true
+
 echo "== taxonomies + categories =="
 wpcli term create category "Programs" --slug=programs || true
 wpcli term create category "Events" --slug=events || true
@@ -121,6 +132,7 @@ video_post=$(wpcli post create \
   --porcelain)
 wpcli post term set "$video_post" category programs || true
 wpcli post meta update "$video_post" is_video "1"
+wpcli post meta update "$video_post" is_trending "1"
 wpcli post meta update "$video_post" youtube_id "dQw4w9WgXcQ"
 
 spot=$(wpcli post create \
@@ -132,6 +144,27 @@ spot=$(wpcli post create \
   --porcelain)
 wpcli post term set "$spot" category spotlight || true
 wpcli post meta update "$spot" is_video "0"
+wpcli post meta update "$spot" is_trending "0"
+
+echo "== extra trending video fixtures =="
+for i in 1 2 3; do
+  slug="staging-trending-video-$i"
+  id=$(wpcli post list --post_type=post --name="$slug" --field=ID 2>/dev/null || true)
+  if [ -n "${id:-}" ]; then
+    wpcli post delete "$id" --force || true
+  fi
+  tid=$(wpcli post create \
+    --post_type=post \
+    --post_name="$slug" \
+    --post_title="Trending Video $i" \
+    --post_status=publish \
+    --post_content="Trending fixture $i." \
+    --porcelain)
+  wpcli post term set "$tid" category programs || true
+  wpcli post meta update "$tid" is_video "1"
+  wpcli post meta update "$tid" is_trending "1"
+  wpcli post meta update "$tid" youtube_id "jfKfPfyJRdk"
+done
 
 # Link related posts.
 wpcli post meta update "$post1" related_posts "$post2"
@@ -252,6 +285,13 @@ wpcli post meta update "$vid" banner_title "Now Live"
 wpcli post meta update "$vid" banner_background "#000000"
 wpcli post meta update "$vid" banner_text_color "#ffffff"
 
+echo "== site settings (Trending max + For Educators) =="
+wpcli option update hectv_trending_max_videos "5"
+wpcli option update hectv_educators_url "/spotlight"
+wpcli option update hectv_educators_label "For Educators"
+# Logo id left 0 unless media import ran; optional attachment id override:
+# wpcli option update hectv_educators_logo_id "<attachment_id>"
+
 echo "== flush rewrite / graphql =="
 wpcli rewrite flush --hard
 wpcli graphql clear-schema-cache 2>/dev/null || true
@@ -260,4 +300,6 @@ echo "== seed complete =="
 echo "GraphQL:  http://localhost:8092/graphql"
 echo "REST:     http://localhost:8092/wp-json/"
 echo "Admin:    http://localhost:8092/wp-admin  (devadmin / devadmin — local fixture only)"
+echo "Site:     Settings → HEC Site Settings (max videos, educators logo)"
+echo "Menus:    Appearance → Menus → Header Actions (Subscribe / Support)"
 wpcli plugin list --status=active --format=table

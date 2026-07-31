@@ -13,11 +13,14 @@ Isolated, fixture-only WordPress + modern WPGraphQL for HEC Media staging modern
 
 | Path | Role |
 |---|---|
-| `docker-compose.yml` | WordPress 6.8 / PHP 8.2 / MySQL 5.7 |
-| `seed.sh` | Installs pinned WPGraphQL + wp-api-menus; seeds fixtures |
+| `docker-compose.yml` | WordPress 6.8 / PHP 8.2 / MySQL 5.7; mounts git-canonical CMS fields |
+| `seed.sh` | Installs pinned WPGraphQL + wp-api-menus; seeds fixtures + trending/menus |
 | `mu-plugins/hectv-graphql-compat.php` | **Owned** CPT + GraphQL field registrations (frontend contract) |
 | `mu-plugins/hectv-v1-stub.php` | **Stub boundary** for `hectv/v1` REST (not production auth/video) |
+| `../wp-content/mu-plugins/hectv-cms-fields*` | **Git-canonical** Post Details ACF, site settings, header_actions menu |
 | `scripts/contract-test.sh` | GraphQL contract suite mirroring `hecmedia/lib/graphql.js` |
+
+See also: `docs/CMS-FIELDS.md` (Trending, max videos, For Educators logo, Support/Subscribe).
 
 ## Deploy to worker-mba
 
