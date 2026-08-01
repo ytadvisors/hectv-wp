@@ -45,6 +45,41 @@ gql() {
   return 0
 }
 
+gql_empty_deprecated_collections() {
+  local query body resp http
+  query='query DeprecatedCollectionsEmpty {
+    magazines(first: 1) { nodes { databaseId } }
+    events(first: 1) { nodes { databaseId } }
+    eventCategories(first: 1) { nodes { databaseId } }
+  }'
+  body=$(jq -n --arg q "$query" '{query:$q}')
+  http=$(curl -sS -o /tmp/hec-gql-resp.json -w '%{http_code}' \
+    -H 'Content-Type: application/json' \
+    -d "$body" \
+    "$URL" || echo "000")
+  resp=$(cat /tmp/hec-gql-resp.json 2>/dev/null || echo '{}')
+
+  if [ "$http" != "200" ]; then
+    FAIL=$((FAIL + 1))
+    REPORT+=("FAIL DeprecatedCollectionsEmpty HTTP $http ${resp:0:240}")
+    return 0
+  fi
+  if ! echo "$resp" | jq -e '
+    ((.errors // []) | length == 0) and
+    (.data.magazines.nodes == []) and
+    (.data.events.nodes == []) and
+    (.data.eventCategories.nodes == [])
+  ' >/dev/null 2>&1; then
+    FAIL=$((FAIL + 1))
+    REPORT+=("FAIL DeprecatedCollectionsEmpty response: $(echo "$resp" | jq -c '.' 2>/dev/null)")
+    return 0
+  fi
+
+  PASS=$((PASS + 1))
+  REPORT+=("PASS DeprecatedCollectionsEmpty")
+  return 0
+}
+
 echo "Contract suite against $URL"
 echo
 
@@ -75,9 +110,6 @@ gql "HomePageInfo" \
 
 gql "PageLayout" \
   'query PageLayout {
-    featuredMagazines: magazines(first: 5, where: { orderby: { field: DATE, order: DESC } }) {
-      edges { node { title link magazineDetail { coverImage { sourceUrl } } } }
-    }
     spotLight: posts(first: 5, where: { categoryName: "spotlight", orderby: { field: DATE, order: DESC } }) {
       nodes { title postId link postDetails { isVideo } }
     }
@@ -127,26 +159,7 @@ gql "CategoryIdInfo" \
   }' \
   '{"category":"arts"}'
 
-gql "MagazineList" \
-  'query MagazineList($cursor: String!) {
-    magazineData: magazines(after: $cursor) {
-      edges { node { magazineId link slug title magazineDetail { coverImage { sourceUrl } } } }
-      pageInfo { endCursor }
-    }
-    pageData: pageBy(uri: "magazines") {
-      feedDesign { defaultDisplayType defaultRowLayout newRowLayout { rowLayout displayType } }
-    }
-  }' \
-  '{"cursor":""}'
-
-gql "EventCategories" \
-  'query EventCategories($limit: Int!) {
-    categories: eventCategories(first: $limit) {
-      edges { node { slug name link eventCategoryId } }
-      pageInfo { endCursor }
-    }
-  }' \
-  '{"limit":5}'
+gql_empty_deprecated_collections
 
 NOW=$(date +"%Y-%m-%d %H:%M:%S")
 gql "LiveVideos" \
@@ -159,39 +172,6 @@ gql "LiveVideos" \
     }
   }' \
   "{\"keyStart\":\"display_date\",\"keyEnd\":\"end_date\",\"compareStart\":\"$NOW\",\"compareEnd\":\"$NOW\"}"
-
-DAY_END="$(date +%Y-%m-%d) 00:00:00"
-gql "allEvents" \
-  'query allEvents($keyEnd: String!, $dayEnd: String!) {
-    currentEvents: events(first: 5, where: {
-      metaQuery: { relation: AND, metaArray: [
-        { compare: GREATER_THAN_OR_EQUAL_TO, value: $dayEnd, key: $keyEnd },
-        { compare: GREATER_THAN_OR_EQUAL_TO, value: "1", key: "event_dates" }
-      ]},
-      orderby: { field: DATE, order: ASC }
-    }) {
-      edges { node { title link } }
-    }
-  }' \
-  "{\"keyEnd\":\"event_dates_\$_end_time\",\"dayEnd\":\"$DAY_END\"}"
-
-gql "EventDayInfo" \
-  'query EventDayInfo($keyEnd: String!, $dayEnd: String!, $cursor: String!) {
-    matchEvent: events(after: $cursor, where: {
-      metaQuery: { metaArray: [
-        { compare: GREATER_THAN_OR_EQUAL_TO, value: $dayEnd, key: $keyEnd },
-        { compare: GREATER_THAN_OR_EQUAL_TO, value: "1", key: "event_dates" }
-      ]},
-      orderby: { field: DATE, order: ASC }
-    }) {
-      nodes { title link eventId slug eventDetails { eventDates { startTime endTime } venue webAddress eventPrice } }
-      pageInfo { endCursor hasNextPage }
-    }
-    pageData: pageBy(uri: "events") {
-      feedDesign { defaultDisplayType defaultRowLayout }
-    }
-  }' \
-  "{\"keyEnd\":\"event_dates_\$_end_time\",\"dayEnd\":\"$DAY_END\",\"cursor\":\"\"}"
 
 gql "PageTemplate" \
   'query PageTemplate($uri: String!) {

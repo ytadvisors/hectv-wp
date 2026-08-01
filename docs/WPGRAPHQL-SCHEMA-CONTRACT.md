@@ -9,7 +9,7 @@ No production data values are recorded here — shapes and field names only.
 | Operation | Frontend export | Required roots / types |
 |---|---|---|
 | HomePageInfo | `GET_HOME_PAGE` | `pageBy`, `posts`, `requiredPosts`, `feedDesign`, `postDetails` |
-| PageLayout | `GET_LAYOUT` + `GET_HEADER_MENU` | `magazines`, `posts`+`categoryName`, root `menuItems(where:{location})`, footer/social `menus` |
+| PageLayout | `GET_LAYOUT` + `GET_HEADER_MENU` | `posts`+`categoryName`, root `menuItems(where:{location})`, footer/social `menus` |
 | ScheduleLayout | `GET_SCHEDULE` | `scheduleBy`, `scheduleDetails.schedulePrograms` |
 | AllCategories | `GET_ALL_PAGE_CATEGORY` | `categories`, `children`, `pageInfo` |
 | PageCategory | `GET_PAGE_CATEGORY` | `posts(categoryIn)`, `postDetails` |
@@ -17,13 +17,7 @@ No production data values are recorded here — shapes and field names only.
 | CategoryInfo | `GET_CATEGORY_INFO` | `posts`+`categoryName` |
 | CurrentPost | `GET_PAGE_INFO` | `postBy`, `postDetails`, `relatedPosts`, `postEvents`/`Event` |
 | ArticlesInfo | `GET_ARTICLES` | `posts`+`metaQuery(is_video)` |
-| MagazineList | `GET_ALL_MAGAZINES` | `magazines`, `magazineDetail`, page `feedDesign` |
-| MagazineInfo | `GET_MAGAZINE_INFO` | `magazineBy`, `magazineDetail.magazinePost` |
-| EventCategories | `GET_EVENTS_CATEGORIES` | `eventCategories`, `eventCategoryId` |
 | LiveVideos | `GET_LIVE_VIDEOS` | `videos`+`metaQuery`, `temporaryLink` |
-| allEvents | `GET_CURRENT_EVENTS` | `events`+`metaQuery` |
-| EventDayInfo | `GET_EVENTS_BY_DAY` | `events`, `eventDetails` |
-| EventInfo | `GET_EVENT_INFO` | `eventBy`, `eventDetails.eventPosts` |
 | SearchResults | `GET_SEARCH_RESULTS` | `posts(where.search)` |
 | PageTemplate | `GET_PAGE_TEMPLATE` | `pageBy`, `pageTemplate`, `contact`, `about` |
 
@@ -54,6 +48,11 @@ licensed WPGraphQL-for-ACF):
 | schedule | Schedule | schedules |
 | video | Video | videos |
 | event_category (taxonomy) | EventCategory | eventCategories |
+
+`magazine`, `event`, and `event_category` are deprecated site features. Their
+plural GraphQL roots remain registered temporarily so an older frontend can run
+during the staggered deployment, but the compatibility layer forces all three
+connections to return empty lists. New frontend code must not query them.
 
 ## Filters / args
 

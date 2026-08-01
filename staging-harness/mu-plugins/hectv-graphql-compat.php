@@ -21,6 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * WPGraphQL may cache its allowed post types before a later init callback can
  * mutate the global post-type objects. Filtering the registration arguments
  * makes the GraphQL contract part of the objects from their creation.
+ *
+ * Magazine and event content is deprecated. Their types remain visible only
+ * as a temporary schema compatibility bridge while the currently deployed
+ * frontend is replaced; connection queries for them are forced empty below.
  */
 add_filter(
 	'register_post_type_args',
@@ -39,9 +43,11 @@ add_filter(
 		$args['show_in_graphql']     = true;
 		$args['graphql_single_name'] = $graphql_names[ $post_type ][0];
 		$args['graphql_plural_name'] = $graphql_names[ $post_type ][1];
+		$args['graphql_register_root_field']      = true;
+		$args['graphql_register_root_connection'] = true;
 		return $args;
 	},
-	100,
+	0,
 	2
 );
 
@@ -55,9 +61,11 @@ add_filter(
 		$args['show_in_graphql']     = true;
 		$args['graphql_single_name'] = 'EventCategory';
 		$args['graphql_plural_name'] = 'eventCategories';
+		$args['graphql_register_root_field']      = true;
+		$args['graphql_register_root_connection'] = true;
 		return $args;
 	},
-	100,
+	0,
 	2
 );
 
@@ -100,6 +108,8 @@ add_action(
 					$wp_post_types[ $slug ]->show_in_graphql     = true;
 					$wp_post_types[ $slug ]->graphql_single_name = $cfg['graphql_single_name'];
 					$wp_post_types[ $slug ]->graphql_plural_name = $cfg['graphql_plural_name'];
+					$wp_post_types[ $slug ]->graphql_register_root_field      = true;
+					$wp_post_types[ $slug ]->graphql_register_root_connection = true;
 				}
 				continue;
 			}
@@ -118,6 +128,8 @@ add_action(
 					'show_in_graphql'     => true,
 					'graphql_single_name' => $cfg['graphql_single_name'],
 					'graphql_plural_name' => $cfg['graphql_plural_name'],
+					'graphql_register_root_field'      => true,
+					'graphql_register_root_connection' => true,
 				)
 			);
 		}
@@ -135,6 +147,8 @@ add_action(
 					'show_in_graphql'       => true,
 					'graphql_single_name'   => 'EventCategory',
 					'graphql_plural_name'   => 'eventCategories',
+					'graphql_register_root_field'      => true,
+					'graphql_register_root_connection' => true,
 					'rewrite'               => array( 'slug' => 'event-category' ),
 				)
 			);
@@ -144,6 +158,8 @@ add_action(
 				$wp_taxonomies['event_category']->show_in_graphql     = true;
 				$wp_taxonomies['event_category']->graphql_single_name = 'EventCategory';
 				$wp_taxonomies['event_category']->graphql_plural_name = 'eventCategories';
+				$wp_taxonomies['event_category']->graphql_register_root_field      = true;
+				$wp_taxonomies['event_category']->graphql_register_root_connection = true;
 			}
 		}
 	},
@@ -1046,6 +1062,19 @@ add_filter(
 add_filter(
 	'graphql_post_object_connection_query_args',
 	static function ( $query_args, $source, $args, $context, $info ) {
+		$post_types       = isset( $query_args['post_type'] ) ? (array) $query_args['post_type'] : array();
+		$field_name       = is_object( $info ) && isset( $info->fieldName ) ? $info->fieldName : '';
+		$deprecated_types = array( 'magazine', 'event' );
+
+		// Keep deprecated roots queryable during rollout, but never return content.
+		if (
+			array_intersect( $deprecated_types, $post_types ) ||
+			in_array( $field_name, array( 'magazines', 'events' ), true )
+		) {
+			$query_args['post__in'] = array( 0 );
+			return $query_args;
+		}
+
 		$where = isset( $args['where'] ) && is_array( $args['where'] ) ? $args['where'] : array();
 
 		// metaQuery (owned or upstream shape).
@@ -1151,6 +1180,25 @@ add_filter(
 			if ( count( $items ) > 1 ) {
 				$query_args['tax_query'] = $items;
 			}
+		}
+
+		return $query_args;
+	},
+	20,
+	5
+);
+
+/**
+ * Keep the deprecated eventCategories root schema-compatible but empty.
+ */
+add_filter(
+	'graphql_term_object_connection_query_args',
+	static function ( $query_args, $source, $args, $context, $info ) {
+		$taxonomies = isset( $query_args['taxonomy'] ) ? (array) $query_args['taxonomy'] : array();
+		$field_name = is_object( $info ) && isset( $info->fieldName ) ? $info->fieldName : '';
+
+		if ( in_array( 'event_category', $taxonomies, true ) || $field_name === 'eventCategories' ) {
+			$query_args['include'] = array( 0 );
 		}
 
 		return $query_args;
