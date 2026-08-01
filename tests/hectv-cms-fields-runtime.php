@@ -81,8 +81,21 @@ function wp_get_nav_menu_items() {
 	);
 }
 
-function get_post_meta( $post_id, $key ) {
-	return $post_id === 7 && $key === 'is_trending' ? '1' : '';
+function get_post_meta( $post_id, $key, $single = true ) {
+	global $hectv_test_meta;
+	if ( isset( $hectv_test_meta[ $post_id ][ $key ] ) ) {
+		return $hectv_test_meta[ $post_id ][ $key ];
+	}
+	// Default used by earlier trendingPosts / isTrending checks.
+	if ( (int) $post_id === 7 && $key === 'is_trending' ) {
+		return '1';
+	}
+	return '';
+}
+
+function get_field( $key, $post_id = false ) {
+	// Prefer empty so resolvers exercise get_post_meta fallback.
+	return null;
 }
 
 function get_post() {
@@ -152,6 +165,37 @@ $trending = $graphql_fields['RootQuery']['trendingPosts']['resolve']( null, arra
 expect_same( array(), $trending, 'Empty query results should return an empty GraphQL list.' );
 expect_same( 3, $last_wp_query_args['posts_per_page'], 'trendingPosts should honor the requested limit.' );
 expect_same( HECTV_META_IS_TRENDING, $last_wp_query_args['meta_query'][0]['key'], 'trendingPosts should filter on is_trending.' );
+
+// postDetails GraphQL type + field must be registered with integrated ACF fields.
+expect_same( true, isset( $graphql_types['HecPostDetails'] ), 'HecPostDetails type registered.' );
+expect_same( true, isset( $graphql_fields['Post']['postDetails'] ), 'Post.postDetails field registered.' );
+expect_same( true, isset( $graphql_fields['Post']['isTrending'] ), 'Post.isTrending field registered.' );
+$pd_fields = $graphql_types['HecPostDetails']['fields'];
+foreach ( array( 'youtubeId', 'vimeoId', 'embedUrl', 'isVideo', 'isTrending', 'videoImage', 'postHeader', 'showPodcasts', 'hidePageThumbnail', 'pollForUpdates', 'relatedPosts', 'postEvents', 'broadcastLocation', 'internalId', 'duration' ) as $fname ) {
+	expect_true( isset( $pd_fields[ $fname ] ), "HecPostDetails includes $fname" );
+}
+
+// Resolver returns integrated meta keys from post meta.
+$GLOBALS['hectv_test_meta'] = array(
+	7 => array(
+		'is_video'       => '1',
+		'is_trending'    => '1',
+		'youtube_id'     => 'yt-abc',
+		'vimeo_id'       => 'vim-9',
+		'embed_url'      => 'https://example.test/embed',
+		'show_podcasts'  => '1',
+		'broadcast_location' => '/media/file.mp4',
+		'internal_id'    => 'INT-1',
+		'duration'       => '12:34',
+	),
+);
+$details = $graphql_fields['Post']['postDetails']['resolve']( (object) array( 'databaseId' => 7 ) );
+expect_same( true, $details['isVideo'], 'postDetails.isVideo from meta' );
+expect_same( true, $details['isTrending'], 'postDetails.isTrending from meta' );
+expect_same( 'yt-abc', $details['youtubeId'], 'postDetails.youtubeId from meta' );
+expect_same( 'vim-9', $details['vimeoId'], 'postDetails.vimeoId from meta' );
+expect_same( 'https://example.test/embed', $details['embedUrl'], 'postDetails.embedUrl from meta' );
+expect_same( '/media/file.mp4', $details['broadcastLocation'], 'postDetails.broadcastLocation from meta' );
 
 $acf_callback = $actions['acf/init'][10][0];
 

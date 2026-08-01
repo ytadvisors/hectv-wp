@@ -67,6 +67,16 @@ assert_true( strpos( $gql, 'trendingPosts' ) !== false, 'GraphQL trendingPosts' 
 assert_true( strpos( $gql, 'isTrending' ) !== false, 'GraphQL isTrending' );
 assert_true( strpos( $gql, 'topbarCtas' ) !== false, 'GraphQL topbarCtas' );
 assert_true( strpos( $gql, 'HectvForEducatorsCard' ) !== false, 'GraphQL educator type is collision-free' );
+assert_true( strpos( $gql, 'HecPostDetails' ) !== false, 'GraphQL HecPostDetails type' );
+assert_true( strpos( $gql, 'postDetails' ) !== false, 'GraphQL postDetails field' );
+assert_true( strpos( $gql, 'youtubeId' ) !== false, 'GraphQL youtubeId' );
+assert_true( strpos( $gql, 'vimeoId' ) !== false, 'GraphQL vimeoId' );
+assert_true( strpos( $gql, 'embedUrl' ) !== false, 'GraphQL embedUrl' );
+assert_true( strpos( $gql, 'isVideo' ) !== false, 'GraphQL isVideo' );
+assert_true( strpos( $gql, 'videoImage' ) !== false, 'GraphQL videoImage' );
+assert_true( strpos( $gql, 'postHeader' ) !== false, 'GraphQL postHeader' );
+assert_true( strpos( $gql, 'relatedPosts' ) !== false, 'GraphQL relatedPosts' );
+assert_true( strpos( $gql, 'hectv_cms_resolve_post_details' ) !== false, 'GraphQL postDetails resolver' );
 
 $menus = file_get_contents( $pkg . '/menus.php' );
 assert_true( strpos( $menus, 'header_actions' ) !== false, 'menu location header_actions' );

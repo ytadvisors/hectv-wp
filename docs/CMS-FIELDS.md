@@ -165,14 +165,59 @@ Local/staging seed creates Subscribe + Support once when the location is empty
 
 ## 4. GraphQL summary
 
+Owned by `graphql.php` (does not depend on wp-graphql-acf):
+
 | Field | Type |
 |-------|------|
 | `Post.isTrending` | Boolean |
-| `Post.postDetails.isTrending` | Boolean (when HecPostDetails present) |
+| `Post.postDetails` | `HecPostDetails` |
+| `Post.postDetails.isVideo` | Boolean |
+| `Post.postDetails.isTrending` | Boolean |
+| `Post.postDetails.youtubeId` | String |
+| `Post.postDetails.vimeoId` | String |
+| `Post.postDetails.embedUrl` | String |
+| `Post.postDetails.postHeader` | MediaItem |
+| `Post.postDetails.videoImage` | MediaItem |
+| `Post.postDetails.showPodcasts` | Boolean |
+| `Post.postDetails.hidePageThumbnail` | Boolean |
+| `Post.postDetails.pollForUpdates` | Boolean |
+| `Post.postDetails.broadcastLocation` | String |
+| `Post.postDetails.internalId` | String |
+| `Post.postDetails.duration` | String |
+| `Post.postDetails.relatedPosts` | `[HecRelatedPostRow]` |
+| `Post.postDetails.postEvents` | `[HecRelatedEventRow]` |
 | `RootQuery.trendingSettings.maxVideos` | Int |
 | `RootQuery.forEducators` | `{ label, url, image }` |
 | `RootQuery.trendingPosts(first: Int)` | `[Post]` — meta `is_trending`, capped by max |
 | `RootQuery.topbarCtas` | `[{ label, url, style }]` |
+
+Example:
+
+```graphql
+query PostWithDetails($slug: String!) {
+  postBy(slug: $slug) {
+    title
+    isTrending
+    postDetails {
+      isVideo
+      isTrending
+      youtubeId
+      vimeoId
+      embedUrl
+      showPodcasts
+      hidePageThumbnail
+      pollForUpdates
+      broadcastLocation
+      internalId
+      duration
+      postHeader { sourceUrl }
+      videoImage { sourceUrl }
+      relatedPosts { relatedPost { title link } }
+      postEvents { relatedEvent { title } }
+    }
+  }
+}
+```
 
 ---
 
