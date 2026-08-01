@@ -68,7 +68,7 @@ gql "HomePageInfo" \
       feedDesign { newRowLayout { rowLayout displayType } defaultDisplayType defaultRowLayout }
     }
     postData: posts(first: 5, where: { orderby: { field: DATE, order: DESC } }) {
-      edges { node { title postId slug link postDetails { isVideo } categories { edges { node { name } } } } }
+      edges { node { title postId slug link featuredImage { node { sourceUrl } } postDetails { isVideo } categories { edges { node { name } } } } }
     }
   }' \
   '{"uri":"home"}'
@@ -78,11 +78,11 @@ gql "PageLayout" \
     featuredMagazines: magazines(first: 5, where: { orderby: { field: DATE, order: DESC } }) {
       edges { node { title link magazineDetail { coverImage { sourceUrl } } } }
     }
-    spotLight: posts(first: 5, where: { taxQuery: { relation: OR, taxArray: { taxonomy: CATEGORY, terms: ["spotlight"], operator: IN, field: SLUG, includeChildren: true } }, orderby: { field: DATE, order: DESC } }) {
+    spotLight: posts(first: 5, where: { categoryName: "spotlight", orderby: { field: DATE, order: DESC } }) {
       nodes { title postId link postDetails { isVideo } }
     }
-    header: menus(where: { slug: "header" }) {
-      edges { node { menuItems { edges { node { label url childItems { edges { node { label url } } } } } } } }
+    header: menuItems(first: 100, where: { location: PRIMARY }) {
+      edges { node { label url parentDatabaseId childItems { edges { node { label url parentDatabaseId } } } } }
     }
     footer: menus(where: { slug: "footer" }) {
       edges { node { menuItems { edges { node { label url } } } } }

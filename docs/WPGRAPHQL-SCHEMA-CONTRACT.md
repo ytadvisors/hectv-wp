@@ -9,12 +9,12 @@ No production data values are recorded here — shapes and field names only.
 | Operation | Frontend export | Required roots / types |
 |---|---|---|
 | HomePageInfo | `GET_HOME_PAGE` | `pageBy`, `posts`, `requiredPosts`, `feedDesign`, `postDetails` |
-| PageLayout | `GET_LAYOUT` | `magazines`, `posts`+`taxQuery`, `menus`/`menuItems`/`childItems` |
+| PageLayout | `GET_LAYOUT` + `GET_HEADER_MENU` | `magazines`, `posts`+`categoryName`, root `menuItems(where:{location})`, footer/social `menus` |
 | ScheduleLayout | `GET_SCHEDULE` | `scheduleBy`, `scheduleDetails.schedulePrograms` |
 | AllCategories | `GET_ALL_PAGE_CATEGORY` | `categories`, `children`, `pageInfo` |
 | PageCategory | `GET_PAGE_CATEGORY` | `posts(categoryIn)`, `postDetails` |
 | CategoryIdInfo | `GET_CATEGORY_ID` | `categories(where.slug)`, `categoryId` |
-| CategoryInfo | `GET_CATEGORY_INFO` | `posts`+`taxQuery` |
+| CategoryInfo | `GET_CATEGORY_INFO` | `posts`+`categoryName` |
 | CurrentPost | `GET_PAGE_INFO` | `postBy`, `postDetails`, `relatedPosts`, `postEvents`/`Event` |
 | ArticlesInfo | `GET_ARTICLES` | `posts`+`metaQuery(is_video)` |
 | MagazineList | `GET_ALL_MAGAZINES` | `magazines`, `magazineDetail`, page `feedDesign` |
@@ -59,10 +59,11 @@ licensed WPGraphQL-for-ACF):
 
 | Arg | Purpose | Staging disposition |
 |---|---|---|
-| `where.taxQuery` | Spotlight + category feeds | Owned registration + WP_Query mapper |
+| `where.categoryName` | Spotlight + category feeds | Native modern WPGraphQL argument |
+| `where.taxQuery` | Non-category HEC compatibility cases | Owned registration + WP_Query mapper |
 | `where.metaQuery` | is_video, event/video date windows | Owned registration + WP_Query mapper |
-| `shouldOutputInFlatList` | Legacy flat category lists | Accepted no-op arg |
-| `parentDatabaseId` (menus) | Modern menu hierarchy | Provided by upstream WPGraphQL menus when present; not required by current `lib/graphql.js` selections (childItems nesting only) |
+| `shouldOutputInFlatList` | Legacy contract only; no longer sent by hecmedia | Accepted no-op during the phased migration |
+| `parentDatabaseId` (menus) | Modern menu hierarchy | Provided by upstream WPGraphQL and requested from the root `menuItems` connection |
 
 ## Stub boundary (not GraphQL)
 
@@ -89,5 +90,6 @@ claimed. Frontend GraphQL `videos` CPT is the modernization path for live banner
   upstream WPGraphQL + owned field registrations.
 - Image fields may be null in fixtures (no media library seeds required for
   structural contract pass).
-- Menu queries use `menus(where:{slug})` + nested `childItems` as in the frontend.
+- Header navigation uses the modern root `menuItems(where:{location:PRIMARY})`
+  connection. Footer and social menus remain slug-addressed menu connections.
 - Mutations are disabled in staging.
