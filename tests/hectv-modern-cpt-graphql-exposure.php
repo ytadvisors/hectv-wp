@@ -3,6 +3,7 @@
 define( 'ABSPATH', __DIR__ );
 
 $actions = array();
+$filters = array();
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	$GLOBALS['actions'][ $hook ][] = array(
@@ -12,7 +13,13 @@ function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	);
 }
 
-function add_filter() {}
+function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+	$GLOBALS['filters'][ $hook ][] = array(
+		'callback'      => $callback,
+		'priority'      => $priority,
+		'accepted_args' => $accepted_args,
+	);
+}
 
 function post_type_exists() {
 	return true;
@@ -40,6 +47,52 @@ $wp_taxonomies = array(
 );
 
 require dirname( __DIR__ ) . '/staging-harness/mu-plugins/hectv-graphql-compat.php';
+
+$post_type_filters = isset( $filters['register_post_type_args'] ) ? $filters['register_post_type_args'] : array();
+if (
+	count( $post_type_filters ) !== 1 ||
+	$post_type_filters[0]['priority'] !== 100 ||
+	$post_type_filters[0]['accepted_args'] !== 2
+) {
+	fwrite( STDERR, "Modern GraphQL metadata must filter post-type registration arguments.\n" );
+	exit( 1 );
+}
+
+$event_args = $post_type_filters[0]['callback']( array( 'public' => false ), 'event' );
+if (
+	! $event_args['show_in_graphql'] ||
+	$event_args['graphql_single_name'] !== 'Event' ||
+	$event_args['graphql_plural_name'] !== 'events'
+) {
+	fwrite( STDERR, "GraphQL metadata was not applied during event registration.\n" );
+	exit( 1 );
+}
+
+$post_args = $post_type_filters[0]['callback']( array( 'public' => true ), 'post' );
+if ( $post_args !== array( 'public' => true ) ) {
+	fwrite( STDERR, "Unowned post-type registration arguments were modified.\n" );
+	exit( 1 );
+}
+
+$taxonomy_filters = isset( $filters['register_taxonomy_args'] ) ? $filters['register_taxonomy_args'] : array();
+if (
+	count( $taxonomy_filters ) !== 1 ||
+	$taxonomy_filters[0]['priority'] !== 100 ||
+	$taxonomy_filters[0]['accepted_args'] !== 2
+) {
+	fwrite( STDERR, "Modern GraphQL metadata must filter taxonomy registration arguments.\n" );
+	exit( 1 );
+}
+
+$event_category_args = $taxonomy_filters[0]['callback']( array( 'public' => false ), 'event_category' );
+if (
+	! $event_category_args['show_in_graphql'] ||
+	$event_category_args['graphql_single_name'] !== 'EventCategory' ||
+	$event_category_args['graphql_plural_name'] !== 'eventCategories'
+) {
+	fwrite( STDERR, "GraphQL metadata was not applied during event-category registration.\n" );
+	exit( 1 );
+}
 
 $init_actions = isset( $actions['init'] ) ? $actions['init'] : array();
 if ( count( $init_actions ) !== 1 || $init_actions[0]['priority'] !== 100 ) {

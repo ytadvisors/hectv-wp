@@ -16,6 +16,52 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Add modern WPGraphQL metadata while the imported HEC types are registered.
+ *
+ * WPGraphQL may cache its allowed post types before a later init callback can
+ * mutate the global post-type objects. Filtering the registration arguments
+ * makes the GraphQL contract part of the objects from their creation.
+ */
+add_filter(
+	'register_post_type_args',
+	static function ( $args, $post_type ) {
+		$graphql_names = array(
+			'magazine' => array( 'Magazine', 'magazines' ),
+			'event'    => array( 'Event', 'events' ),
+			'schedule' => array( 'Schedule', 'schedules' ),
+			'video'    => array( 'Video', 'videos' ),
+		);
+
+		if ( ! isset( $graphql_names[ $post_type ] ) ) {
+			return $args;
+		}
+
+		$args['show_in_graphql']     = true;
+		$args['graphql_single_name'] = $graphql_names[ $post_type ][0];
+		$args['graphql_plural_name'] = $graphql_names[ $post_type ][1];
+		return $args;
+	},
+	100,
+	2
+);
+
+add_filter(
+	'register_taxonomy_args',
+	static function ( $args, $taxonomy ) {
+		if ( $taxonomy !== 'event_category' ) {
+			return $args;
+		}
+
+		$args['show_in_graphql']     = true;
+		$args['graphql_single_name'] = 'EventCategory';
+		$args['graphql_plural_name'] = 'eventCategories';
+		return $args;
+	},
+	100,
+	2
+);
+
+/**
  * Register HEC custom post types with modern WPGraphQL exposure.
  * CPT slugs match production HEC code (magazine, event, schedule, video).
  * GraphQL names match the frontend contract (magazines, events, schedules, videos).
