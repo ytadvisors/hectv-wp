@@ -42,4 +42,6 @@ for field in videoImage postHeader isVideo; do
   fi
 done
 
+php "$repo_root/tests/hectv-modern-cpt-graphql-exposure.php"
+
 echo "Staging GraphQL image contract test passed."
