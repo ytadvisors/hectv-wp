@@ -260,6 +260,7 @@ $GLOBALS['hectv_test_meta'] = array(
 		'vimeo_id'       => 'vim-9',
 		'embed_url'      => 'https://example.test/embed',
 		'show_podcasts'  => '1',
+		'poll_for_updates' => '30',
 		'broadcast_location' => '/media/file.mp4',
 		'internal_id'    => 'INT-1',
 		'duration'       => '12:34',
@@ -272,6 +273,17 @@ expect_same( 'yt-abc', $details['youtubeId'], 'postDetails.youtubeId from meta' 
 expect_same( 'vim-9', $details['vimeoId'], 'postDetails.vimeoId from meta' );
 expect_same( 'https://example.test/embed', $details['embedUrl'], 'postDetails.embedUrl from meta' );
 expect_same( '/media/file.mp4', $details['broadcastLocation'], 'postDetails.broadcastLocation from meta' );
+// P1 regression: pollForUpdates must remain a numeric interval (seconds), not bool.
+// Frontend does pollInterval: pollForUpdates * 1000 — true*1000 === 1000 (1s) is wrong.
+expect_true( is_float( $details['pollForUpdates'] ) || is_int( $details['pollForUpdates'] ), 'pollForUpdates is numeric' );
+expect_true( (float) $details['pollForUpdates'] > 1, 'pollForUpdates preserves interval > 1 (not coerced to true)' );
+expect_same( 30.0, (float) $details['pollForUpdates'], 'pollForUpdates returns 30 seconds unchanged' );
+expect_same( 'Float', $pd_fields['pollForUpdates']['type'], 'pollForUpdates GraphQL type is Float' );
+
+// Unit-level: hectv_cms_gql_float must not bool-coerce.
+expect_same( 30.0, hectv_cms_gql_float( '30' ), 'gql_float keeps 30' );
+expect_same( null, hectv_cms_gql_float( true ), 'gql_float refuses bool true' );
+expect_same( null, hectv_cms_gql_float( '' ), 'gql_float empty → null' );
 
 $acf_callback = $actions['acf/init'][10][0];
 

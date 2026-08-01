@@ -182,7 +182,7 @@ Owned by `graphql.php` (does not depend on wp-graphql-acf):
 | `Post.postDetails.videoImage` | MediaItem |
 | `Post.postDetails.showPodcasts` | Boolean |
 | `Post.postDetails.hidePageThumbnail` | Boolean |
-| `Post.postDetails.pollForUpdates` | Boolean |
+| `Post.postDetails.pollForUpdates` | Float (seconds; ACF number — not Boolean) |
 | `Post.postDetails.broadcastLocation` | String |
 | `Post.postDetails.internalId` | String |
 | `Post.postDetails.duration` | String |

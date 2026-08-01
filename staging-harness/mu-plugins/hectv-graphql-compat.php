@@ -430,7 +430,9 @@ add_action(
 					'embedUrl'          => array( 'type' => 'String' ),
 					'showPodcasts'      => array( 'type' => 'Boolean' ),
 					'hidePageThumbnail' => array( 'type' => 'Boolean' ),
-					'pollForUpdates'    => array( 'type' => 'Boolean' ),
+					// Interval seconds (ACF number / production Float). Not Boolean —
+					// frontend uses pollInterval: pollForUpdates * 1000.
+					'pollForUpdates'    => array( 'type' => 'Float' ),
 					'relatedPosts'      => array( 'type' => array( 'list_of' => 'HecRelatedPostRow' ) ),
 					'postEvents'        => array( 'type' => array( 'list_of' => 'HecRelatedEventRow' ) ),
 				),
@@ -598,7 +600,12 @@ add_action(
 				'embedUrl'          => hectv_gql_meta( $id, 'embed_url', null ),
 				'showPodcasts'      => hectv_gql_bool( hectv_gql_meta( $id, 'show_podcasts' ) ),
 				'hidePageThumbnail' => hectv_gql_bool( hectv_gql_meta( $id, 'hide_page_thumbnail' ) ),
-				'pollForUpdates'    => hectv_gql_bool( hectv_gql_meta( $id, 'poll_for_updates' ) ),
+				'pollForUpdates'    => ( static function ( $raw ) {
+					if ( $raw === null || $raw === '' || $raw === false || is_bool( $raw ) || ! is_numeric( $raw ) ) {
+						return null;
+					}
+					return (float) $raw;
+				} )( hectv_gql_meta( $id, 'poll_for_updates', null ) ),
 				'relatedPosts'      => $related_posts,
 				'postEvents'        => $post_events,
 			);

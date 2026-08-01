@@ -93,6 +93,30 @@ function hectv_cms_gql_bool( $val ) {
 }
 
 /**
+ * Coerce ACF number meta into a GraphQL Float (or null when empty).
+ *
+ * Used for poll_for_updates — production schema is Float (interval seconds).
+ * Do NOT pass this through hectv_cms_gql_bool(); a value like 30 must remain 30
+ * so the frontend can use pollInterval: pollForUpdates * 1000.
+ *
+ * @param mixed $val Raw meta.
+ * @return float|null
+ */
+function hectv_cms_gql_float( $val ) {
+	if ( $val === null || $val === '' || $val === false ) {
+		return null;
+	}
+	if ( is_bool( $val ) ) {
+		// Defensive: never invent an interval from a true/false cast.
+		return null;
+	}
+	if ( ! is_numeric( $val ) ) {
+		return null;
+	}
+	return (float) $val;
+}
+
+/**
  * Resolve MediaItem model from attachment id / ACF image array / URL.
  *
  * @param mixed $raw ACF image array, attachment ID, or empty.
@@ -272,7 +296,8 @@ function hectv_cms_resolve_post_details( $source ) {
 		'embedUrl'           => hectv_cms_gql_meta( $id, HECTV_META_EMBED_URL, null ),
 		'showPodcasts'       => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_SHOW_PODCASTS ) ),
 		'hidePageThumbnail'  => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_HIDE_PAGE_THUMBNAIL ) ),
-		'pollForUpdates'     => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_POLL_FOR_UPDATES ) ),
+		// Numeric interval in seconds (ACF number / production Float) — not Boolean.
+		'pollForUpdates'     => hectv_cms_gql_float( hectv_cms_gql_meta( $id, HECTV_META_POLL_FOR_UPDATES, null ) ),
 		'broadcastLocation'  => hectv_cms_gql_meta( $id, 'broadcast_location', null ),
 		'internalId'         => hectv_cms_gql_meta( $id, 'internal_id', null ),
 		'duration'           => hectv_cms_gql_meta( $id, 'duration', null ),
@@ -502,8 +527,8 @@ add_action(
 						'description' => 'Hide page thumbnail (ACF hide_page_thumbnail).',
 					),
 					'pollForUpdates'    => array(
-						'type'        => 'Boolean',
-						'description' => 'Poll for live updates (ACF poll_for_updates).',
+						'type'        => 'Float',
+						'description' => 'Live-update poll interval in seconds (ACF poll_for_updates number). Production contract is Float, not Boolean.',
 					),
 					'broadcastLocation' => array(
 						'type'        => 'String',
@@ -544,7 +569,8 @@ add_action(
 					'embedUrl'          => 'String',
 					'showPodcasts'      => 'Boolean',
 					'hidePageThumbnail' => 'Boolean',
-					'pollForUpdates'    => 'Boolean',
+					// Must stay Float (interval seconds). Boolean would break Apollo pollInterval.
+					'pollForUpdates'    => 'Float',
 					'broadcastLocation' => 'String',
 					'internalId'        => 'String',
 					'duration'          => 'String',
