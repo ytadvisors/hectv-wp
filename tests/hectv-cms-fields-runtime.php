@@ -119,6 +119,13 @@ function expect_same( $expected, $actual, $message ) {
 	}
 }
 
+function expect_true( $cond, $message ) {
+	if ( ! $cond ) {
+		fwrite( STDERR, "$message\n" );
+		exit( 1 );
+	}
+}
+
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-content-controls.php';
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php';
 
@@ -147,15 +154,70 @@ expect_same( 3, $last_wp_query_args['posts_per_page'], 'trendingPosts should hon
 expect_same( HECTV_META_IS_TRENDING, $last_wp_query_args['meta_query'][0]['key'], 'trendingPosts should filter on is_trending.' );
 
 $acf_callback = $actions['acf/init'][10][0];
-$acf_callback();
-expect_same( array(), $acf_groups, 'Existing Post Details must not be duplicated.' );
-expect_same( 'group_legacy_post_details', $acf_fields[0]['parent'], 'Trending should attach to the production Post Details key.' );
 
+// --- Production path: Post Details already exists → attach Trending only; no Post Details clone.
+$acf_groups = array();
+$acf_fields = array();
+$acf_callback();
+
+$post_details_clones = array_values(
+	array_filter(
+		$acf_groups,
+		static function ( $g ) {
+			return isset( $g['title'] ) && $g['title'] === 'Post Details';
+		}
+	)
+);
+expect_same( array(), $post_details_clones, 'Existing Post Details must not be duplicated.' );
+expect_true( count( $acf_fields ) >= 1, 'Trending field should be attached when Post Details exists.' );
+expect_same( 'group_legacy_post_details', $acf_fields[0]['parent'], 'Trending should attach to the production Post Details key.' );
+expect_same( HECTV_META_IS_TRENDING, $acf_fields[0]['name'], 'Attached field must be is_trending.' );
+
+// Other export groups that are missing should still register (About, Contact, …).
+$registered_titles = array_map(
+	static function ( $g ) {
+		return isset( $g['title'] ) ? $g['title'] : '';
+	},
+	$acf_groups
+);
+expect_true( in_array( 'About', $registered_titles, true ), 'Missing About group should register from export.' );
+expect_true( ! in_array( 'Post Details', $registered_titles, true ), 'Post Details title must not appear in local register when DB owns it.' );
+
+// --- Clean install path: no existing groups → full export including Post Details + baked-in Trending.
 $existing_acf_groups = array();
 $acf_groups          = array();
 $acf_fields          = array();
 $acf_callback();
-expect_same( 'HEC Post Controls', $acf_groups[0]['title'], 'Clean installs should get a separate fallback group.' );
-expect_same( 'group_hectv_post_controls', $acf_fields[0]['parent'], 'Fallback Trending field should use the fallback group.' );
+
+$pd = null;
+foreach ( $acf_groups as $g ) {
+	if ( isset( $g['title'] ) && $g['title'] === 'Post Details' ) {
+		$pd = $g;
+		break;
+	}
+}
+expect_true( is_array( $pd ), 'Clean installs should register Post Details from export.' );
+expect_same( HECTV_ACF_POST_DETAILS_KEY, $pd['key'], 'Clean-install Post Details must use the production group key.' );
+
+$names = array();
+foreach ( (array) $pd['fields'] as $field ) {
+	if ( ! empty( $field['name'] ) ) {
+		$names[] = $field['name'];
+	}
+}
+expect_true( in_array( 'is_video', $names, true ), 'Clean Post Details includes legacy is_video.' );
+expect_true( in_array( 'youtube_id', $names, true ), 'Clean Post Details includes legacy youtube_id.' );
+expect_true( in_array( HECTV_META_IS_TRENDING, $names, true ), 'Clean Post Details includes git-owned is_trending.' );
+
+// When Post Details is registered with nested is_trending, no separate acf_add_local_field is needed.
+$trending_attaches = array_values(
+	array_filter(
+		$acf_fields,
+		static function ( $f ) {
+			return isset( $f['name'] ) && $f['name'] === HECTV_META_IS_TRENDING;
+		}
+	)
+);
+expect_same( array(), $trending_attaches, 'is_trending should be nested in Post Details fields, not double-attached.' );
 
 echo "HEC CMS fields runtime contracts passed.\n";

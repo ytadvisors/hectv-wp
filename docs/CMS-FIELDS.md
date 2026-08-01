@@ -7,7 +7,8 @@ WordPress database.**
 | Surface | Location in repo |
 |---------|------------------|
 | MU-plugin loader | `wp-content/mu-plugins/hectv-cms-fields.php` |
-| ACF Trending extension (PHP) | `wp-content/mu-plugins/hectv-cms-fields/register-acf.php` |
+| ACF field groups (export) | `…/hectv-cms-fields/acf-field-groups.json` |
+| ACF registration (PHP) | `…/hectv-cms-fields/register-acf.php` |
 | Site settings admin | `…/site-settings.php` → **Settings → HEC Site Settings** |
 | Header Actions menu | `…/menus.php` → **Appearance → Menus** |
 | GraphQL | `…/graphql.php` |
@@ -15,26 +16,53 @@ WordPress database.**
 
 ---
 
-## 1. Post Details (per post)
+## 1. ACF field groups (export + PHP)
 
-Production's database-backed ACF field group **Post Details** remains the owner of
-its legacy fields and `field_5…` keys. The MU-plugin does not duplicate or replace
-that group. It attaches the git-owned `is_trending` field to Post Details at runtime.
-If Post Details is absent (for example in a clean local harness), it creates a
-separate **HEC Post Controls** fallback group containing only Trending.
+`acf-field-groups.json` is the production ACF Tools export (2026-08-01). It
+includes **19 groups** with their original production keys (e.g. Post Details
+`group_5a9bf131f2b91`, field keys `field_5…`). Using those keys preserves all
+existing post meta.
+
+### Registration rules (`register-acf.php`)
+
+1. **Load the export** and register any group that is **not** already present
+   in ACF (matched by **key or title**).
+2. **Never re-register** a group production already owns — that duplicates admin
+   panels.
+3. **Always ensure** the git-owned **Trending** field (`is_trending`, key
+   `field_hectv_is_trending`) is available on Post Details:
+   - Production already has Post Details → **attach** Trending via
+     `acf_add_local_field` (previous support path).
+   - Clean install → register full Post Details from the export with Trending
+     **nested** after `is_video`.
+4. If the export file is missing, fall back to a minimal **HEC Post Controls**
+   group containing only Trending (last resort).
+
+Do **not** enable ACF Local JSON `save_json` from this package — it would capture
+unrelated admin-managed groups into the repo.
+
+### Post Details (per post)
 
 | Field label | Meta key | Type | Notes |
 |-------------|----------|------|--------|
-| Is Video | `is_video` | boolean | Existing |
-| **Trending** | `is_trending` | boolean | **New** — include in Trending Now |
-| YouTube ID | `youtube_id` | text | |
-| Vimeo ID | `vimeo_id` | text | |
-| Embed URL | `embed_url` | url | |
-| Post Header | `post_header` | image | |
-| Video Image | `video_image` | image | |
-| Show Podcasts | `show_podcasts` | boolean | |
-| Hide Page Thumbnail | `hide_page_thumbnail` | boolean | |
-| Poll For Updates | `poll_for_updates` | boolean | |
+| Is Video | `is_video` | boolean | Legacy (export) |
+| **Trending** | `is_trending` | boolean | **Git-owned** — Trending Now rail |
+| Show Podcasts | `show_podcasts` | boolean | Legacy |
+| Hide Page Thumbnail | `hide_page_thumbnail` | boolean | Legacy |
+| Post Header | `post_header` | image | Legacy |
+| Video Thumbnail | `video_image` | image | Legacy |
+| Broadcast File Location | `broadcast_location` | text | Legacy |
+| Internal ID | `internal_id` | text | Legacy |
+| YouTube ID | `youtube_id` | text | Legacy |
+| Vimeo ID | `vimeo_id` | text | Legacy |
+| Embed URL | `embed_url` | text | Legacy |
+| Duration | `duration` | text | Legacy |
+| Poll For Updates | `poll_for_updates` | number | Legacy |
+| Post Events | `post_events` | repeater | Legacy |
+| Related Posts | `related_posts` | repeater | Legacy |
+
+Other export groups (About, Contact, Audio Tracks, Schedule Details, Event
+Details, Site Options, …) follow the same missing-only registration rule.
 
 ### Editorial process — Trending videos
 
@@ -164,12 +192,17 @@ Support/Subscribe menu items.
 
 ## 6. Changing field definitions
 
-1. Edit the PHP definition in `register-acf.php`. Do not add an ACF Local JSON
-   save-path filter: it would capture unrelated admin-managed groups.
-2. Extend `graphql.php` if the frontend contract changes.
-3. Ship branch → PR → merge (same as other hectv-wp changes).
-4. Deploy/restart WordPress so the MU-plugin reloads.
+1. Prefer re-export from production ACF admin → replace
+   `acf-field-groups.json` (keeps production keys).
+2. Keep git-owned fields (currently `is_trending`) injected in
+   `register-acf.php` so they survive re-exports that omit them.
+3. Extend `graphql.php` if the frontend contract changes.
+4. Ship branch → PR → merge (same as other hectv-wp changes).
+5. Deploy/restart WordPress so the MU-plugin reloads.
 
-Legacy Post Details fields remain production-managed until their original ACF keys
-are explicitly exported and reconciled. New git-owned fields must use stable keys
-and attach to the existing group without cloning it.
+### Verify
+
+```bash
+php tests/hectv-cms-fields.php
+php tests/hectv-cms-fields-runtime.php
+```
