@@ -117,11 +117,38 @@ function set_theme_mod() {}
 function update_option() {}
 function home_url( $path ) { return $path; }
 
+class WP_Post {
+	public $ID;
+	public $post_status = 'publish';
+	public $post_type = 'post';
+	public function __construct( $id ) {
+		$this->ID = (int) $id;
+	}
+}
+
+// Fixture posts returned by the stub WP_Query depending on args.
+$wp_query_log = array();
+$wp_query_fixture = array(
+	// Default empty; tests reconfigure per scenario.
+	'trending' => array(),
+	'fill'     => array(),
+);
+
 class WP_Query {
 	public $posts = array();
 	public function __construct( $args ) {
-		global $last_wp_query_args;
+		global $last_wp_query_args, $wp_query_log, $wp_query_fixture;
 		$last_wp_query_args = $args;
+		$wp_query_log[]     = $args;
+
+		$is_trending_query = isset( $args['meta_query'][0]['key'] )
+			&& $args['meta_query'][0]['key'] === HECTV_META_IS_TRENDING;
+
+		if ( $is_trending_query ) {
+			$this->posts = $wp_query_fixture['trending'];
+			return;
+		}
+		$this->posts = $wp_query_fixture['fill'];
 	}
 }
 
@@ -161,10 +188,59 @@ foreach ( $filters['graphql_RootQuery_fields'][20] as $callback ) {
 $topbar_rows = $root_fields['topbarCtas']['resolve']( null, array(), null, null );
 expect_same( 'Subscribe', $topbar_rows[0]['label'], 'Empty staging options should fall back to the Header Actions menu.' );
 
-$trending = $graphql_fields['RootQuery']['trendingPosts']['resolve']( null, array( 'first' => 3 ) );
+// Provide Model\Post so GraphQL resolve can map WP posts.
+if ( ! class_exists( '\\WPGraphQL\\Model\\Post', false ) ) {
+	eval( 'namespace WPGraphQL\\Model; class Post { public $ID; public function __construct( $p ) { $this->ID = is_object($p) && isset($p->ID) ? (int)$p->ID : (int)$p; } }' );
+}
+
+// Empty DB: trending query + fill query both empty → empty list.
+$wp_query_log     = array();
+$wp_query_fixture = array( 'trending' => array(), 'fill' => array() );
+$trending         = $graphql_fields['RootQuery']['trendingPosts']['resolve']( null, array( 'first' => 3 ) );
 expect_same( array(), $trending, 'Empty query results should return an empty GraphQL list.' );
-expect_same( 3, $last_wp_query_args['posts_per_page'], 'trendingPosts should honor the requested limit.' );
-expect_same( HECTV_META_IS_TRENDING, $last_wp_query_args['meta_query'][0]['key'], 'trendingPosts should filter on is_trending.' );
+expect_same( 2, count( $wp_query_log ), 'Empty rail runs trending query then backfill query.' );
+expect_same( HECTV_META_IS_TRENDING, $wp_query_log[0]['meta_query'][0]['key'], 'First query filters is_trending.' );
+expect_same( 3, $wp_query_log[0]['posts_per_page'], 'Trending query uses requested limit.' );
+expect_true( empty( $wp_query_log[1]['meta_query'] ), 'Backfill query is most-recent without is_trending filter.' );
+expect_same( 3, $wp_query_log[1]['posts_per_page'], 'Backfill asks for remaining slots (full limit when none trending).' );
+
+// Partial trending: 1 flagged + fill to requested size.
+$wp_query_log     = array();
+$wp_query_fixture = array(
+	'trending' => array( new WP_Post( 101 ) ),
+	'fill'     => array( new WP_Post( 201 ), new WP_Post( 202 ) ),
+);
+$partial = hectv_cms_query_trending_posts( 3 );
+expect_same( 3, count( $partial ), 'Partial trending backfills to requested size.' );
+expect_same( 101, (int) $partial[0]->ID, 'Flagged trending post comes first.' );
+expect_same( 201, (int) $partial[1]->ID, 'Backfill uses most recent after trending.' );
+expect_same( array( 101 ), $wp_query_log[1]['post__not_in'], 'Backfill excludes already-selected trending IDs.' );
+
+// GraphQL resolve maps models when data exists.
+$wp_query_log     = array();
+$wp_query_fixture = array(
+	'trending' => array( new WP_Post( 101 ) ),
+	'fill'     => array( new WP_Post( 201 ) ),
+);
+$resolved = $graphql_fields['RootQuery']['trendingPosts']['resolve']( null, array( 'first' => 2 ) );
+expect_same( 2, count( $resolved ), 'GraphQL resolve returns filled list as models.' );
+expect_same( 101, (int) $resolved[0]->ID, 'GraphQL order keeps trending first.' );
+
+// Full trending set: no need to over-fill beyond limit.
+$wp_query_log     = array();
+$wp_query_fixture = array(
+	'trending' => array( new WP_Post( 1 ), new WP_Post( 2 ), new WP_Post( 3 ) ),
+	'fill'     => array( new WP_Post( 9 ) ),
+);
+$full = hectv_cms_query_trending_posts( 3 );
+expect_same( 3, count( $full ), 'When enough trending posts exist, return exactly the limit.' );
+expect_same( 1, count( $wp_query_log ), 'No backfill query when trending set already full.' );
+
+// Config default size when first omitted (options stub → default 5).
+$wp_query_log     = array();
+$wp_query_fixture = array( 'trending' => array(), 'fill' => array() );
+hectv_cms_query_trending_posts( null );
+expect_same( 5, $wp_query_log[0]['posts_per_page'], 'Default limit comes from trending max config (5).' );
 
 // postDetails GraphQL type + field must be registered with integrated ACF fields.
 expect_same( true, isset( $graphql_types['HecPostDetails'] ), 'HecPostDetails type registered.' );

@@ -66,9 +66,11 @@ Details, Site Options, …) follow the same missing-only registration rule.
 
 ### Editorial process — Trending videos
 
-1. Edit a post → **Post Details**.
-2. Enable **Is Video** (if it is a video) and **Trending**.
-3. Save. The post becomes eligible for `trendingPosts` / `postDetails.isTrending`.
+1. **Settings → HEC Site Settings** → set **Max videos to show** (config size for the rail).
+2. Edit a post → **Post Details** → enable **Trending** (and **Is Video** when it is a video).
+3. Save. `trendingPosts` returns up to the config count:
+   - first: posts with **Trending** checked (newest first)
+   - then: most recent published posts to fill any shortfall
 
 ---
 
@@ -188,7 +190,7 @@ Owned by `graphql.php` (does not depend on wp-graphql-acf):
 | `Post.postDetails.postEvents` | `[HecRelatedEventRow]` |
 | `RootQuery.trendingSettings.maxVideos` | Int |
 | `RootQuery.forEducators` | `{ label, url, image }` |
-| `RootQuery.trendingPosts(first: Int)` | `[Post]` — meta `is_trending`, capped by max |
+| `RootQuery.trendingPosts(first: Int)` | `[Post]` — size from `trendingSettings.maxVideos` (or `first`); **is_trending first** (newest), then **backfill most recent** until full |
 | `RootQuery.topbarCtas` | `[{ label, url, style }]` |
 
 Example:

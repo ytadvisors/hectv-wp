@@ -77,6 +77,9 @@ assert_true( strpos( $gql, 'videoImage' ) !== false, 'GraphQL videoImage' );
 assert_true( strpos( $gql, 'postHeader' ) !== false, 'GraphQL postHeader' );
 assert_true( strpos( $gql, 'relatedPosts' ) !== false, 'GraphQL relatedPosts' );
 assert_true( strpos( $gql, 'hectv_cms_resolve_post_details' ) !== false, 'GraphQL postDetails resolver' );
+assert_true( strpos( $gql, 'hectv_cms_query_trending_posts' ) !== false, 'GraphQL trending query helper' );
+assert_true( strpos( $gql, 'post__not_in' ) !== false, 'Trending backfill excludes selected IDs' );
+assert_true( strpos( $gql, 'backfill' ) !== false || strpos( $gql, 'Backfill' ) !== false, 'Trending documents backfill behavior' );
 
 $menus = file_get_contents( $pkg . '/menus.php' );
 assert_true( strpos( $menus, 'header_actions' ) !== false, 'menu location header_actions' );

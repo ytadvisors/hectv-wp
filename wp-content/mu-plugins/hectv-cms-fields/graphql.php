@@ -616,53 +616,145 @@ add_action(
 			'trendingPosts',
 			array(
 				'type'        => array( 'list_of' => 'Post' ),
-				'description' => 'Posts flagged is_trending, newest first, limited by trendingSettings.maxVideos.',
+				'description' => 'Trending Now rail: is_trending posts first (newest), then backfill with most recent posts up to trendingSettings.maxVideos.',
 				'args'        => array(
 					'first' => array(
 						'type'        => 'Int',
-						'description' => 'Optional override of site max (still capped at 50).',
+						'description' => 'Optional override of site max from Settings → HEC Site Settings (still capped at 50).',
 					),
 				),
 				'resolve'     => static function ( $root, $args ) {
-					$limit = isset( $args['first'] ) ? (int) $args['first'] : hectv_cms_get_trending_max_videos();
-					if ( $limit < 1 ) {
-						$limit = hectv_cms_get_trending_max_videos();
-					}
-					if ( $limit > 50 ) {
-						$limit = 50;
-					}
-
-					$query = new WP_Query(
-						array(
-							'post_type'              => 'post',
-							'post_status'            => 'publish',
-							'posts_per_page'         => $limit,
-							'orderby'                => 'date',
-							'order'                  => 'DESC',
-							'no_found_rows'          => true,
-							'update_post_meta_cache' => true,
-							'meta_query'             => array(
-								array(
-									'key'     => HECTV_META_IS_TRENDING,
-									'value'   => array( '1', 'true', 1, true ),
-									'compare' => 'IN',
-								),
-							),
-						)
-					);
-
-					if ( empty( $query->posts ) || ! class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
-						return array();
-					}
-
-					$out = array();
-					foreach ( $query->posts as $p ) {
-						$out[] = new \WPGraphQL\Model\Post( $p );
-					}
-					return $out;
+					$limit = isset( $args['first'] ) ? (int) $args['first'] : null;
+					return hectv_cms_resolve_trending_posts( $limit );
 				},
 			)
 		);
 	},
 	20
 );
+
+/**
+ * Normalize the Trending Now list size from config (or an optional override).
+ *
+ * @param int|null $limit Optional override (GraphQL first:).
+ * @return int Between 1 and 50.
+ */
+function hectv_cms_trending_limit( $limit = null ) {
+	if ( $limit === null || (int) $limit < 1 ) {
+		$limit = hectv_cms_get_trending_max_videos();
+	}
+	$limit = (int) $limit;
+	if ( $limit < 1 ) {
+		$limit = hectv_cms_trending_max_videos_default();
+	}
+	if ( $limit > 50 ) {
+		$limit = 50;
+	}
+	return $limit;
+}
+
+/**
+ * Query WP posts for the Trending Now rail.
+ *
+ * 1. Take up to $limit posts with is_trending truthy (newest first).
+ * 2. If fewer than $limit, backfill with the most recent published posts
+ *    not already selected, until the list is full.
+ *
+ * @param int|null $limit Optional size override; default site config maxVideos.
+ * @return \WP_Post[]
+ */
+function hectv_cms_query_trending_posts( $limit = null ) {
+	$limit = hectv_cms_trending_limit( $limit );
+	$posts = array();
+	$ids   = array();
+
+	$base = array(
+		'post_type'              => 'post',
+		'post_status'            => 'publish',
+		'orderby'                => 'date',
+		'order'                  => 'DESC',
+		'no_found_rows'          => true,
+		'ignore_sticky_posts'    => true,
+		'update_post_meta_cache' => true,
+		'update_post_term_cache' => false,
+	);
+
+	// Prefer explicitly flagged trending posts.
+	$trending_q = new WP_Query(
+		array_merge(
+			$base,
+			array(
+				'posts_per_page' => $limit,
+				'meta_query'     => array(
+					array(
+						'key'     => HECTV_META_IS_TRENDING,
+						'value'   => array( '1', 'true', 1, true ),
+						'compare' => 'IN',
+					),
+				),
+			)
+		)
+	);
+
+	if ( ! empty( $trending_q->posts ) ) {
+		foreach ( $trending_q->posts as $p ) {
+			if ( ! is_object( $p ) || ! isset( $p->ID ) ) {
+				continue;
+			}
+			$posts[] = $p;
+			$ids[]   = (int) $p->ID;
+		}
+	}
+
+	$need = $limit - count( $posts );
+	if ( $need > 0 ) {
+		// Backfill with most recent posts not already in the trending set.
+		$fill_args = array_merge(
+			$base,
+			array(
+				'posts_per_page' => $need,
+			)
+		);
+		if ( ! empty( $ids ) ) {
+			$fill_args['post__not_in'] = $ids;
+		}
+
+		$fill_q = new WP_Query( $fill_args );
+		if ( ! empty( $fill_q->posts ) ) {
+			foreach ( $fill_q->posts as $p ) {
+				if ( ! is_object( $p ) || ! isset( $p->ID ) ) {
+					continue;
+				}
+				$posts[] = $p;
+				if ( count( $posts ) >= $limit ) {
+					break;
+				}
+			}
+		}
+	}
+
+	return $posts;
+}
+
+/**
+ * GraphQL resolver for RootQuery.trendingPosts.
+ *
+ * @param int|null $limit Optional size override.
+ * @return array<\WPGraphQL\Model\Post>
+ */
+function hectv_cms_resolve_trending_posts( $limit = null ) {
+	if ( ! class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
+		return array();
+	}
+
+	$posts = hectv_cms_query_trending_posts( $limit );
+	if ( empty( $posts ) ) {
+		return array();
+	}
+
+	$out = array();
+	foreach ( $posts as $p ) {
+		$out[] = new \WPGraphQL\Model\Post( $p );
+	}
+	return $out;
+}
