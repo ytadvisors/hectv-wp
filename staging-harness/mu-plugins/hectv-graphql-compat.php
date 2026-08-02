@@ -22,9 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * mutate the global post-type objects. Filtering the registration arguments
  * makes the GraphQL contract part of the objects from their creation.
  *
- * Magazine and event content is deprecated. Their types remain visible only
- * as a temporary schema compatibility bridge while the currently deployed
- * frontend is replaced; connection queries for them are forced empty below.
+ * Event content remains retired from GraphQL connection results (frontend no
+ * longer queries events). Magazines stay queryable — the hecmedia Magazines
+ * page and detail routes still load via `magazines` / `magazineBy`.
  */
 add_filter(
 	'register_post_type_args',
@@ -1078,12 +1078,14 @@ add_filter(
 	static function ( $query_args, $source, $args, $context, $info ) {
 		$post_types       = isset( $query_args['post_type'] ) ? (array) $query_args['post_type'] : array();
 		$field_name       = is_object( $info ) && isset( $info->fieldName ) ? $info->fieldName : '';
-		$deprecated_types = array( 'magazine', 'event' );
+		// Events only: magazines are live on the frontend again (list + detail).
+		$retired_types    = array( 'event' );
+		$retired_fields   = array( 'events' );
 
-		// Keep deprecated roots queryable during rollout, but never return content.
+		// Keep retired roots queryable for schema compatibility, but never return content.
 		if (
-			array_intersect( $deprecated_types, $post_types ) ||
-			in_array( $field_name, array( 'magazines', 'events' ), true )
+			array_intersect( $retired_types, $post_types ) ||
+			in_array( $field_name, $retired_fields, true )
 		) {
 			$query_args['post__in'] = array( 0 );
 			return $query_args;
