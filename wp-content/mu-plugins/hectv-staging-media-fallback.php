@@ -76,4 +76,44 @@ function hectv_staging_media_fallback_url( $url, $attachment_id ) {
 	return rtrim( HECTV_STAGING_MEDIA_FALLBACK_BASE_URL, '/' ) . '/' . $encoded_path;
 }
 
+/**
+ * Rewrite image-source arrays after media plugins have finished filtering them.
+ *
+ * ACF renders its image-field preview with wp_get_attachment_image_src(). Some
+ * media plugins filter that result after wp_get_attachment_url(), so the final
+ * array needs the same missing-file fallback. Preserve the requested image-size
+ * filename so WordPress can use an S3-hosted thumbnail when one is available.
+ *
+ * @param array|false  $image         Image source data.
+ * @param int          $attachment_id Attachment post ID.
+ * @param string|array $size          Requested image size.
+ * @param bool         $icon          Whether an icon was requested.
+ * @return array|false
+ */
+function hectv_staging_media_fallback_image_src( $image, $attachment_id, $size, $icon ) {
+	if ( ! is_array( $image ) || empty( $image[0] ) || ! is_string( $image[0] ) ) {
+		return $image;
+	}
+
+	$fallback_url = hectv_staging_media_fallback_url( $image[0], $attachment_id );
+	if ( $fallback_url === $image[0] ) {
+		return $image;
+	}
+
+	$relative_path = get_post_meta( $attachment_id, '_wp_attached_file', true );
+	$source_path   = parse_url( $image[0], PHP_URL_PATH );
+	$source_file   = is_string( $source_path ) ? rawurldecode( basename( $source_path ) ) : '';
+	$relative_dir  = is_string( $relative_path ) ? dirname( str_replace( '\\', '/', $relative_path ) ) : '.';
+	$size_path     = $relative_dir === '.' ? $source_file : $relative_dir . '/' . $source_file;
+	$encoded_path  = hectv_staging_media_fallback_path( $size_path );
+
+	if ( $encoded_path === null ) {
+		return $image;
+	}
+
+	$image[0] = rtrim( HECTV_STAGING_MEDIA_FALLBACK_BASE_URL, '/' ) . '/' . $encoded_path;
+	return $image;
+}
+
 add_filter( 'wp_get_attachment_url', 'hectv_staging_media_fallback_url', 20, 2 );
+add_filter( 'wp_get_attachment_image_src', 'hectv_staging_media_fallback_image_src', 120, 4 );
