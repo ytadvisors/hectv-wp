@@ -266,7 +266,12 @@ function hectv_gql_model_post( $id ) {
 }
 
 /**
- * Helper: read post meta with a sensible default.
+ * Helper: read raw post meta with a sensible default.
+ *
+ * Intentionally does NOT call ACF `get_field()`. Existing resolvers (media,
+ * repeaters stored as JSON strings, ID lists) expect raw meta shapes. Preferring
+ * ACF-formatted values here would break image fields with return_format=array
+ * when cast through hectv_gql_media(), and other structured meta consumers.
  *
  * @param mixed  $post Post source.
  * @param string $key  Meta key.
@@ -278,19 +283,37 @@ function hectv_gql_meta( $post, $key, $default = null ) {
 	if ( ! $id ) {
 		return $default;
 	}
-	// Prefer ACF get_field when available — About/Contact store repeaters (team,
-	// tv_providers) as ACF structures, not raw post_meta JSON strings.
+	$val = get_post_meta( $id, $key, true );
+	if ( $val === '' || $val === null ) {
+		return $default;
+	}
+	return $val;
+}
+
+/**
+ * About/Contact only: prefer ACF-formatted field values when ACF is present.
+ *
+ * Live About/Contact pages store team / tv_providers as ACF repeaters (arrays),
+ * not raw post_meta JSON strings. Scoped here so shared media/ID resolvers keep
+ * raw get_post_meta() behavior via hectv_gql_meta().
+ *
+ * @param mixed  $post Post source.
+ * @param string $key  Field / meta key.
+ * @param mixed  $default Default.
+ * @return mixed
+ */
+function hectv_gql_acf_field( $post, $key, $default = null ) {
+	$id = hectv_gql_id( $post );
+	if ( ! $id ) {
+		return $default;
+	}
 	if ( function_exists( 'get_field' ) ) {
 		$acf_val = get_field( $key, $id );
 		if ( $acf_val !== null && $acf_val !== false && $acf_val !== '' ) {
 			return $acf_val;
 		}
 	}
-	$val = get_post_meta( $id, $key, true );
-	if ( $val === '' || $val === null ) {
-		return $default;
-	}
-	return $val;
+	return hectv_gql_meta( $post, $key, $default );
 }
 
 /**
@@ -739,10 +762,12 @@ add_action(
 			array(
 				'type'    => 'HecContact',
 				'resolve' => static function ( $source ) {
-					// Prefer live ACF names; fall back to harness-prefixed seed keys.
+					// Prefer live ACF names via hectv_gql_acf_field; fall back to
+					// harness-prefixed seed keys. Do not use hectv_gql_meta for the
+					// primary ACF keys — that helper stays raw-meta-only.
 					$pick = static function ( $source, $primary, $legacy ) {
-						$v = hectv_gql_meta( $source, $primary, null );
-						return ( $v !== null && $v !== '' ) ? $v : hectv_gql_meta( $source, $legacy, null );
+						$v = hectv_gql_acf_field( $source, $primary, null );
+						return ( $v !== null && $v !== '' ) ? $v : hectv_gql_acf_field( $source, $legacy, null );
 					};
 					return array(
 						'address'       => $pick( $source, 'address', 'contact_address' ),
@@ -762,11 +787,11 @@ add_action(
 				'type'    => 'HecAbout',
 				'resolve' => static function ( $source ) {
 					$pick = static function ( $source, $primary, $legacy, $default = null ) {
-						$v = hectv_gql_meta( $source, $primary, null );
+						$v = hectv_gql_acf_field( $source, $primary, null );
 						if ( $v !== null && $v !== '' && $v !== array() ) {
 							return $v;
 						}
-						return hectv_gql_meta( $source, $legacy, $default );
+						return hectv_gql_acf_field( $source, $legacy, $default );
 					};
 					$providers = $pick( $source, 'tv_providers', 'about_tv_providers', array() );
 					$team      = $pick( $source, 'team', 'about_team', array() );
