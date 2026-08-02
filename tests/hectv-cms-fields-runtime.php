@@ -273,6 +273,14 @@ expect_same( 'yt-abc', $details['youtubeId'], 'postDetails.youtubeId from meta' 
 expect_same( 'vim-9', $details['vimeoId'], 'postDetails.vimeoId from meta' );
 expect_same( 'https://example.test/embed', $details['embedUrl'], 'postDetails.embedUrl from meta' );
 expect_same( '/media/file.mp4', $details['broadcastLocation'], 'postDetails.broadcastLocation from meta' );
+// Resolver must always emit media keys (not only GraphQL type registration). Empty
+// post_hero must be null — a forgotten resolve key would hide behind the ensure filter.
+expect_true( array_key_exists( 'postHero', $details ), 'postDetails includes postHero key' );
+expect_true( array_key_exists( 'postHeader', $details ), 'postDetails includes postHeader key' );
+expect_true( array_key_exists( 'videoImage', $details ), 'postDetails includes videoImage key' );
+expect_same( null, $details['postHero'], 'postHero is null when post_hero meta is empty' );
+expect_same( null, $details['postHeader'], 'postHeader is null when post_header meta is empty' );
+expect_same( null, $details['videoImage'], 'videoImage is null when video_image meta is empty' );
 // P1 regression: pollForUpdates must remain a numeric interval (seconds), not bool.
 // Frontend does pollInterval: pollForUpdates * 1000 — true*1000 === 1000 (1s) is wrong.
 expect_true( is_float( $details['pollForUpdates'] ) || is_int( $details['pollForUpdates'] ), 'pollForUpdates is numeric' );

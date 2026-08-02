@@ -227,6 +227,8 @@ query PostWithDetails($slug: String!) {
       broadcastLocation
       internalId
       duration
+      # Main article page only — prefer postHero, then fall back to postHeader / videoImage.
+      postHero { sourceUrl }
       postHeader { sourceUrl }
       videoImage { sourceUrl }
       relatedPosts { relatedPost { title link } }
