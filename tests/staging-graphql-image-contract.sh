@@ -35,7 +35,7 @@ if ! grep -Fq \
   exit 1
 fi
 
-for field in videoImage postHeader isVideo; do
+for field in videoImage postHeader postHero isVideo; do
   if ! grep -Fq "'$field'" "$repo_root/staging-harness/mu-plugins/hectv-graphql-compat.php"; then
     echo "GraphQL compatibility contract omits required field: $field" >&2
     exit 1

@@ -49,8 +49,9 @@ unrelated admin-managed groups into the repo.
 | **Trending** | `is_trending` | boolean | **Git-owned** — Trending Now rail |
 | Show Podcasts | `show_podcasts` | boolean | Legacy |
 | Hide Page Thumbnail | `hide_page_thumbnail` | boolean | Legacy |
-| Post Header | `post_header` | image | Legacy |
-| Video Thumbnail | `video_image` | image | Legacy |
+| Post Header | `post_header` | image | Shared thumbnail (cards/search/Trending). Do not crop for main page only. |
+| **Post page hero** | `post_hero` | image | **Main post page only** — safe to crop/edit without affecting cards. |
+| Video Thumbnail | `video_image` | image | Shared video thumbnail (cards/search). Prefer post_hero for main-page crops. |
 | Broadcast File Location | `broadcast_location` | text | Legacy |
 | Internal ID | `internal_id` | text | Legacy |
 | YouTube ID | `youtube_id` | text | Legacy |
@@ -60,6 +61,19 @@ unrelated admin-managed groups into the repo.
 | Poll For Updates | `poll_for_updates` | number | Legacy |
 | Post Events | `post_events` | repeater | Legacy |
 | Related Posts | `related_posts` | repeater | Legacy |
+
+
+### Editorial process — main post image vs thumbnails
+
+WordPress media edits (crop/rotate) apply to the **attachment file globally**. If you
+crop the image selected under **Post Header** or **Video Thumbnail**, search results
+and cards that reuse that file will change too.
+
+1. Keep **Post Header** / **Video Thumbnail** as the shared list/card image (full frame).
+2. For a cropped or different image on the **main article page only**, set **Post page hero**.
+3. Prefer uploading a second file or Media Library **Save as copy** before cropping, then
+   assign that copy to **Post page hero**.
+4. If **Post page hero** is empty, the frontend falls back to Post Header / Video Thumbnail.
 
 Other export groups (About, Contact, Audio Tracks, Schedule Details, Event
 Details, Site Options, …) follow the same missing-only registration rule.
@@ -179,6 +193,7 @@ Owned by `graphql.php` (does not depend on wp-graphql-acf):
 | `Post.postDetails.vimeoId` | String |
 | `Post.postDetails.embedUrl` | String |
 | `Post.postDetails.postHeader` | MediaItem |
+| `Post.postDetails.postHero` | MediaItem |
 | `Post.postDetails.videoImage` | MediaItem |
 | `Post.postDetails.showPodcasts` | Boolean |
 | `Post.postDetails.hidePageThumbnail` | Boolean |
