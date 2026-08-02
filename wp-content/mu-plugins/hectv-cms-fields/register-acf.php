@@ -20,6 +20,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Keep the ACF field-definition UI closed while Git owns the schema.
+ *
+ * This hides the top-level "Custom Fields" admin menu only. It does not hide
+ * About, Contact, Post Details, or any other content fields from their normal
+ * post/page edit screens. A deliberate maintenance session can opt in from
+ * wp-config.php, export the complete definitions, and then turn the flag off.
+ *
+ * @return bool
+ */
+function hectv_cms_show_acf_schema_admin() {
+	return defined( 'HECTV_ALLOW_ACF_SCHEMA_ADMIN' ) && HECTV_ALLOW_ACF_SCHEMA_ADMIN === true;
+}
+
+add_filter( 'acf/settings/show_admin', 'hectv_cms_show_acf_schema_admin', 99 );
+
 /** Production Post Details group key (from admin export). */
 define( 'HECTV_ACF_POST_DETAILS_KEY', 'group_5a9bf131f2b91' );
 

@@ -171,6 +171,8 @@ function expect_true( $cond, $message ) {
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-content-controls.php';
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php';
 
+expect_same( false, $filters['acf/settings/show_admin'][99][0](), 'Git-canonical ACF hides the Custom Fields schema menu by default.' );
+
 foreach ( $actions['graphql_register_types'] as $callbacks ) {
 	foreach ( $callbacks as $callback ) {
 		$callback();

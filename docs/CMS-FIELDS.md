@@ -41,6 +41,12 @@ About and Contact intentionally reuse field names such as `address`,
 exclusive: **About → `template-1.php`**, **Contact → `template-3.php`**. Never
 scope either group to all pages.
 
+The ACF **Custom Fields** schema-definition menu is hidden by default because
+Git owns these definitions. This does not hide the content panels from normal
+post/page editors. For a deliberate full export, temporarily define
+`HECTV_ALLOW_ACF_SCHEMA_ADMIN` as `true` in `wp-config.php`, export all changed
+groups, commit the export and resolver changes together, then remove the flag.
+
 Do **not** enable ACF Local JSON `save_json` from this package — it would capture
 unrelated admin-managed groups into the repo.
 
@@ -261,15 +267,18 @@ Support/Subscribe menu items.
 
 ## 6. Changing field definitions
 
-1. Export the complete group from the canonical WordPress ACF admin and replace
-   `acf-field-groups.json` (never recreate partial PHP fields by hand; keep the
-   production group and field keys).
+1. Temporarily enable the schema UI with
+   `HECTV_ALLOW_ACF_SCHEMA_ADMIN=true`, export the complete group from the
+   canonical WordPress ACF admin, and replace `acf-field-groups.json` (never
+   recreate partial PHP fields by hand; keep production group and field keys).
 2. Keep git-owned fields (currently `is_trending`) injected in
    `register-acf.php` so they survive re-exports that omit them.
 3. Extend the canonical resolvers in `graphql.php` if the frontend contract
    changes. Do not duplicate ACF resolvers in `hectv-graphql-compat.php`.
 4. Ship branch → PR → merge (same as other hectv-wp changes).
 5. Deploy/restart WordPress so the MU-plugin reloads.
+6. Remove the break-glass flag so the Custom Fields definition menu is hidden
+   again.
 
 ### Verify
 

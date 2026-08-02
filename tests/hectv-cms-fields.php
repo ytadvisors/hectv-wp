@@ -67,6 +67,8 @@ foreach ( array( 'is_video', 'youtube_id', 'vimeo_id', 'embed_url', 'post_header
 $src = file_get_contents( $pkg . '/register-acf.php' );
 assert_true( strpos( $src, 'is_trending' ) !== false || strpos( $src, 'HECTV_META_IS_TRENDING' ) !== false, 'PHP registers is_trending' );
 assert_true( strpos( $src, 'acf-field-groups.json' ) !== false, 'PHP loads acf-field-groups.json' );
+assert_true( strpos( $src, 'acf/settings/show_admin' ) !== false, 'PHP hides the ACF schema-definition menu' );
+assert_true( strpos( $src, 'HECTV_ALLOW_ACF_SCHEMA_ADMIN' ) !== false, 'PHP provides an explicit schema-admin break-glass flag' );
 assert_true( strpos( $src, 'acf/settings/save_json' ) === false, 'does not hijack global ACF JSON saves' );
 assert_true( strpos( $src, 'group_5a9bf131f2b91' ) !== false, 'references production Post Details key' );
 assert_true( strpos( $src, 'Register every exported group as one complete same-key local group' ) !== false, 'registers complete same-key overlays for every exported group' );
