@@ -287,7 +287,8 @@ expect_same( null, hectv_cms_gql_float( '' ), 'gql_float empty → null' );
 
 $acf_callback = $actions['acf/init'][10][0];
 
-// --- Production path: Post Details already exists → attach Trending only; no Post Details clone.
+// --- Existing DB path: overlay one same-key complete Post Details local group.
+// A lone local Trending child shadows DB-owned children in affected ACF versions.
 $acf_groups = array();
 $acf_fields = array();
 $acf_callback();
@@ -300,10 +301,22 @@ $post_details_clones = array_values(
 		}
 	)
 );
-expect_same( array(), $post_details_clones, 'Existing Post Details must not be duplicated.' );
-expect_true( count( $acf_fields ) >= 1, 'Trending field should be attached when Post Details exists.' );
-expect_same( 'group_legacy_post_details', $acf_fields[0]['parent'], 'Trending should attach to the production Post Details key.' );
-expect_same( HECTV_META_IS_TRENDING, $acf_fields[0]['name'], 'Attached field must be is_trending.' );
+expect_same( 1, count( $post_details_clones ), 'Existing Post Details should have one complete local overlay.' );
+$existing_pd = $post_details_clones[0];
+expect_same( 'group_legacy_post_details', $existing_pd['key'], 'Local overlay must reuse the active database group key.' );
+
+$existing_names = array();
+foreach ( (array) $existing_pd['fields'] as $field ) {
+	if ( ! empty( $field['name'] ) ) {
+		$existing_names[] = $field['name'];
+	}
+}
+expect_same( 15, count( $existing_names ), 'Existing Post Details overlay includes 14 legacy fields plus Trending.' );
+expect_true( in_array( 'is_video', $existing_names, true ), 'Existing Post Details keeps legacy is_video.' );
+expect_true( in_array( 'poll_for_updates', $existing_names, true ), 'Existing Post Details keeps legacy poll interval.' );
+expect_true( in_array( 'related_posts', $existing_names, true ), 'Existing Post Details keeps legacy related posts.' );
+expect_true( in_array( HECTV_META_IS_TRENDING, $existing_names, true ), 'Existing Post Details includes Trending.' );
+expect_same( array(), $acf_fields, 'Complete Post Details overlay must not add a lone local child.' );
 
 // Other export groups that are missing should still register (About, Contact, …).
 $registered_titles = array_map(
@@ -313,7 +326,7 @@ $registered_titles = array_map(
 	$acf_groups
 );
 expect_true( in_array( 'About', $registered_titles, true ), 'Missing About group should register from export.' );
-expect_true( ! in_array( 'Post Details', $registered_titles, true ), 'Post Details title must not appear in local register when DB owns it.' );
+expect_same( 1, count( array_keys( $registered_titles, 'Post Details', true ) ), 'Post Details local overlay must be registered exactly once.' );
 
 // --- Clean install path: no existing groups → full export including Post Details + baked-in Trending.
 $existing_acf_groups = array();
