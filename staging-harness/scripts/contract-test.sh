@@ -45,10 +45,10 @@ gql() {
   return 0
 }
 
-gql_empty_deprecated_collections() {
+gql_empty_retired_events() {
   local query body resp http
-  query='query DeprecatedCollectionsEmpty {
-    magazines(first: 1) { nodes { databaseId } }
+  # Events stay retired; magazines must return content when fixtures exist.
+  query='query RetiredEventsEmpty {
     events(first: 1) { nodes { databaseId } }
     eventCategories(first: 1) { nodes { databaseId } }
   }'
@@ -61,22 +61,52 @@ gql_empty_deprecated_collections() {
 
   if [ "$http" != "200" ]; then
     FAIL=$((FAIL + 1))
-    REPORT+=("FAIL DeprecatedCollectionsEmpty HTTP $http ${resp:0:240}")
+    REPORT+=("FAIL RetiredEventsEmpty HTTP $http ${resp:0:240}")
     return 0
   fi
   if ! echo "$resp" | jq -e '
     ((.errors // []) | length == 0) and
-    (.data.magazines.nodes == []) and
     (.data.events.nodes == []) and
     (.data.eventCategories.nodes == [])
   ' >/dev/null 2>&1; then
     FAIL=$((FAIL + 1))
-    REPORT+=("FAIL DeprecatedCollectionsEmpty response: $(echo "$resp" | jq -c '.' 2>/dev/null)")
+    REPORT+=("FAIL RetiredEventsEmpty response: $(echo "$resp" | jq -c '.' 2>/dev/null)")
     return 0
   fi
 
   PASS=$((PASS + 1))
-  REPORT+=("PASS DeprecatedCollectionsEmpty")
+  REPORT+=("PASS RetiredEventsEmpty")
+  return 0
+}
+
+gql_magazines_live() {
+  local query body resp http
+  query='query MagazinesLive {
+    magazines(first: 1) { nodes { databaseId title } }
+  }'
+  body=$(jq -n --arg q "$query" '{query:$q}')
+  http=$(curl -sS -o /tmp/hec-gql-mag.json -w '%{http_code}' \
+    -H 'Content-Type: application/json' \
+    -d "$body" \
+    "$URL" || echo "000")
+  resp=$(cat /tmp/hec-gql-mag.json 2>/dev/null || echo '{}')
+
+  if [ "$http" != "200" ]; then
+    FAIL=$((FAIL + 1))
+    REPORT+=("FAIL MagazinesLive HTTP $http ${resp:0:240}")
+    return 0
+  fi
+  # Soft check: schema must resolve without error. Empty nodes only fails when
+  # the force-empty filter is still active (post__in=[0]); seed may be empty
+  # on a fresh harness, so allow empty OR non-empty, but reject errors.
+  if ! echo "$resp" | jq -e '((.errors // []) | length == 0) and (.data.magazines != null)' >/dev/null 2>&1; then
+    FAIL=$((FAIL + 1))
+    REPORT+=("FAIL MagazinesLive response: $(echo "$resp" | jq -c '.' 2>/dev/null)")
+    return 0
+  fi
+
+  PASS=$((PASS + 1))
+  REPORT+=("PASS MagazinesLive")
   return 0
 }
 
@@ -159,7 +189,8 @@ gql "CategoryIdInfo" \
   }' \
   '{"category":"arts"}'
 
-gql_empty_deprecated_collections
+gql_empty_retired_events
+gql_magazines_live
 
 NOW=$(date +"%Y-%m-%d %H:%M:%S")
 gql "LiveVideos" \

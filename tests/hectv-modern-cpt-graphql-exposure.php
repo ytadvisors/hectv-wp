@@ -146,15 +146,16 @@ if (
 }
 
 $post_connection_callback = $post_connection_filters[0]['callback'];
-$empty_magazines           = $post_connection_callback(
+// Magazines are live again (hecmedia list/detail). Must NOT force empty.
+$live_magazines = $post_connection_callback(
 	array( 'post_type' => array( 'magazine' ) ),
 	null,
 	array(),
 	null,
 	(object) array( 'fieldName' => 'magazines' )
 );
-if ( $empty_magazines['post__in'] !== array( 0 ) ) {
-	fwrite( STDERR, "Deprecated magazine connections must be empty.\n" );
+if ( isset( $live_magazines['post__in'] ) && $live_magazines['post__in'] === array( 0 ) ) {
+	fwrite( STDERR, "Magazine connections must not be forced empty.\n" );
 	exit( 1 );
 }
 
