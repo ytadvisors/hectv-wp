@@ -7,18 +7,34 @@
  *
  *  1. Prefer the production group key / field keys from that export so existing
  *     post meta continues to resolve (no key remapping).
- *  2. Register Post Details as one complete same-key local group, even when a
- *     database copy exists. Adding only one local child to a database group can
- *     make ACF's local store shadow every database-owned child in the editor.
+ *  2. Register every exported group as one complete same-key local group. The
+ *     local definition overlays a database copy instead of creating a second
+ *     metabox, so PHP and GraphQL cannot drift from admin-created definitions.
  *  3. Always ensure the git-owned Trending field (`is_trending`) is nested in
  *     that complete Post Details definition.
- *  4. Other export groups are registered only when missing (clean harness /
- *     new environments), preserving prior production ownership when present.
+ *  4. If an older database group has the same title under a different group
+ *     key, reuse that active key while retaining the exported field keys.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/**
+ * Keep the ACF field-definition UI closed while Git owns the schema.
+ *
+ * This hides the top-level "Custom Fields" admin menu only. It does not hide
+ * About, Contact, Post Details, or any other content fields from their normal
+ * post/page edit screens. A deliberate maintenance session can opt in from
+ * wp-config.php, export the complete definitions, and then turn the flag off.
+ *
+ * @return bool
+ */
+function hectv_cms_show_acf_schema_admin() {
+	return defined( 'HECTV_ALLOW_ACF_SCHEMA_ADMIN' ) && HECTV_ALLOW_ACF_SCHEMA_ADMIN === true;
+}
+
+add_filter( 'acf/settings/show_admin', 'hectv_cms_show_acf_schema_admin', 99 );
 
 /** Production Post Details group key (from admin export). */
 define( 'HECTV_ACF_POST_DETAILS_KEY', 'group_5a9bf131f2b91' );
@@ -250,7 +266,12 @@ function hectv_cms_group_has_field( $group_key, $field_name ) {
 }
 
 /**
- * Register exported groups that are not already present, and ensure Trending.
+ * Register complete git-canonical groups and ensure Trending.
+ *
+ * ACF local groups with the same key as a database group are overlays, not
+ * duplicates. Registering the entire group is essential: a partial local group
+ * can shadow database children, while skipping a database-owned group lets PHP,
+ * GraphQL, and the editor silently drift apart.
  */
 function hectv_cms_register_acf_groups() {
 	if ( ! function_exists( 'acf_add_local_field' ) || ! function_exists( 'acf_add_local_field_group' ) ) {
@@ -268,38 +289,22 @@ function hectv_cms_register_acf_groups() {
 			continue;
 		}
 
-		// Post Details must be registered as one complete local group. Registering
-		// only is_trending as a local child of a DB-owned group makes some ACF
-		// versions return only that local child and hide all legacy DB fields.
-		// Reusing the active DB key overlays the group without creating a second
-		// metabox or changing any stored post-meta keys.
-		if ( $title === 'Post Details' ) {
-			if ( isset( $index['by_key'][ $key ]['key'] ) ) {
-				$group['key'] = (string) $index['by_key'][ $key ]['key'];
-			} elseif ( isset( $index['by_title'][ $title ]['key'] ) ) {
-				$group['key'] = (string) $index['by_title'][ $title ]['key'];
-			}
-
-			$local = hectv_cms_normalize_local_group( $group );
-			acf_add_local_field_group( $local );
-
-			$registered_post_details_key                     = (string) $local['key'];
-			$index['by_key'][ $registered_post_details_key ] = $local;
-			$index['by_title'][ $title ]                     = $local;
-			continue;
-		}
-
-		// Skip other groups when production (or a prior local register) owns them.
-		if ( isset( $index['by_key'][ $key ] ) || isset( $index['by_title'][ $title ] ) ) {
-			continue;
+		// Reuse an existing same-title group key to avoid a duplicate metabox when
+		// an older database import used a different group key. Field keys from the
+		// export remain unchanged, preserving all existing ACF reference metadata.
+		if ( ! isset( $index['by_key'][ $key ] ) && isset( $index['by_title'][ $title ]['key'] ) ) {
+			$group['key'] = (string) $index['by_title'][ $title ]['key'];
 		}
 
 		$local = hectv_cms_normalize_local_group( $group );
 		acf_add_local_field_group( $local );
 
-		// Track newly registered groups so later attaches see them.
-		$index['by_key'][ $key ]     = $local;
+		// Track the authoritative overlay so later attaches see it.
+		$index['by_key'][ (string) $local['key'] ] = $local;
 		$index['by_title'][ $title ] = $local;
+		if ( $title === 'Post Details' ) {
+			$registered_post_details_key = (string) $local['key'];
+		}
 
 	}
 
@@ -341,8 +346,8 @@ function hectv_cms_register_acf_groups() {
 		);
 	}
 
-	// When we registered a full local Post Details, is_trending is already in fields[].
-	// When production owns Post Details (or we only have the fallback), attach the field.
+	// Full exported Post Details already nests is_trending. Only the last-resort
+	// fallback needs a separately attached field.
 	if ( $registered_post_details_key === null ) {
 		if ( ! hectv_cms_group_has_field( $parent, HECTV_META_IS_TRENDING ) ) {
 			acf_add_local_field( hectv_cms_is_trending_field( $parent ) );

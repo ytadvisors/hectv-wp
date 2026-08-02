@@ -488,9 +488,9 @@
         "location": [
             [
                 {
-                    "param": "post_type",
+                    "param": "page_template",
                     "operator": "==",
-                    "value": "page"
+                    "value": "template-1.php"
                 }
             ]
         ],
@@ -742,9 +742,9 @@
         "location": [
             [
                 {
-                    "param": "post_type",
+                    "param": "page_template",
                     "operator": "==",
-                    "value": "page"
+                    "value": "template-3.php"
                 }
             ]
         ],

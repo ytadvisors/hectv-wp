@@ -15,6 +15,8 @@ $acf_groups          = array();
 $acf_fields          = array();
 $existing_acf_groups = array(
 	array( 'key' => 'group_legacy_post_details', 'title' => 'Post Details' ),
+	array( 'key' => 'group_legacy_about', 'title' => 'About' ),
+	array( 'key' => 'group_legacy_contact', 'title' => 'Contact' ),
 );
 $options             = array();
 $last_wp_query_args  = array();
@@ -168,6 +170,8 @@ function expect_true( $cond, $message ) {
 
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-content-controls.php';
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php';
+
+expect_same( false, $filters['acf/settings/show_admin'][99][0](), 'Git-canonical ACF hides the Custom Fields schema menu by default.' );
 
 foreach ( $actions['graphql_register_types'] as $callbacks ) {
 	foreach ( $callbacks as $callback ) {
@@ -342,15 +346,40 @@ foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POS
 expect_same( count( $existing_names ), count( array_unique( $existing_names ) ), 'overlay field names are unique' );
 expect_same( array(), $acf_fields, 'Complete Post Details overlay must not add a lone local child.' );
 
-// Other export groups that are missing should still register (About, Contact, …).
+// Every export group is a complete local overlay. Same-title database groups
+// reuse their active group keys so the editor never shows duplicate sections.
 $registered_titles = array_map(
 	static function ( $g ) {
 		return isset( $g['title'] ) ? $g['title'] : '';
 	},
 	$acf_groups
 );
-expect_true( in_array( 'About', $registered_titles, true ), 'Missing About group should register from export.' );
+expect_true( in_array( 'About', $registered_titles, true ), 'About group should register from the canonical export.' );
 expect_same( 1, count( array_keys( $registered_titles, 'Post Details', true ) ), 'Post Details local overlay must be registered exactly once.' );
+$about_overlays = array_values(
+	array_filter(
+		$acf_groups,
+		static function ( $g ) {
+			return isset( $g['title'] ) && $g['title'] === 'About';
+		}
+	)
+);
+$contact_overlays = array_values(
+	array_filter(
+		$acf_groups,
+		static function ( $g ) {
+			return isset( $g['title'] ) && $g['title'] === 'Contact';
+		}
+	)
+);
+expect_same( 1, count( $about_overlays ), 'About has exactly one canonical overlay.' );
+expect_same( 'group_legacy_about', $about_overlays[0]['key'], 'About overlay reuses same-title database key.' );
+expect_same( 'page_template', $about_overlays[0]['location'][0][0]['param'], 'About overlay uses template location, not every Page.' );
+expect_same( 'template-1.php', $about_overlays[0]['location'][0][0]['value'], 'About overlay targets template-1.php.' );
+expect_same( 1, count( $contact_overlays ), 'Contact has exactly one canonical overlay.' );
+expect_same( 'group_legacy_contact', $contact_overlays[0]['key'], 'Contact overlay reuses same-title database key.' );
+expect_same( 'page_template', $contact_overlays[0]['location'][0][0]['param'], 'Contact overlay uses template location, not every Page.' );
+expect_same( 'template-3.php', $contact_overlays[0]['location'][0][0]['value'], 'Contact overlay targets template-3.php.' );
 
 // --- Clean install path: no existing groups → full export including Post Details + baked-in Trending.
 $existing_acf_groups = array();

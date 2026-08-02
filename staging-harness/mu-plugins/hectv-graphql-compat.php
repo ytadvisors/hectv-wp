@@ -279,7 +279,12 @@ function hectv_gql_model_post( $id ) {
 }
 
 /**
- * Helper: read post meta with a sensible default.
+ * Helper: read raw post meta with a sensible default.
+ *
+ * Intentionally does NOT call ACF `get_field()`. Existing resolvers (media,
+ * repeaters stored as JSON strings, ID lists) expect raw meta shapes. Preferring
+ * ACF-formatted values here would break image fields with return_format=array
+ * when cast through hectv_gql_media(), and other structured meta consumers.
  *
  * @param mixed  $post Post source.
  * @param string $key  Meta key.
@@ -504,58 +509,6 @@ add_action(
 			)
 		);
 
-		register_graphql_object_type(
-			'HecContact',
-			array(
-				'description' => 'Owned staging type: page contact group.',
-				'fields'      => array(
-					'address'       => array( 'type' => 'String' ),
-					'directions'    => array( 'type' => 'String' ),
-					'faxNumber'     => array( 'type' => 'String' ),
-					'opportunities' => array( 'type' => 'String' ),
-					'phoneNumber'   => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecTvProvider',
-			array(
-				'description' => 'Owned staging type: TV provider row.',
-				'fields'      => array(
-					'provider' => array( 'type' => 'String' ),
-					'channel'  => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecTeamMember',
-			array(
-				'description' => 'Owned staging type: about.team row.',
-				'fields'      => array(
-					'email'    => array( 'type' => 'String' ),
-					'name'     => array( 'type' => 'String' ),
-					'position' => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecAbout',
-			array(
-				'description' => 'Owned staging type: page about group.',
-				'fields'      => array(
-					'phoneNumber' => array( 'type' => 'String' ),
-					'address'     => array( 'type' => 'String' ),
-					'faxNumber'   => array( 'type' => 'String' ),
-					'tvProviders' => array( 'type' => array( 'list_of' => 'HecTvProvider' ) ),
-					'team'        => array( 'type' => array( 'list_of' => 'HecTeamMember' ) ),
-					'videoId'     => array( 'type' => 'String' ),
-				),
-			)
-		);
-
 		// --- Field resolvers on core + CPT types -------------------------------
 
 		$post_details_resolve = static function ( $source ) {
@@ -729,45 +682,6 @@ add_action(
 					$id  = hectv_gql_id( $source );
 					$tpl = $id ? get_page_template_slug( $id ) : '';
 					return $tpl ? $tpl : null;
-				},
-			)
-		);
-
-		register_graphql_field(
-			'Page',
-			'contact',
-			array(
-				'type'    => 'HecContact',
-				'resolve' => static function ( $source ) {
-					return array(
-						'address'       => hectv_gql_meta( $source, 'contact_address', null ),
-						'directions'    => hectv_gql_meta( $source, 'contact_directions', null ),
-						'faxNumber'     => hectv_gql_meta( $source, 'contact_fax', null ),
-						'opportunities' => hectv_gql_meta( $source, 'contact_opportunities', null ),
-						'phoneNumber'   => hectv_gql_meta( $source, 'contact_phone', null ),
-					);
-				},
-			)
-		);
-
-		register_graphql_field(
-			'Page',
-			'about',
-			array(
-				'type'    => 'HecAbout',
-				'resolve' => static function ( $source ) {
-					$providers_raw = hectv_gql_meta( $source, 'about_tv_providers', '[]' );
-					$team_raw      = hectv_gql_meta( $source, 'about_team', '[]' );
-					$providers     = json_decode( is_string( $providers_raw ) ? $providers_raw : '[]', true );
-					$team          = json_decode( is_string( $team_raw ) ? $team_raw : '[]', true );
-					return array(
-						'phoneNumber' => hectv_gql_meta( $source, 'about_phone', null ),
-						'address'     => hectv_gql_meta( $source, 'about_address', null ),
-						'faxNumber'   => hectv_gql_meta( $source, 'about_fax', null ),
-						'tvProviders' => is_array( $providers ) ? $providers : array(),
-						'team'        => is_array( $team ) ? $team : array(),
-						'videoId'     => hectv_gql_meta( $source, 'about_video_id', null ),
-					);
 				},
 			)
 		);

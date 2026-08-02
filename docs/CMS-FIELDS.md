@@ -25,18 +25,27 @@ existing post meta.
 
 ### Registration rules (`register-acf.php`)
 
-1. **Load the export** and register any group that is **not** already present
-   in ACF (matched by **key or title**).
-2. **Never re-register** a group production already owns — that duplicates admin
-   panels.
+1. **Load the complete export** and register every group as a local overlay.
+2. Reuse the production group key (or an existing same-title database key) so
+   the overlay replaces the database definition instead of creating a duplicate
+   admin panel. Original field keys remain unchanged, preserving stored values.
 3. **Always ensure** the git-owned **Trending** field (`is_trending`, key
    `field_hectv_is_trending`) is available on Post Details:
-   - Production already has Post Details → **attach** Trending via
-     `acf_add_local_field` (previous support path).
-   - Clean install → register full Post Details from the export with Trending
-     **nested** after `is_video`.
+   - The complete Post Details overlay nests Trending after `is_video`.
+   - If the export is unavailable, the fallback group attaches Trending alone.
 4. If the export file is missing, fall back to a minimal **HEC Post Controls**
    group containing only Trending (last resort).
+
+About and Contact intentionally reuse field names such as `address`,
+`phone_number`, and `fax_number`. Their locations therefore must stay mutually
+exclusive: **About → `template-1.php`**, **Contact → `template-3.php`**. Never
+scope either group to all pages.
+
+The ACF **Custom Fields** schema-definition menu is hidden by default because
+Git owns these definitions. This does not hide the content panels from normal
+post/page editors. For a deliberate full export, temporarily define
+`HECTV_ALLOW_ACF_SCHEMA_ADMIN` as `true` in `wp-config.php`, export all changed
+groups, commit the export and resolver changes together, then remove the flag.
 
 Do **not** enable ACF Local JSON `save_json` from this package — it would capture
 unrelated admin-managed groups into the repo.
@@ -75,8 +84,8 @@ and cards that reuse that file will change too.
    assign that copy to **Post page hero**.
 4. If **Post page hero** is empty, the frontend falls back to Post Header / Video Thumbnail.
 
-Other export groups (About, Contact, Audio Tracks, Schedule Details, Event
-Details, Site Options, …) follow the same missing-only registration rule.
+All other export groups (About, Contact, Audio Tracks, Schedule Details, Event
+Details, Site Options, …) follow the same complete local-overlay rule.
 
 ### Editorial process — Trending videos
 
@@ -186,6 +195,8 @@ Owned by `graphql.php` (does not depend on wp-graphql-acf):
 | Field | Type |
 |-------|------|
 | `Post.isTrending` | Boolean |
+| `Page.about` | Complete `HecAbout` contract from the About ACF export |
+| `Page.contact` | Complete `HecContact` contract from the Contact ACF export |
 | `Post.postDetails` | `HecPostDetails` |
 | `Post.postDetails.isVideo` | Boolean |
 | `Post.postDetails.isTrending` | Boolean |
@@ -256,13 +267,18 @@ Support/Subscribe menu items.
 
 ## 6. Changing field definitions
 
-1. Prefer re-export from production ACF admin → replace
-   `acf-field-groups.json` (keeps production keys).
+1. Temporarily enable the schema UI with
+   `HECTV_ALLOW_ACF_SCHEMA_ADMIN=true`, export the complete group from the
+   canonical WordPress ACF admin, and replace `acf-field-groups.json` (never
+   recreate partial PHP fields by hand; keep production group and field keys).
 2. Keep git-owned fields (currently `is_trending`) injected in
    `register-acf.php` so they survive re-exports that omit them.
-3. Extend `graphql.php` if the frontend contract changes.
+3. Extend the canonical resolvers in `graphql.php` if the frontend contract
+   changes. Do not duplicate ACF resolvers in `hectv-graphql-compat.php`.
 4. Ship branch → PR → merge (same as other hectv-wp changes).
 5. Deploy/restart WordPress so the MU-plugin reloads.
+6. Remove the break-glass flag so the Custom Fields definition menu is hidden
+   again.
 
 ### Verify
 
