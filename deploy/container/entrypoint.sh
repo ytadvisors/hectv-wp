@@ -75,14 +75,17 @@ PHP
 fi
 
 if [ "${HECTV_ENVIRONMENT:-}" = "production" ]; then
+  uploads_root="/var/www/html/wp-content/uploads"
   probe_dir="$(
-    find /var/www/html/wp-content/uploads \
-      -mindepth 2 -maxdepth 2 -type d -print 2>/dev/null |
+    find "$uploads_root" \
+      -mindepth 2 -maxdepth 2 -type d \
+      -path "$uploads_root/[0-9][0-9][0-9][0-9]/[0-9][0-9]" \
+      -print 2>/dev/null |
       sort |
       tail -1
   )"
   if [ -z "$probe_dir" ]; then
-    probe_dir="/var/www/html/wp-content/uploads"
+    probe_dir="$uploads_root"
   fi
   probe_file="$probe_dir/.hectv-ecs-write-probe-$$"
   if ! (umask 077 && : >"$probe_file"); then
