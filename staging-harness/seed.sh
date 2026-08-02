@@ -193,10 +193,20 @@ wpcli post meta update "$home_id" default_row_layout "standard"
 wpcli post meta update "$home_id" feed_design_rows '[{"rowLayout":"standard","displayType":"grid"}]'
 
 about_id=$(ensure_page "about-us" "About Us" "About page fixture.")
-wpcli post meta update "$about_id" about_phone "555-0100"
-wpcli post meta update "$about_id" about_address "123 Staging St"
-wpcli post meta update "$about_id" about_team '[{"name":"Dev User","email":"dev@example.com","position":"Engineer"}]'
-wpcli post meta update "$about_id" about_tv_providers '[{"provider":"CableCo","channel":"12"}]'
+# ACF field names match production (see REST pages?slug=about-us acf keys).
+wpcli post meta update "$about_id" phone_number "555-0100"
+wpcli post meta update "$about_id" address "123 Staging St"
+wpcli post meta update "$about_id" fax_number "555-0199"
+wpcli post meta update "$about_id" video_id "300584603"
+wpcli post meta update "$about_id" team '[{"name":"Dev User","email":"dev@example.com","position":"Engineer"}]'
+wpcli post meta update "$about_id" tv_providers '[{"provider":"CableCo","channel":"12"}]'
+
+contact_id=$(ensure_page "contact-us" "Contact Us" "Contact page fixture.")
+wpcli post meta update "$contact_id" phone_number "555-0100"
+wpcli post meta update "$contact_id" address "123 Staging St"
+wpcli post meta update "$contact_id" fax_number "555-0199"
+wpcli post meta update "$contact_id" directions "Turn left at the fixture."
+wpcli post meta update "$contact_id" opportunities "Partner with staging HEC-TV."
 
 mag_page=$(ensure_page "magazines" "Magazines" "Magazines index.")
 wpcli post meta update "$mag_page" default_display_type "grid"

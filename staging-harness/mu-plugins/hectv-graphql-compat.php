@@ -278,6 +278,14 @@ function hectv_gql_meta( $post, $key, $default = null ) {
 	if ( ! $id ) {
 		return $default;
 	}
+	// Prefer ACF get_field when available — About/Contact store repeaters (team,
+	// tv_providers) as ACF structures, not raw post_meta JSON strings.
+	if ( function_exists( 'get_field' ) ) {
+		$acf_val = get_field( $key, $id );
+		if ( $acf_val !== null && $acf_val !== false && $acf_val !== '' ) {
+			return $acf_val;
+		}
+	}
 	$val = get_post_meta( $id, $key, true );
 	if ( $val === '' || $val === null ) {
 		return $default;
@@ -720,18 +728,28 @@ add_action(
 			)
 		);
 
+		// About + Contact ACF field names (production export / REST `acf`):
+		//   address, phone_number, fax_number, directions, opportunities,
+		//   video_id, team[{name,position,email}], tv_providers[{provider,channel}]
+		// NOT prefixed about_* / contact_* — those keys never exist on live pages
+		// and left localhost:4000 /about-us and /contact-us empty against staging.
 		register_graphql_field(
 			'Page',
 			'contact',
 			array(
 				'type'    => 'HecContact',
 				'resolve' => static function ( $source ) {
+					// Prefer live ACF names; fall back to harness-prefixed seed keys.
+					$pick = static function ( $source, $primary, $legacy ) {
+						$v = hectv_gql_meta( $source, $primary, null );
+						return ( $v !== null && $v !== '' ) ? $v : hectv_gql_meta( $source, $legacy, null );
+					};
 					return array(
-						'address'       => hectv_gql_meta( $source, 'contact_address', null ),
-						'directions'    => hectv_gql_meta( $source, 'contact_directions', null ),
-						'faxNumber'     => hectv_gql_meta( $source, 'contact_fax', null ),
-						'opportunities' => hectv_gql_meta( $source, 'contact_opportunities', null ),
-						'phoneNumber'   => hectv_gql_meta( $source, 'contact_phone', null ),
+						'address'       => $pick( $source, 'address', 'contact_address' ),
+						'directions'    => $pick( $source, 'directions', 'contact_directions' ),
+						'faxNumber'     => $pick( $source, 'fax_number', 'contact_fax' ),
+						'opportunities' => $pick( $source, 'opportunities', 'contact_opportunities' ),
+						'phoneNumber'   => $pick( $source, 'phone_number', 'contact_phone' ),
 					);
 				},
 			)
@@ -743,17 +761,67 @@ add_action(
 			array(
 				'type'    => 'HecAbout',
 				'resolve' => static function ( $source ) {
-					$providers_raw = hectv_gql_meta( $source, 'about_tv_providers', '[]' );
-					$team_raw      = hectv_gql_meta( $source, 'about_team', '[]' );
-					$providers     = json_decode( is_string( $providers_raw ) ? $providers_raw : '[]', true );
-					$team          = json_decode( is_string( $team_raw ) ? $team_raw : '[]', true );
+					$pick = static function ( $source, $primary, $legacy, $default = null ) {
+						$v = hectv_gql_meta( $source, $primary, null );
+						if ( $v !== null && $v !== '' && $v !== array() ) {
+							return $v;
+						}
+						return hectv_gql_meta( $source, $legacy, $default );
+					};
+					$providers = $pick( $source, 'tv_providers', 'about_tv_providers', array() );
+					$team      = $pick( $source, 'team', 'about_team', array() );
+					// Accept ACF arrays (preferred) or legacy JSON strings.
+					if ( is_string( $providers ) ) {
+						$decoded = json_decode( $providers, true );
+						$providers = is_array( $decoded ) ? $decoded : array();
+					}
+					if ( is_string( $team ) ) {
+						$decoded = json_decode( $team, true );
+						$team = is_array( $decoded ) ? $decoded : array();
+					}
+					if ( ! is_array( $providers ) ) {
+						$providers = array();
+					}
+					if ( ! is_array( $team ) ) {
+						$team = array();
+					}
+					// Normalize repeater rows to the GraphQL field names the frontend selects.
+					$providers = array_values(
+						array_map(
+							static function ( $row ) {
+								if ( ! is_array( $row ) ) {
+									return array( 'provider' => null, 'channel' => null );
+								}
+								return array(
+									'provider' => isset( $row['provider'] ) ? $row['provider'] : null,
+									'channel'  => isset( $row['channel'] ) ? $row['channel'] : null,
+								);
+							},
+							$providers
+						)
+					);
+					$team = array_values(
+						array_map(
+							static function ( $row ) {
+								if ( ! is_array( $row ) ) {
+									return array( 'email' => null, 'name' => null, 'position' => null );
+								}
+								return array(
+									'email'    => isset( $row['email'] ) ? $row['email'] : null,
+									'name'     => isset( $row['name'] ) ? $row['name'] : null,
+									'position' => isset( $row['position'] ) ? $row['position'] : null,
+								);
+							},
+							$team
+						)
+					);
 					return array(
-						'phoneNumber' => hectv_gql_meta( $source, 'about_phone', null ),
-						'address'     => hectv_gql_meta( $source, 'about_address', null ),
-						'faxNumber'   => hectv_gql_meta( $source, 'about_fax', null ),
-						'tvProviders' => is_array( $providers ) ? $providers : array(),
-						'team'        => is_array( $team ) ? $team : array(),
-						'videoId'     => hectv_gql_meta( $source, 'about_video_id', null ),
+						'phoneNumber' => $pick( $source, 'phone_number', 'about_phone', null ),
+						'address'     => $pick( $source, 'address', 'about_address', null ),
+						'faxNumber'   => $pick( $source, 'fax_number', 'about_fax', null ),
+						'tvProviders' => $providers,
+						'team'        => $team,
+						'videoId'     => $pick( $source, 'video_id', 'about_video_id', null ),
 					);
 				},
 			)
