@@ -45,6 +45,15 @@ add_filter(
 		$args['graphql_plural_name'] = $graphql_names[ $post_type ][1];
 		$args['graphql_register_root_field']      = true;
 		$args['graphql_register_root_connection'] = true;
+
+		// The imported magazine CPT is private by default. Modern WPGraphQL will
+		// register its schema fields but will not resolve anonymous list/detail
+		// queries unless the post type is viewable. This staging-only bridge is
+		// the public content API used by hecmedia's magazine routes.
+		if ( $post_type === 'magazine' ) {
+			$args['public']             = true;
+			$args['publicly_queryable'] = true;
+		}
 		return $args;
 	},
 	0,
@@ -110,6 +119,10 @@ add_action(
 					$wp_post_types[ $slug ]->graphql_plural_name = $cfg['graphql_plural_name'];
 					$wp_post_types[ $slug ]->graphql_register_root_field      = true;
 					$wp_post_types[ $slug ]->graphql_register_root_connection = true;
+					if ( $slug === 'magazine' ) {
+						$wp_post_types[ $slug ]->public             = true;
+						$wp_post_types[ $slug ]->publicly_queryable = true;
+					}
 				}
 				continue;
 			}
