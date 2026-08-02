@@ -57,8 +57,9 @@ assert_true( strpos( $src, 'is_trending' ) !== false || strpos( $src, 'HECTV_MET
 assert_true( strpos( $src, 'acf-field-groups.json' ) !== false, 'PHP loads acf-field-groups.json' );
 assert_true( strpos( $src, 'acf/settings/save_json' ) === false, 'does not hijack global ACF JSON saves' );
 assert_true( strpos( $src, 'group_5a9bf131f2b91' ) !== false, 'references production Post Details key' );
-// Must not force-register a second Post Details title when one already exists.
-assert_true( strpos( $src, 'already owns this group' ) !== false || strpos( $src, 'Skip when production' ) !== false, 'skips duplicate group registration' );
+assert_true( strpos( $src, 'one complete local group' ) !== false, 'registers complete same-key Post Details overlay' );
+assert_true( strpos( $src, "if ( \$title === 'Post Details' )" ) !== false, 'handles Post Details before existing-group skip' );
+assert_true( strpos( $src, 'acf_add_local_field_group( $local )' ) !== false, 'registers full local Post Details fields' );
 
 $gql = file_get_contents( $pkg . '/graphql.php' );
 assert_true( strpos( $gql, 'trendingSettings' ) !== false, 'GraphQL trendingSettings' );
