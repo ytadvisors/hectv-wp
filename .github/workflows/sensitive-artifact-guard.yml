@@ -1,0 +1,20 @@
+name: Sensitive artifact guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  tracked-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Reject tracked secrets and database exports
+        run: bash tests/no-sensitive-artifacts.sh
