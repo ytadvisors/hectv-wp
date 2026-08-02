@@ -110,5 +110,11 @@ assert_true( strpos( $seed, 'hectv_trending_max_videos' ) !== false, 'seed sets 
 $compose = file_get_contents( $root . '/staging-harness/docker-compose.yml' );
 assert_true( strpos( $compose, 'hectv-cms-fields' ) !== false, 'compose mounts cms fields package' );
 
+$compat_hero = file_get_contents( $root . '/staging-harness/mu-plugins/hectv-graphql-compat.php' );
+assert_true( strpos( $compat_hero, "'postHero'" ) !== false, 'staging compat registers postHero field' );
+assert_true( strpos( $compat_hero, "post_hero" ) !== false, 'staging compat reads post_hero meta' );
+assert_true( strpos( $compat_hero, 'Post( \$post_hero )' ) !== false, 'staging compat wraps post_hero as WPGraphQL Model\\Post' );
+assert_true( strpos( $compat_hero, "'postHero'          => \$post_hero" ) !== false, 'staging compat returns postHero in postDetails payload' );
+
 echo $fail === 0 ? "\nAll structural checks passed.\n" : "\n$fail check(s) failed.\n";
 exit( $fail === 0 ? 0 : 1 );
