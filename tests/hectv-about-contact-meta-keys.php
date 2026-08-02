@@ -37,7 +37,7 @@ function get_post_meta( $post_id, $key, $single = true ) {
 }
 
 function get_field( $key, $post_id = false ) {
-	if ( (int) $post_id !== 42 ) {
+	if ( ! in_array( (int) $post_id, array( 42, 43 ), true ) ) {
 		return null;
 	}
 	$values = array(
@@ -73,6 +73,16 @@ function get_field( $key, $post_id = false ) {
 		'post_header'               => array( 'ID' => 99, 'url' => 'https://example.test/header.jpg' ),
 	);
 	return array_key_exists( $key, $values ) ? $values[ $key ] : null;
+}
+
+function get_page_template_slug( $post_id ) {
+	if ( (int) $post_id === 42 ) {
+		return 'template-1.php';
+	}
+	if ( (int) $post_id === 43 ) {
+		return 'template-3.php';
+	}
+	return '';
 }
 
 class WP_Post {
@@ -125,9 +135,13 @@ foreach ( array( 'partnerLogos', 'publicSchoolPartners', 'higherEducationPartner
 expect_true( isset( $graphql_types['HecContact']['fields']['contactSubjects'] ), 'HecContact includes production contactSubjects' );
 expect_true( isset( $graphql_types['HecTeamMember']['fields']['photo'] ), 'HecTeamMember includes production photo field' );
 
-$source  = (object) array( 'databaseId' => 42 );
-$about   = $graphql_fields['Page']['about']['resolve']( $source );
-$contact = $graphql_fields['Page']['contact']['resolve']( $source );
+$about_source   = (object) array( 'databaseId' => 42 );
+$contact_source = (object) array( 'databaseId' => 43 );
+$about          = $graphql_fields['Page']['about']['resolve']( $about_source );
+$contact        = $graphql_fields['Page']['contact']['resolve']( $contact_source );
+
+expect_same( null, $graphql_fields['Page']['contact']['resolve']( $about_source ), 'Page.contact must not leak overlapping About meta' );
+expect_same( null, $graphql_fields['Page']['about']['resolve']( $contact_source ), 'Page.about must not leak overlapping Contact meta' );
 
 expect_same( '314.531.4455', $about['phoneNumber'], 'About phone uses canonical phone_number ACF key' );
 expect_same( '314.531.0750', $about['faxNumber'], 'About fax uses canonical fax_number ACF key' );

@@ -351,7 +351,7 @@ function hectv_cms_gql_rows( $value ) {
  */
 function hectv_cms_resolve_about( $source ) {
 	$id = hectv_cms_graphql_post_id( $source );
-	if ( ! $id ) {
+	if ( ! $id || get_page_template_slug( $id ) !== 'template-1.php' ) {
 		return null;
 	}
 
@@ -428,7 +428,7 @@ function hectv_cms_resolve_about( $source ) {
  */
 function hectv_cms_resolve_contact( $source ) {
 	$id = hectv_cms_graphql_post_id( $source );
-	if ( ! $id ) {
+	if ( ! $id || get_page_template_slug( $id ) !== 'template-3.php' ) {
 		return null;
 	}
 
