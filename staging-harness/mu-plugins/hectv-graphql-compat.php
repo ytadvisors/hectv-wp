@@ -423,6 +423,7 @@ add_action(
 				'fields'      => array(
 					'videoImage'        => array( 'type' => 'MediaItem' ),
 					'postHeader'        => array( 'type' => 'MediaItem' ),
+					'postHero'          => array( 'type' => 'MediaItem' ),
 					'isVideo'           => array( 'type' => 'Boolean' ),
 					'isTrending'        => array( 'type' => 'Boolean' ),
 					'youtubeId'         => array( 'type' => 'String' ),
@@ -583,6 +584,7 @@ add_action(
 			// MediaItem fields need Model\Post of attachment when present.
 			$video_img = hectv_gql_media( hectv_gql_meta( $id, 'video_image' ) );
 			$post_hdr  = hectv_gql_media( hectv_gql_meta( $id, 'post_header' ) );
+			$post_hero = hectv_gql_media( hectv_gql_meta( $id, 'post_hero' ) );
 			if ( $video_img && class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
 				$video_img = new \WPGraphQL\Model\Post( $video_img );
 			}

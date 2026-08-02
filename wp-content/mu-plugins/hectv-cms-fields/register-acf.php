@@ -408,6 +408,7 @@ add_action(
 		// Image attachment IDs (ACF image fields store attachment IDs by default
 		// when return_format is array at read time; raw meta is typically the ID).
 		register_post_meta( 'post', HECTV_META_POST_HEADER, $number_args );
+		register_post_meta( 'post', HECTV_META_POST_HERO, $number_args );
 		register_post_meta( 'post', HECTV_META_VIDEO_IMAGE, $number_args );
 
 		// Poll interval / flag (export type is number).

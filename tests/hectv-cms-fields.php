@@ -48,7 +48,7 @@ foreach ( (array) $post_details['fields'] as $field ) {
 		$pd_names[] = $field['name'];
 	}
 }
-foreach ( array( 'is_video', 'youtube_id', 'vimeo_id', 'embed_url', 'post_header', 'video_image' ) as $legacy ) {
+foreach ( array( 'is_video', 'youtube_id', 'vimeo_id', 'embed_url', 'post_header', 'post_hero', 'video_image' ) as $legacy ) {
 	assert_true( in_array( $legacy, $pd_names, true ), "Post Details export has legacy field $legacy" );
 }
 
@@ -76,6 +76,8 @@ assert_true( strpos( $gql, 'embedUrl' ) !== false, 'GraphQL embedUrl' );
 assert_true( strpos( $gql, 'isVideo' ) !== false, 'GraphQL isVideo' );
 assert_true( strpos( $gql, 'videoImage' ) !== false, 'GraphQL videoImage' );
 assert_true( strpos( $gql, 'postHeader' ) !== false, 'GraphQL postHeader' );
+assert_true( strpos( $gql, 'postHero' ) !== false, 'GraphQL postHero' );
+assert_true( strpos( $gql, "HECTV_META_POST_HERO" ) !== false || strpos( file_get_contents( dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php' ), 'HECTV_META_POST_HERO' ) !== false, 'POST_HERO meta constant' );
 assert_true( strpos( $gql, 'relatedPosts' ) !== false, 'GraphQL relatedPosts' );
 assert_true( strpos( $gql, 'hectv_cms_resolve_post_details' ) !== false, 'GraphQL postDetails resolver' );
 assert_true( strpos( $gql, "'pollForUpdates'    => 'Float'" ) !== false || strpos( $gql, "'type'        => 'Float'" ) !== false, 'pollForUpdates GraphQL type is Float' );
