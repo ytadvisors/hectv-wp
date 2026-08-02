@@ -273,6 +273,12 @@ expect_same( 'yt-abc', $details['youtubeId'], 'postDetails.youtubeId from meta' 
 expect_same( 'vim-9', $details['vimeoId'], 'postDetails.vimeoId from meta' );
 expect_same( 'https://example.test/embed', $details['embedUrl'], 'postDetails.embedUrl from meta' );
 expect_same( '/media/file.mp4', $details['broadcastLocation'], 'postDetails.broadcastLocation from meta' );
+// Media keys must always be present on the resolve payload (GraphQL type registration alone
+// is insufficient — a forgotten key silently nulls the advertised field).
+foreach ( array( 'postHero', 'postHeader', 'videoImage' ) as $media_key ) {
+	expect_true( array_key_exists( $media_key, $details ), "postDetails resolve emits $media_key" );
+	expect_same( null, $details[ $media_key ], "$media_key is null when its meta is empty" );
+}
 // P1 regression: pollForUpdates must remain a numeric interval (seconds), not bool.
 // Frontend does pollInterval: pollForUpdates * 1000 — true*1000 === 1000 (1s) is wrong.
 expect_true( is_float( $details['pollForUpdates'] ) || is_int( $details['pollForUpdates'] ), 'pollForUpdates is numeric' );
@@ -306,16 +312,34 @@ $existing_pd = $post_details_clones[0];
 expect_same( 'group_legacy_post_details', $existing_pd['key'], 'Local overlay must reuse the active database group key.' );
 
 $existing_names = array();
+$hero_overlay_fields = array();
 foreach ( (array) $existing_pd['fields'] as $field ) {
 	if ( ! empty( $field['name'] ) ) {
 		$existing_names[] = $field['name'];
 	}
+	if ( isset( $field['name'] ) && $field['name'] === HECTV_META_POST_HERO ) {
+		$hero_overlay_fields[] = $field;
+	}
 }
-expect_same( 15, count( $existing_names ), 'Existing Post Details overlay includes 14 legacy fields plus Trending.' );
-expect_true( in_array( 'is_video', $existing_names, true ), 'Existing Post Details keeps legacy is_video.' );
-expect_true( in_array( 'poll_for_updates', $existing_names, true ), 'Existing Post Details keeps legacy poll interval.' );
-expect_true( in_array( 'related_posts', $existing_names, true ), 'Existing Post Details keeps legacy related posts.' );
-expect_true( in_array( HECTV_META_IS_TRENDING, $existing_names, true ), 'Existing Post Details includes Trending.' );
+// Require the complete same-key overlay to ship post_hero as its own ACF child with a
+// main-page-facing label — not a lone GraphQL registration or a bare name list check.
+expect_same( 1, count( $hero_overlay_fields ), 'Post Details overlay registers exactly one post_hero child' );
+expect_true(
+	isset( $hero_overlay_fields[0]['label'] )
+		&& stripos( (string) $hero_overlay_fields[0]['label'], 'hero' ) !== false,
+	'post_hero overlay field label identifies the main-page hero'
+);
+expect_true(
+	isset( $hero_overlay_fields[0]['key'] )
+		&& $hero_overlay_fields[0]['key'] === 'field_hectv_post_hero',
+	'post_hero overlay field uses the owned field key'
+);
+// Required children must all be present (legacy + trending + hero). Avoid a brittle
+// hard-coded total that drifts whenever a single field is added.
+foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POST_HERO, HECTV_META_IS_TRENDING ) as $need ) {
+	expect_true( in_array( $need, $existing_names, true ), "Existing Post Details overlay includes $need" );
+}
+expect_same( count( $existing_names ), count( array_unique( $existing_names ) ), 'overlay field names are unique' );
 expect_same( array(), $acf_fields, 'Complete Post Details overlay must not add a lone local child.' );
 
 // Other export groups that are missing should still register (About, Contact, …).
