@@ -423,6 +423,7 @@ add_action(
 				'fields'      => array(
 					'videoImage'        => array( 'type' => 'MediaItem' ),
 					'postHeader'        => array( 'type' => 'MediaItem' ),
+					'postHero'          => array( 'type' => 'MediaItem' ),
 					'isVideo'           => array( 'type' => 'Boolean' ),
 					'isTrending'        => array( 'type' => 'Boolean' ),
 					'youtubeId'         => array( 'type' => 'String' ),
@@ -583,16 +584,22 @@ add_action(
 			// MediaItem fields need Model\Post of attachment when present.
 			$video_img = hectv_gql_media( hectv_gql_meta( $id, 'video_image' ) );
 			$post_hdr  = hectv_gql_media( hectv_gql_meta( $id, 'post_header' ) );
+			$post_hero = hectv_gql_media( hectv_gql_meta( $id, 'post_hero' ) );
 			if ( $video_img && class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
 				$video_img = new \WPGraphQL\Model\Post( $video_img );
 			}
 			if ( $post_hdr && class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
 				$post_hdr = new \WPGraphQL\Model\Post( $post_hdr );
 			}
+			if ( $post_hero && class_exists( '\\WPGraphQL\\Model\\Post' ) ) {
+				$post_hero = new \WPGraphQL\Model\Post( $post_hero );
+			}
+
 
 			return array(
 				'videoImage'        => $video_img,
 				'postHeader'        => $post_hdr,
+				'postHero'          => $post_hero,
 				'isVideo'           => hectv_gql_bool( hectv_gql_meta( $id, 'is_video', '0' ) ),
 				'isTrending'        => hectv_gql_bool( hectv_gql_meta( $id, 'is_trending', '0' ) ),
 				'youtubeId'         => hectv_gql_meta( $id, 'youtube_id', null ),

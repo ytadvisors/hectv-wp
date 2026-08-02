@@ -48,7 +48,7 @@ foreach ( (array) $post_details['fields'] as $field ) {
 		$pd_names[] = $field['name'];
 	}
 }
-foreach ( array( 'is_video', 'youtube_id', 'vimeo_id', 'embed_url', 'post_header', 'video_image' ) as $legacy ) {
+foreach ( array( 'is_video', 'youtube_id', 'vimeo_id', 'embed_url', 'post_header', 'post_hero', 'video_image' ) as $legacy ) {
 	assert_true( in_array( $legacy, $pd_names, true ), "Post Details export has legacy field $legacy" );
 }
 
@@ -76,6 +76,8 @@ assert_true( strpos( $gql, 'embedUrl' ) !== false, 'GraphQL embedUrl' );
 assert_true( strpos( $gql, 'isVideo' ) !== false, 'GraphQL isVideo' );
 assert_true( strpos( $gql, 'videoImage' ) !== false, 'GraphQL videoImage' );
 assert_true( strpos( $gql, 'postHeader' ) !== false, 'GraphQL postHeader' );
+assert_true( strpos( $gql, 'postHero' ) !== false, 'GraphQL postHero' );
+assert_true( strpos( $gql, "HECTV_META_POST_HERO" ) !== false || strpos( file_get_contents( dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php' ), 'HECTV_META_POST_HERO' ) !== false, 'POST_HERO meta constant' );
 assert_true( strpos( $gql, 'relatedPosts' ) !== false, 'GraphQL relatedPosts' );
 assert_true( strpos( $gql, 'hectv_cms_resolve_post_details' ) !== false, 'GraphQL postDetails resolver' );
 assert_true( strpos( $gql, "'pollForUpdates'    => 'Float'" ) !== false || strpos( $gql, "'type'        => 'Float'" ) !== false, 'pollForUpdates GraphQL type is Float' );
@@ -107,6 +109,12 @@ assert_true( strpos( $seed, 'hectv_trending_max_videos' ) !== false, 'seed sets 
 
 $compose = file_get_contents( $root . '/staging-harness/docker-compose.yml' );
 assert_true( strpos( $compose, 'hectv-cms-fields' ) !== false, 'compose mounts cms fields package' );
+
+$compat_hero = file_get_contents( $root . '/staging-harness/mu-plugins/hectv-graphql-compat.php' );
+assert_true( strpos( $compat_hero, "'postHero'" ) !== false, 'staging compat registers postHero field' );
+assert_true( strpos( $compat_hero, "post_hero" ) !== false, 'staging compat reads post_hero meta' );
+assert_true( strpos( $compat_hero, 'Post( $post_hero )' ) !== false, 'staging compat wraps post_hero as WPGraphQL Model Post' );
+assert_true( strpos( $compat_hero, "'postHero'          => \$post_hero" ) !== false, 'staging compat returns postHero in postDetails payload' );
 
 echo $fail === 0 ? "\nAll structural checks passed.\n" : "\n$fail check(s) failed.\n";
 exit( $fail === 0 ? 0 : 1 );

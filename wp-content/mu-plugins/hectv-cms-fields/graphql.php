@@ -6,7 +6,7 @@
  * ACF field groups are queryable without the legacy wp-graphql-acf plugin:
  *
  * - Post.postDetails { isVideo, isTrending, youtubeId, vimeoId, embedUrl,
- *     postHeader, videoImage, showPodcasts, hidePageThumbnail, pollForUpdates,
+ *     postHeader, postHero, videoImage, showPodcasts, hidePageThumbnail, pollForUpdates,
  *     broadcastLocation, internalId, duration, relatedPosts, postEvents }
  * - Post.isTrending
  * - RootQuery.trendingSettings / forEducators / trendingPosts / topbarCtas
@@ -289,6 +289,7 @@ function hectv_cms_resolve_post_details( $source ) {
 	return array(
 		'videoImage'         => hectv_cms_gql_media_model( hectv_cms_gql_meta( $id, HECTV_META_VIDEO_IMAGE ) ),
 		'postHeader'         => hectv_cms_gql_media_model( hectv_cms_gql_meta( $id, HECTV_META_POST_HEADER ) ),
+		'postHero'           => hectv_cms_gql_media_model( hectv_cms_gql_meta( $id, HECTV_META_POST_HERO ) ),
 		'isVideo'            => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_IS_VIDEO, '0' ) ),
 		'isTrending'         => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_IS_TRENDING, '0' ) ),
 		'youtubeId'          => hectv_cms_gql_meta( $id, HECTV_META_YOUTUBE_ID, null ),
@@ -496,7 +497,11 @@ add_action(
 					),
 					'postHeader'        => array(
 						'type'        => 'MediaItem',
-						'description' => 'Blog/header image (ACF post_header).',
+						'description' => 'Shared card/search/thumbnail image (ACF post_header). Prefer postHero for main-page-only crops.',
+					),
+					'postHero'          => array(
+						'type'        => 'MediaItem',
+						'description' => 'Main post page hero only (ACF post_hero). Does not affect cards, search, or Trending.',
 					),
 					'isVideo'           => array(
 						'type'        => 'Boolean',
@@ -562,6 +567,7 @@ add_action(
 				$ensure = array(
 					'videoImage'        => 'MediaItem',
 					'postHeader'        => 'MediaItem',
+					'postHero'          => 'MediaItem',
 					'isVideo'           => 'Boolean',
 					'isTrending'        => 'Boolean',
 					'youtubeId'         => 'String',
