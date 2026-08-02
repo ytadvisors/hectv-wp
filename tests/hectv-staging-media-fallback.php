@@ -51,6 +51,9 @@ require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-media-fallbac
 expect_true( isset( $filters['wp_get_attachment_url'][20][0] ), 'Attachment URL filter should register in staging.' );
 $callback = $filters['wp_get_attachment_url'][20][0]['callback'];
 expect_same( 2, $filters['wp_get_attachment_url'][20][0]['accepted_args'], 'Attachment URL filter must receive the attachment ID.' );
+expect_true( isset( $filters['wp_get_attachment_image_src'][120][0] ), 'Image source filter should run after media-plugin filters.' );
+$image_callback = $filters['wp_get_attachment_image_src'][120][0]['callback'];
+expect_same( 4, $filters['wp_get_attachment_image_src'][120][0]['accepted_args'], 'Image source filter must receive the full WordPress image context.' );
 
 $original_url        = 'https://staging-wp.hectv.org/wp-content/uploads/2026/07/example.jpg';
 $attachment_files[1] = '2026/07/Sweeney Todd #1.jpg';
@@ -59,10 +62,25 @@ expect_same(
 	$callback( $original_url, 1 ),
 	'Missing cloned media should use the encoded public production-media URL.'
 );
+expect_same(
+	array( 'https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2026/07/Sweeney%20Todd%20%231-300x169.jpg', 300, 169, true ),
+	$image_callback(
+		array( 'https://staging-wp.hectv.org/wp-content/uploads/2026/07/Sweeney%20Todd%20%231-300x169.jpg', 300, 169, true ),
+		1,
+		'medium',
+		false
+	),
+	'ACF image previews should preserve their requested thumbnail filename on the fallback host.'
+);
 
 $test_upload_basedir = '/';
 $attachment_files[2] = 'etc/hosts';
 expect_same( $original_url, $callback( $original_url, 2 ), 'Existing staging files must keep their staging URL.' );
+expect_same(
+	array( $original_url, 768, 432, false ),
+	$image_callback( array( $original_url, 768, 432, false ), 2, 'full', false ),
+	'Existing staging image previews must keep their staging URL.'
+);
 
 $test_upload_basedir = '/definitely-missing-hectv-staging-uploads';
 $attachment_files[3] = '../etc/passwd';
@@ -70,6 +88,7 @@ expect_same( $original_url, $callback( $original_url, 3 ), 'Unsafe relative path
 
 $attachment_files[4] = '';
 expect_same( $original_url, $callback( $original_url, 4 ), 'Attachments without a file path must remain unchanged.' );
+expect_same( false, $image_callback( false, 4, 'thumbnail', false ), 'Missing image source data must remain unchanged.' );
 
 $source = file_get_contents( dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-media-fallback.php' );
 expect_true( strpos( $source, "getenv( 'HECTV_ENVIRONMENT' ) !== 'staging'" ) !== false, 'Production environment gate must remain fail-closed.' );
