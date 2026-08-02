@@ -26,6 +26,7 @@ define( 'HECTV_OPT_EDUCATORS_LABEL', 'hectv_educators_label' );
 define( 'HECTV_META_IS_TRENDING', 'is_trending' );
 define( 'HECTV_META_IS_VIDEO', 'is_video' );
 define( 'HECTV_META_POST_HEADER', 'post_header' );
+define( 'HECTV_META_POST_HERO', 'post_hero' );
 define( 'HECTV_META_VIDEO_IMAGE', 'video_image' );
 define( 'HECTV_META_YOUTUBE_ID', 'youtube_id' );
 define( 'HECTV_META_VIMEO_ID', 'vimeo_id' );

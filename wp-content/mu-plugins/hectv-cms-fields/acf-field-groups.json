@@ -1803,8 +1803,8 @@
                             "class": "",
                             "id": ""
                         },
-                        "display_format": "m\/d\/y",
-                        "return_format": "m\/d\/y",
+                        "display_format": "m/d/y",
+                        "return_format": "m/d/y",
                         "first_day": 1
                     },
                     {
@@ -2286,7 +2286,7 @@
                     "id": ""
                 },
                 "show_in_graphql": 1,
-                "display_format": "m\/d\/Y g:i a",
+                "display_format": "m/d/Y g:i a",
                 "return_format": "Y-m-d H:i:s",
                 "first_day": 1
             },
@@ -2304,7 +2304,7 @@
                     "id": ""
                 },
                 "show_in_graphql": 1,
-                "display_format": "m\/d\/Y g:i a",
+                "display_format": "m/d/Y g:i a",
                 "return_format": "Y-m-d H:i:s",
                 "first_day": 1
             },
@@ -2322,7 +2322,7 @@
                     "id": ""
                 },
                 "show_in_graphql": 1,
-                "display_format": "m\/d\/Y g:i a",
+                "display_format": "m/d/Y g:i a",
                 "return_format": "Y-m-d H:i:s",
                 "first_day": 1
             },
@@ -2606,8 +2606,8 @@
                             "id": ""
                         },
                         "show_in_graphql": 1,
-                        "display_format": "m\/d\/Y g:i a",
-                        "return_format": "m\/d\/Y g:i a",
+                        "display_format": "m/d/Y g:i a",
+                        "return_format": "m/d/Y g:i a",
                         "first_day": 1
                     },
                     {
@@ -2623,8 +2623,8 @@
                             "class": "",
                             "id": ""
                         },
-                        "display_format": "m\/d\/Y g:i a",
-                        "return_format": "m\/d\/Y g:i a",
+                        "display_format": "m/d/Y g:i a",
+                        "return_format": "m/d/Y g:i a",
                         "first_day": 1
                     }
                 ]
@@ -2779,7 +2779,7 @@
                 "label": "Post Header",
                 "name": "post_header",
                 "type": "image",
-                "instructions": "Select this option to add an image if this is a blog post",
+                "instructions": "Thumbnail for cards, search, Trending, and related posts (and fallback for the main page if Post page hero is empty). Do not crop this media file in the library if it is reused elsewhere \u2014 use \"Post page hero\" for main-page-only crops.",
                 "required": 0,
                 "conditional_logic": 0,
                 "wrapper": {
@@ -2799,11 +2799,36 @@
                 "mime_types": ""
             },
             {
+                "key": "field_hectv_post_hero",
+                "label": "Post page hero (main article only)",
+                "name": "post_hero",
+                "type": "image",
+                "instructions": "Optional image for the main post page only. Crop or replace freely \u2014 this does NOT change search, cards, Trending, or related-post thumbnails. Prefer a separate file or Media Library \"Save as copy\" so the shared thumbnail (Post Header / Video Thumbnail) stays untouched.",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "show_in_graphql": 1,
+                "return_format": "array",
+                "preview_size": "medium_large",
+                "library": "all",
+                "min_width": "",
+                "min_height": "",
+                "min_size": "",
+                "max_width": "",
+                "max_height": "",
+                "max_size": "",
+                "mime_types": ""
+            },
+            {
                 "key": "field_5aa6121624510",
                 "label": "Video Thumbnail",
                 "name": "video_image",
                 "type": "image",
-                "instructions": "Select this option to add an image if this is a video post",
+                "instructions": "Thumbnail for video cards, search, Trending, and related posts (and fallback for the main page if Post page hero is empty). Do not crop this shared media file for the article header \u2014 use \"Post page hero\" for main-page-only crops.",
                 "required": 0,
                 "conditional_logic": 0,
                 "wrapper": {
