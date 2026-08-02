@@ -311,10 +311,11 @@ foreach ( (array) $existing_pd['fields'] as $field ) {
 		$existing_names[] = $field['name'];
 	}
 }
-expect_same( 15, count( $existing_names ), 'Existing Post Details overlay includes 14 legacy fields plus Trending.' );
+expect_same( 16, count( $existing_names ), 'Existing Post Details overlay includes 14 legacy fields plus Post page hero and Trending.' );
 expect_true( in_array( 'is_video', $existing_names, true ), 'Existing Post Details keeps legacy is_video.' );
 expect_true( in_array( 'poll_for_updates', $existing_names, true ), 'Existing Post Details keeps legacy poll interval.' );
 expect_true( in_array( 'related_posts', $existing_names, true ), 'Existing Post Details keeps legacy related posts.' );
+expect_true( in_array( HECTV_META_POST_HERO, $existing_names, true ), 'Existing Post Details includes Post page hero.' );
 expect_true( in_array( HECTV_META_IS_TRENDING, $existing_names, true ), 'Existing Post Details includes Trending.' );
 expect_same( array(), $acf_fields, 'Complete Post Details overlay must not add a lone local child.' );
 
