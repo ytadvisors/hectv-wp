@@ -27,7 +27,7 @@ Registered in staging by **owned** code in
 `staging-harness/mu-plugins/hectv-graphql-compat.php` (not the 0.4.0 fork, not
 licensed WPGraphQL-for-ACF):
 
-- `postDetails` → videoImage, postHeader, isVideo, youtubeId, vimeoId, embedUrl,
+- `postDetails` → videoImage, postHeader, postHero, isVideo, youtubeId, vimeoId, embedUrl,
   showPodcasts, hidePageThumbnail, pollForUpdates, relatedPosts, postEvents
 - `feedDesign` → newRowLayout{rowLayout,displayType}, defaultDisplayType, defaultRowLayout
 - `requiredPosts` → postList{post}

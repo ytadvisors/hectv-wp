@@ -247,7 +247,7 @@ expect_same( true, isset( $graphql_types['HecPostDetails'] ), 'HecPostDetails ty
 expect_same( true, isset( $graphql_fields['Post']['postDetails'] ), 'Post.postDetails field registered.' );
 expect_same( true, isset( $graphql_fields['Post']['isTrending'] ), 'Post.isTrending field registered.' );
 $pd_fields = $graphql_types['HecPostDetails']['fields'];
-foreach ( array( 'youtubeId', 'vimeoId', 'embedUrl', 'isVideo', 'isTrending', 'videoImage', 'postHeader', 'showPodcasts', 'hidePageThumbnail', 'pollForUpdates', 'relatedPosts', 'postEvents', 'broadcastLocation', 'internalId', 'duration' ) as $fname ) {
+foreach ( array( 'youtubeId', 'vimeoId', 'embedUrl', 'isVideo', 'isTrending', 'videoImage', 'postHeader', 'postHero', 'showPodcasts', 'hidePageThumbnail', 'pollForUpdates', 'relatedPosts', 'postEvents', 'broadcastLocation', 'internalId', 'duration' ) as $fname ) {
 	expect_true( isset( $pd_fields[ $fname ] ), "HecPostDetails includes $fname" );
 }
 
