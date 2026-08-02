@@ -69,6 +69,18 @@ if (
 	exit( 1 );
 }
 
+$magazine_args = $post_type_filters[0]['callback'](
+	array(
+		'public'             => false,
+		'publicly_queryable' => false,
+	),
+	'magazine'
+);
+if ( ! $magazine_args['public'] || ! $magazine_args['publicly_queryable'] ) {
+	fwrite( STDERR, "Magazine registration must be publicly queryable for anonymous GraphQL consumers.\n" );
+	exit( 1 );
+}
+
 $post_args = $post_type_filters[0]['callback']( array( 'public' => true ), 'post' );
 if ( $post_args !== array( 'public' => true ) ) {
 	fwrite( STDERR, "Unowned post-type registration arguments were modified.\n" );
@@ -122,6 +134,11 @@ foreach ( $expected as $post_type => $names ) {
 		fwrite( STDERR, "GraphQL exposure failed for {$post_type}.\n" );
 		exit( 1 );
 	}
+}
+
+if ( ! $wp_post_types['magazine']->public || ! $wp_post_types['magazine']->publicly_queryable ) {
+	fwrite( STDERR, "Existing magazine post types must be made publicly queryable.\n" );
+	exit( 1 );
 }
 
 $event_category = $wp_taxonomies['event_category'];
