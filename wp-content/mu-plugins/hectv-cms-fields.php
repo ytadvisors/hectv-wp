@@ -5,7 +5,7 @@
  *              Trending / For Educators settings, GraphQL exposure, and header
  *              action menu location (Support / Subscribe). Source of truth lives
  *              in this repo (see hectv-cms-fields/acf-field-groups.json).
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: YT Advisors
  */
 
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HECTV_CMS_FIELDS_VERSION', '1.1.0' );
+define( 'HECTV_CMS_FIELDS_VERSION', '1.2.0' );
 define( 'HECTV_CMS_FIELDS_DIR', __DIR__ . '/hectv-cms-fields' );
 
 // Option keys (site-wide — not post meta).

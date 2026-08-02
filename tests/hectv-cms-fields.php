@@ -29,6 +29,8 @@ $export = json_decode( file_get_contents( $pkg . '/acf-field-groups.json' ), tru
 assert_true( is_array( $export ) && count( $export ) >= 1, 'acf export is a non-empty list' );
 $titles = array();
 $post_details = null;
+$about = null;
+$contact = null;
 foreach ( $export as $group ) {
 	if ( ! empty( $group['title'] ) ) {
 		$titles[] = $group['title'];
@@ -36,11 +38,21 @@ foreach ( $export as $group ) {
 	if ( isset( $group['title'] ) && $group['title'] === 'Post Details' ) {
 		$post_details = $group;
 	}
+	if ( isset( $group['title'] ) && $group['title'] === 'About' ) {
+		$about = $group;
+	}
+	if ( isset( $group['title'] ) && $group['title'] === 'Contact' ) {
+		$contact = $group;
+	}
 }
 assert_true( in_array( 'Post Details', $titles, true ), 'export includes Post Details' );
 assert_true( in_array( 'About', $titles, true ), 'export includes About' );
 assert_true( is_array( $post_details ), 'Post Details group present' );
+assert_true( is_array( $about ), 'About group present' );
+assert_true( is_array( $contact ), 'Contact group present' );
 assert_true( isset( $post_details['key'] ) && $post_details['key'] === 'group_5a9bf131f2b91', 'Post Details keeps production key' );
+assert_true( $about['location'][0][0]['param'] === 'page_template' && $about['location'][0][0]['value'] === 'template-1.php', 'About fields are scoped only to template-1.php' );
+assert_true( $contact['location'][0][0]['param'] === 'page_template' && $contact['location'][0][0]['value'] === 'template-3.php', 'Contact fields are scoped only to template-3.php' );
 
 $pd_names = array();
 foreach ( (array) $post_details['fields'] as $field ) {
@@ -57,8 +69,8 @@ assert_true( strpos( $src, 'is_trending' ) !== false || strpos( $src, 'HECTV_MET
 assert_true( strpos( $src, 'acf-field-groups.json' ) !== false, 'PHP loads acf-field-groups.json' );
 assert_true( strpos( $src, 'acf/settings/save_json' ) === false, 'does not hijack global ACF JSON saves' );
 assert_true( strpos( $src, 'group_5a9bf131f2b91' ) !== false, 'references production Post Details key' );
-assert_true( strpos( $src, 'one complete local group' ) !== false, 'registers complete same-key Post Details overlay' );
-assert_true( strpos( $src, "if ( \$title === 'Post Details' )" ) !== false, 'handles Post Details before existing-group skip' );
+assert_true( strpos( $src, 'Register every exported group as one complete same-key local group' ) !== false, 'registers complete same-key overlays for every exported group' );
+assert_true( strpos( $src, 'Skip other groups when production' ) === false, 'does not leave database groups authoritative over git' );
 assert_true( strpos( $src, 'acf_add_local_field_group( $local )' ) !== false, 'registers full local Post Details fields' );
 
 $gql = file_get_contents( $pkg . '/graphql.php' );
@@ -70,6 +82,11 @@ assert_true( strpos( $gql, 'topbarCtas' ) !== false, 'GraphQL topbarCtas' );
 assert_true( strpos( $gql, 'HectvForEducatorsCard' ) !== false, 'GraphQL educator type is collision-free' );
 assert_true( strpos( $gql, 'HecPostDetails' ) !== false, 'GraphQL HecPostDetails type' );
 assert_true( strpos( $gql, 'postDetails' ) !== false, 'GraphQL postDetails field' );
+assert_true( strpos( $gql, 'hectv_cms_resolve_about' ) !== false, 'GraphQL canonical About resolver' );
+assert_true( strpos( $gql, 'hectv_cms_resolve_contact' ) !== false, 'GraphQL canonical Contact resolver' );
+foreach ( array( 'partnerLogos', 'publicSchoolPartners', 'higherEducationPartners', 'boardOfDirectors', 'contactSubjects' ) as $field ) {
+	assert_true( strpos( $gql, $field ) !== false, "GraphQL complete About/Contact contract includes $field" );
+}
 assert_true( strpos( $gql, 'youtubeId' ) !== false, 'GraphQL youtubeId' );
 assert_true( strpos( $gql, 'vimeoId' ) !== false, 'GraphQL vimeoId' );
 assert_true( strpos( $gql, 'embedUrl' ) !== false, 'GraphQL embedUrl' );
@@ -101,6 +118,8 @@ assert_true( strpos( $settings, 'hectv_educators_url' ) !== false, 'educators ur
 $compat = file_get_contents( $root . '/staging-harness/mu-plugins/hectv-graphql-compat.php' );
 assert_true( strpos( $compat, 'isTrending' ) !== false, 'staging compat exposes isTrending' );
 assert_true( strpos( $compat, 'is_trending' ) !== false, 'staging compat reads is_trending meta' );
+assert_true( strpos( $compat, "'HecAbout'" ) === false, 'staging compat does not duplicate canonical About GraphQL ownership' );
+assert_true( strpos( $compat, "'HecContact'" ) === false, 'staging compat does not duplicate canonical Contact GraphQL ownership' );
 
 $seed = file_get_contents( $root . '/staging-harness/seed.sh' );
 assert_true( strpos( $seed, 'is_trending' ) !== false, 'seed sets is_trending' );

@@ -2,13 +2,18 @@
 /**
  * WPGraphQL exposure for CMS / ACF fields.
  *
- * Owns the frontend contract for Post.postDetails (HecPostDetails) so integrated
- * ACF field groups are queryable without the legacy wp-graphql-acf plugin:
+ * Owns the frontend contracts for Page.about, Page.contact, and Post.postDetails
+ * so integrated ACF field groups are queryable without legacy wp-graphql-acf:
  *
  * - Post.postDetails { isVideo, isTrending, youtubeId, vimeoId, embedUrl,
  *     postHeader, postHero, videoImage, showPodcasts, hidePageThumbnail, pollForUpdates,
  *     broadcastLocation, internalId, duration, relatedPosts, postEvents }
  * - Post.isTrending
+ * - Page.about { address, phoneNumber, faxNumber, videoId, team,
+ *     tvProviders, partnerLogos, publicSchoolPartners,
+ *     higherEducationPartners, boardOfDirectors }
+ * - Page.contact { address, phoneNumber, faxNumber, directions,
+ *     opportunities, contactSubjects }
  * - RootQuery.trendingSettings / forEducators / trendingPosts / topbarCtas
  *
  * When staging-compat already registered the same types/fields, we still ensure
@@ -308,6 +313,146 @@ function hectv_cms_resolve_post_details( $source ) {
 }
 
 /**
+ * Normalize an ACF repeater into a list of associative rows.
+ *
+ * ACF returns formatted arrays in WordPress, while lightweight fixtures and
+ * older migrations may store JSON. Keeping this at the canonical CMS boundary
+ * prevents individual GraphQL resolvers from inventing their own meta shapes.
+ *
+ * @param mixed $value ACF-formatted array or legacy JSON.
+ * @return array<int, array<string, mixed>>
+ */
+function hectv_cms_gql_rows( $value ) {
+	if ( is_string( $value ) && $value !== '' ) {
+		$decoded = json_decode( $value, true );
+		$value   = is_array( $decoded ) ? $decoded : array();
+	}
+	if ( ! is_array( $value ) ) {
+		return array();
+	}
+	return array_values(
+		array_filter(
+			$value,
+			static function ( $row ) {
+				return is_array( $row );
+			}
+		)
+	);
+}
+
+/**
+ * Build the complete production-compatible Page.about payload.
+ *
+ * Field names come from the git-canonical About ACF export. This is the only
+ * resolver owner; staging compatibility code must not maintain a second map.
+ *
+ * @param mixed $source GraphQL Page source.
+ * @return array<string, mixed>|null
+ */
+function hectv_cms_resolve_about( $source ) {
+	$id = hectv_cms_graphql_post_id( $source );
+	if ( ! $id ) {
+		return null;
+	}
+
+	$team = array();
+	foreach ( hectv_cms_gql_rows( hectv_cms_gql_meta( $id, 'team', array() ) ) as $row ) {
+		$team[] = array(
+			'fieldGroupName' => 'team',
+			'email'          => isset( $row['email'] ) ? $row['email'] : null,
+			'name'           => isset( $row['name'] ) ? $row['name'] : null,
+			'position'       => isset( $row['position'] ) ? $row['position'] : null,
+			'photo'          => hectv_cms_gql_media_model( isset( $row['photo'] ) ? $row['photo'] : null ),
+		);
+	}
+
+	$providers = array();
+	foreach ( hectv_cms_gql_rows( hectv_cms_gql_meta( $id, 'tv_providers', array() ) ) as $row ) {
+		$providers[] = array(
+			'fieldGroupName' => 'tvProviders',
+			'provider'       => isset( $row['provider'] ) ? $row['provider'] : null,
+			'channel'        => isset( $row['channel'] ) ? $row['channel'] : null,
+		);
+	}
+
+	$logos = array();
+	foreach ( hectv_cms_gql_rows( hectv_cms_gql_meta( $id, 'partner_logos', array() ) ) as $row ) {
+		$logos[] = array(
+			'fieldGroupName' => 'partnerLogos',
+			'partnerLink'    => isset( $row['partner_link'] ) ? $row['partner_link'] : null,
+			'partnerLogo'    => hectv_cms_gql_media_model( isset( $row['partner_logo'] ) ? $row['partner_logo'] : null ),
+		);
+	}
+
+	$partner_rows = static function ( $value, $field_group_name ) {
+		$out = array();
+		foreach ( hectv_cms_gql_rows( $value ) as $row ) {
+			$out[] = array(
+				'fieldGroupName' => $field_group_name,
+				'partner'       => isset( $row['partner'] ) ? $row['partner'] : null,
+			);
+		}
+		return $out;
+	};
+
+	$board = array();
+	foreach ( hectv_cms_gql_rows( hectv_cms_gql_meta( $id, 'board_of_directors', array() ) ) as $row ) {
+		$board[] = array(
+			'fieldGroupName' => 'boardOfDirectors',
+			'name'           => isset( $row['name'] ) ? $row['name'] : null,
+			'position'       => isset( $row['position'] ) ? $row['position'] : null,
+			'school'         => isset( $row['school'] ) ? $row['school'] : null,
+		);
+	}
+
+	return array(
+		'fieldGroupName'         => 'about',
+		'phoneNumber'            => hectv_cms_gql_meta( $id, 'phone_number', null ),
+		'address'                => hectv_cms_gql_meta( $id, 'address', null ),
+		'faxNumber'              => hectv_cms_gql_meta( $id, 'fax_number', null ),
+		'tvProviders'            => $providers,
+		'team'                   => $team,
+		'videoId'                => hectv_cms_gql_meta( $id, 'video_id', null ),
+		'partnerLogos'           => $logos,
+		'publicSchoolPartners'   => $partner_rows( hectv_cms_gql_meta( $id, 'public_school_partners', array() ), 'publicSchoolPartners' ),
+		'higherEducationPartners' => $partner_rows( hectv_cms_gql_meta( $id, 'higher_education_partners', array() ), 'higherEducationPartners' ),
+		'boardOfDirectors'       => $board,
+	);
+}
+
+/**
+ * Build the complete production-compatible Page.contact payload.
+ *
+ * @param mixed $source GraphQL Page source.
+ * @return array<string, mixed>|null
+ */
+function hectv_cms_resolve_contact( $source ) {
+	$id = hectv_cms_graphql_post_id( $source );
+	if ( ! $id ) {
+		return null;
+	}
+
+	$subjects = array();
+	foreach ( hectv_cms_gql_rows( hectv_cms_gql_meta( $id, 'contact_subjects', array() ) ) as $row ) {
+		$subjects[] = array(
+			'fieldGroupName' => 'contactSubjects',
+			'subject'        => isset( $row['subject'] ) ? $row['subject'] : null,
+			'eMail'          => isset( $row['e-mail'] ) ? $row['e-mail'] : null,
+		);
+	}
+
+	return array(
+		'fieldGroupName' => 'contact',
+		'address'        => hectv_cms_gql_meta( $id, 'address', null ),
+		'directions'     => hectv_cms_gql_meta( $id, 'directions', null ),
+		'faxNumber'      => hectv_cms_gql_meta( $id, 'fax_number', null ),
+		'opportunities'  => hectv_cms_gql_meta( $id, 'opportunities', null ),
+		'phoneNumber'    => hectv_cms_gql_meta( $id, 'phone_number', null ),
+		'contactSubjects' => $subjects,
+	);
+}
+
+/**
  * Register object type if WPGraphQL is available. Duplicate names are ignored.
  *
  * @param string               $name   Type name.
@@ -461,6 +606,111 @@ add_action(
 				)
 			);
 		}
+
+		// --- Page.about / Page.contact (git-canonical ACF groups) -----------
+
+		$canonical_types = array(
+			'HecTeamMember' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'email'          => array( 'type' => 'String' ),
+				'name'           => array( 'type' => 'String' ),
+				'position'       => array( 'type' => 'String' ),
+				'photo'          => array( 'type' => 'MediaItem' ),
+			),
+			'HecTvProvider' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'provider'       => array( 'type' => 'String' ),
+				'channel'        => array( 'type' => 'String' ),
+			),
+			'HecPartnerLogo' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'partnerLink'    => array( 'type' => 'String' ),
+				'partnerLogo'    => array( 'type' => 'MediaItem' ),
+			),
+			'HecPartnerRow' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'partner'       => array( 'type' => 'String' ),
+			),
+			'HecBoardMember' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'name'           => array( 'type' => 'String' ),
+				'position'       => array( 'type' => 'String' ),
+				'school'         => array( 'type' => 'String' ),
+			),
+			'HecContactSubject' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'subject'        => array( 'type' => 'String' ),
+				'eMail'          => array( 'type' => 'String' ),
+			),
+			'HecAbout' => array(
+				'fieldGroupName'          => array( 'type' => 'String' ),
+				'phoneNumber'             => array( 'type' => 'String' ),
+				'address'                 => array( 'type' => 'String' ),
+				'faxNumber'               => array( 'type' => 'String' ),
+				'tvProviders'             => array( 'type' => array( 'list_of' => 'HecTvProvider' ) ),
+				'team'                    => array( 'type' => array( 'list_of' => 'HecTeamMember' ) ),
+				'videoId'                 => array( 'type' => 'String' ),
+				'partnerLogos'            => array( 'type' => array( 'list_of' => 'HecPartnerLogo' ) ),
+				'publicSchoolPartners'    => array( 'type' => array( 'list_of' => 'HecPartnerRow' ) ),
+				'higherEducationPartners' => array( 'type' => array( 'list_of' => 'HecPartnerRow' ) ),
+				'boardOfDirectors'        => array( 'type' => array( 'list_of' => 'HecBoardMember' ) ),
+			),
+			'HecContact' => array(
+				'fieldGroupName' => array( 'type' => 'String' ),
+				'address'         => array( 'type' => 'String' ),
+				'directions'      => array( 'type' => 'String' ),
+				'faxNumber'       => array( 'type' => 'String' ),
+				'opportunities'   => array( 'type' => 'String' ),
+				'phoneNumber'     => array( 'type' => 'String' ),
+				'contactSubjects' => array( 'type' => array( 'list_of' => 'HecContactSubject' ) ),
+			),
+		);
+
+		foreach ( $canonical_types as $type_name => $type_fields ) {
+			hectv_cms_register_object_type(
+				$type_name,
+				array(
+					'description' => "Git-canonical ACF GraphQL type: {$type_name}.",
+					'fields'      => $type_fields,
+				)
+			);
+			// A staging compatibility type may already exist. Replace its field map
+			// with the complete canonical contract rather than accepting a subset.
+			add_filter(
+				"graphql_{$type_name}_fields",
+				static function ( $fields ) use ( $type_fields ) {
+					return array_merge( $fields, $type_fields );
+				},
+				50
+			);
+		}
+
+		$about_field = array(
+			'type'        => 'HecAbout',
+			'description' => 'About ACF group from the git-canonical field export.',
+			'resolve'     => static function ( $source ) {
+				return hectv_cms_resolve_about( $source );
+			},
+		);
+		$contact_field = array(
+			'type'        => 'HecContact',
+			'description' => 'Contact ACF group from the git-canonical field export.',
+			'resolve'     => static function ( $source ) {
+				return hectv_cms_resolve_contact( $source );
+			},
+		);
+
+		register_graphql_field( 'Page', 'about', $about_field );
+		register_graphql_field( 'Page', 'contact', $contact_field );
+		add_filter(
+			'graphql_Page_fields',
+			static function ( $fields ) use ( $about_field, $contact_field ) {
+				$fields['about']   = $about_field;
+				$fields['contact'] = $contact_field;
+				return $fields;
+			},
+			50
+		);
 
 		// --- Post.postDetails (integrated ACF Post Details fields) ----------
 

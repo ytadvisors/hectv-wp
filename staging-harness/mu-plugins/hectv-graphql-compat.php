@@ -291,32 +291,6 @@ function hectv_gql_meta( $post, $key, $default = null ) {
 }
 
 /**
- * About/Contact only: prefer ACF-formatted field values when ACF is present.
- *
- * Live About/Contact pages store team / tv_providers as ACF repeaters (arrays),
- * not raw post_meta JSON strings. Scoped here so shared media/ID resolvers keep
- * raw get_post_meta() behavior via hectv_gql_meta().
- *
- * @param mixed  $post Post source.
- * @param string $key  Field / meta key.
- * @param mixed  $default Default.
- * @return mixed
- */
-function hectv_gql_acf_field( $post, $key, $default = null ) {
-	$id = hectv_gql_id( $post );
-	if ( ! $id ) {
-		return $default;
-	}
-	if ( function_exists( 'get_field' ) ) {
-		$acf_val = get_field( $key, $id );
-		if ( $acf_val !== null && $acf_val !== false && $acf_val !== '' ) {
-			return $acf_val;
-		}
-	}
-	return hectv_gql_meta( $post, $key, $default );
-}
-
-/**
  * Helper: coerce common truthy meta into bool|null.
  *
  * @param mixed $val Raw meta.
@@ -522,58 +496,6 @@ add_action(
 			)
 		);
 
-		register_graphql_object_type(
-			'HecContact',
-			array(
-				'description' => 'Owned staging type: page contact group.',
-				'fields'      => array(
-					'address'       => array( 'type' => 'String' ),
-					'directions'    => array( 'type' => 'String' ),
-					'faxNumber'     => array( 'type' => 'String' ),
-					'opportunities' => array( 'type' => 'String' ),
-					'phoneNumber'   => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecTvProvider',
-			array(
-				'description' => 'Owned staging type: TV provider row.',
-				'fields'      => array(
-					'provider' => array( 'type' => 'String' ),
-					'channel'  => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecTeamMember',
-			array(
-				'description' => 'Owned staging type: about.team row.',
-				'fields'      => array(
-					'email'    => array( 'type' => 'String' ),
-					'name'     => array( 'type' => 'String' ),
-					'position' => array( 'type' => 'String' ),
-				),
-			)
-		);
-
-		register_graphql_object_type(
-			'HecAbout',
-			array(
-				'description' => 'Owned staging type: page about group.',
-				'fields'      => array(
-					'phoneNumber' => array( 'type' => 'String' ),
-					'address'     => array( 'type' => 'String' ),
-					'faxNumber'   => array( 'type' => 'String' ),
-					'tvProviders' => array( 'type' => array( 'list_of' => 'HecTvProvider' ) ),
-					'team'        => array( 'type' => array( 'list_of' => 'HecTeamMember' ) ),
-					'videoId'     => array( 'type' => 'String' ),
-				),
-			)
-		);
-
 		// --- Field resolvers on core + CPT types -------------------------------
 
 		$post_details_resolve = static function ( $source ) {
@@ -747,107 +669,6 @@ add_action(
 					$id  = hectv_gql_id( $source );
 					$tpl = $id ? get_page_template_slug( $id ) : '';
 					return $tpl ? $tpl : null;
-				},
-			)
-		);
-
-		// About + Contact ACF field names (production export / REST `acf`):
-		//   address, phone_number, fax_number, directions, opportunities,
-		//   video_id, team[{name,position,email}], tv_providers[{provider,channel}]
-		// NOT prefixed about_* / contact_* — those keys never exist on live pages
-		// and left localhost:4000 /about-us and /contact-us empty against staging.
-		register_graphql_field(
-			'Page',
-			'contact',
-			array(
-				'type'    => 'HecContact',
-				'resolve' => static function ( $source ) {
-					// Prefer live ACF names via hectv_gql_acf_field; fall back to
-					// harness-prefixed seed keys. Do not use hectv_gql_meta for the
-					// primary ACF keys — that helper stays raw-meta-only.
-					$pick = static function ( $source, $primary, $legacy ) {
-						$v = hectv_gql_acf_field( $source, $primary, null );
-						return ( $v !== null && $v !== '' ) ? $v : hectv_gql_acf_field( $source, $legacy, null );
-					};
-					return array(
-						'address'       => $pick( $source, 'address', 'contact_address' ),
-						'directions'    => $pick( $source, 'directions', 'contact_directions' ),
-						'faxNumber'     => $pick( $source, 'fax_number', 'contact_fax' ),
-						'opportunities' => $pick( $source, 'opportunities', 'contact_opportunities' ),
-						'phoneNumber'   => $pick( $source, 'phone_number', 'contact_phone' ),
-					);
-				},
-			)
-		);
-
-		register_graphql_field(
-			'Page',
-			'about',
-			array(
-				'type'    => 'HecAbout',
-				'resolve' => static function ( $source ) {
-					$pick = static function ( $source, $primary, $legacy, $default = null ) {
-						$v = hectv_gql_acf_field( $source, $primary, null );
-						if ( $v !== null && $v !== '' && $v !== array() ) {
-							return $v;
-						}
-						return hectv_gql_acf_field( $source, $legacy, $default );
-					};
-					$providers = $pick( $source, 'tv_providers', 'about_tv_providers', array() );
-					$team      = $pick( $source, 'team', 'about_team', array() );
-					// Accept ACF arrays (preferred) or legacy JSON strings.
-					if ( is_string( $providers ) ) {
-						$decoded = json_decode( $providers, true );
-						$providers = is_array( $decoded ) ? $decoded : array();
-					}
-					if ( is_string( $team ) ) {
-						$decoded = json_decode( $team, true );
-						$team = is_array( $decoded ) ? $decoded : array();
-					}
-					if ( ! is_array( $providers ) ) {
-						$providers = array();
-					}
-					if ( ! is_array( $team ) ) {
-						$team = array();
-					}
-					// Normalize repeater rows to the GraphQL field names the frontend selects.
-					$providers = array_values(
-						array_map(
-							static function ( $row ) {
-								if ( ! is_array( $row ) ) {
-									return array( 'provider' => null, 'channel' => null );
-								}
-								return array(
-									'provider' => isset( $row['provider'] ) ? $row['provider'] : null,
-									'channel'  => isset( $row['channel'] ) ? $row['channel'] : null,
-								);
-							},
-							$providers
-						)
-					);
-					$team = array_values(
-						array_map(
-							static function ( $row ) {
-								if ( ! is_array( $row ) ) {
-									return array( 'email' => null, 'name' => null, 'position' => null );
-								}
-								return array(
-									'email'    => isset( $row['email'] ) ? $row['email'] : null,
-									'name'     => isset( $row['name'] ) ? $row['name'] : null,
-									'position' => isset( $row['position'] ) ? $row['position'] : null,
-								);
-							},
-							$team
-						)
-					);
-					return array(
-						'phoneNumber' => $pick( $source, 'phone_number', 'about_phone', null ),
-						'address'     => $pick( $source, 'address', 'about_address', null ),
-						'faxNumber'   => $pick( $source, 'fax_number', 'about_fax', null ),
-						'tvProviders' => $providers,
-						'team'        => $team,
-						'videoId'     => $pick( $source, 'video_id', 'about_video_id', null ),
-					);
 				},
 			)
 		);
