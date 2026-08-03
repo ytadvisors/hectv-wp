@@ -10,6 +10,7 @@ locals {
     "BUILD_TOKEN",
     "BUILD_URL",
     "JWT_AUTH_SECRET_KEY",
+    "HECTV_RECAPTCHA_SECRET_KEY",
     "LOGGED_IN_KEY",
     "LOGGED_IN_SALT",
     "NONCE_KEY",

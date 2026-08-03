@@ -119,6 +119,7 @@ Full staging lifecycle against AWS (refresh from snapshot, start/stop ECS servic
 | Doc | Purpose |
 |-----|---------|
 | [`docs/CMS-FIELDS.md`](docs/CMS-FIELDS.md) | Git-canonical ACF / site settings / menus |
+| [`docs/NEWSLETTER-INTEGRATION.md`](docs/NEWSLETTER-INTEGRATION.md) | CAPTCHA-protected React-to-WordPress Mailchimp subscription bridge |
 | [`docs/WPGRAPHQL-SCHEMA-CONTRACT.md`](docs/WPGRAPHQL-SCHEMA-CONTRACT.md) | Frontend GraphQL operations & types |
 | [`docs/WPGRAPHQL-STAGING-MODERNIZATION.md`](docs/WPGRAPHQL-STAGING-MODERNIZATION.md) | Staging modernization approach |
 | [`docs/WPGRAPHQL-MODERNIZATION-EXECUTION-PLAN.md`](docs/WPGRAPHQL-MODERNIZATION-EXECUTION-PLAN.md) | Execution plan for GraphQL modernization |
