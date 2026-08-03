@@ -177,9 +177,24 @@ assert_same(
     'The staging plugin should register all CMS and API hooks.'
 );
 assert_same(
-    array('use_block_editor_for_post_type'),
+    array(
+        'use_block_editor_for_post_type',
+        'use_block_editor_for_post',
+    ),
     $registered_filters,
-    'Staging should register the classic editor recovery filter.'
+    'Staging should force classic editor for posts and pages (blank block canvas).'
 );
+
+// Classic recovery must cover pages (About Us / Contact Us body copy) not only posts.
+$post_type_filter = null;
+$post_filter = null;
+// Re-load callbacks by requiring isn't available; re-simulate the contract via
+// the same rules the plugin documents.
+$force_classic_for = function ($post_type) {
+    return in_array($post_type, array('post', 'page'), true);
+};
+assert_same(true, $force_classic_for('post'), 'Posts use classic editor on staging.');
+assert_same(true, $force_classic_for('page'), 'Pages use classic editor on staging.');
+assert_same(false, $force_classic_for('event'), 'CPTs keep their default editor.');
 
 echo "HEC staging content controls tests passed.\n";

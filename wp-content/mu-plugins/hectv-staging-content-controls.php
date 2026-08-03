@@ -566,10 +566,31 @@ add_action('add_meta_boxes', function () {
 });
 
 // The legacy staging install can render a blank block editor when its REST
-// dependencies are unavailable. Keep draft creation/editing usable without
-// changing production by using the server-rendered editor only in staging.
+// dependencies are unavailable. That blank canvas hides the page body (About
+// Us / Contact Us content still lives in post_content, but editors cannot
+// reach it — only ACF meta boxes remain). Production still uses the block
+// editor successfully; staging forces the classic content editor for posts
+// and pages so admin matches production's ability to edit body copy.
+//
+// Scope is intentionally limited to post + page. Custom post types that rely
+// on the block editor keep the default behavior.
 add_filter('use_block_editor_for_post_type', function ($use_block_editor, $post_type) {
-    return $post_type === 'post' ? false : $use_block_editor;
+    if (in_array($post_type, array('post', 'page'), true)) {
+        return false;
+    }
+    return $use_block_editor;
+}, 100, 2);
+
+// Per-post check used by WP admin screens (post.php) — keep in lockstep with
+// the post_type filter so neither path re-enables a blank block canvas.
+add_filter('use_block_editor_for_post', function ($use_block_editor, $post) {
+    $type = is_object($post) && isset($post->post_type)
+        ? $post->post_type
+        : '';
+    if (in_array($type, array('post', 'page'), true)) {
+        return false;
+    }
+    return $use_block_editor;
 }, 100, 2);
 
 function hectv_staging_render_header_image_size_metabox($post)
