@@ -14,3 +14,11 @@ wp-content/wonolog/*
 *.tfstate
 *.tfstate.*
 terraform.tfvars
+
+# Local secrets and generated database exports must never be committed.
+.env
+.env.*
+!.env.example
+*.sql
+*.sql.gz
+*.dump

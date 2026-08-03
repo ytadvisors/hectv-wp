@@ -12,7 +12,7 @@ Built and modernized by **[YT Advisors](https://ytadvisors.com)** for the HEC cl
 >
 > It will return to **private** when that review window closes. Do not treat this clone as a long-term open-source product or as a place to file unsolicited issues.
 >
-> **Do not commit secrets.** Runtime credentials load from environment / AWS Secrets Manager. Example Terraform vars and env templates are intentional; live values are not.
+> **Do not commit secrets or data exports.** Runtime credentials must load from environment / AWS Secrets Manager. Database backups, generated dumps, and live configuration do not belong in this repository.
 
 ---
 
@@ -99,7 +99,7 @@ WordPress core is present for the EB/ECS compatibility path; staging images pref
 
 ## Quick start (local staging harness)
 
-Requires Docker. Do **not** point this harness at production credentials.
+Requires Docker, `jq`, and `curl`. Do **not** point this harness at production credentials.
 
 ```bash
 cd staging-harness
