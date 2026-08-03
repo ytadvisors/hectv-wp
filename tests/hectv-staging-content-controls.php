@@ -4,6 +4,8 @@ putenv('HECTV_ENVIRONMENT=staging');
 
 $registered_actions = array();
 $registered_filters = array();
+/** @var array<string, callable[]> */
+$registered_filter_callbacks = array();
 
 function add_action($hook, $callback)
 {
@@ -13,8 +15,12 @@ function add_action($hook, $callback)
 
 function add_filter($hook, $callback)
 {
-    global $registered_filters;
+    global $registered_filters, $registered_filter_callbacks;
     $registered_filters[] = $hook;
+    if (!isset($registered_filter_callbacks[$hook])) {
+        $registered_filter_callbacks[$hook] = array();
+    }
+    $registered_filter_callbacks[$hook][] = $callback;
 }
 
 function sanitize_key($value)
@@ -186,15 +192,64 @@ assert_same(
 );
 
 // Classic recovery must cover pages (About Us / Contact Us body copy) not only posts.
-$post_type_filter = null;
-$post_filter = null;
-// Re-load callbacks by requiring isn't available; re-simulate the contract via
-// the same rules the plugin documents.
-$force_classic_for = function ($post_type) {
-    return in_array($post_type, array('post', 'page'), true);
-};
-assert_same(true, $force_classic_for('post'), 'Posts use classic editor on staging.');
-assert_same(true, $force_classic_for('page'), 'Pages use classic editor on staging.');
-assert_same(false, $force_classic_for('event'), 'CPTs keep their default editor.');
+// Invoke the *registered* production callbacks — not a reimplemented closure —
+// so a regression that drops `page` from the live filters fails this harness.
+$post_type_callbacks = isset($registered_filter_callbacks['use_block_editor_for_post_type'])
+    ? $registered_filter_callbacks['use_block_editor_for_post_type']
+    : array();
+$post_callbacks = isset($registered_filter_callbacks['use_block_editor_for_post'])
+    ? $registered_filter_callbacks['use_block_editor_for_post']
+    : array();
+
+if (count($post_type_callbacks) < 1) {
+    fwrite(STDERR, "Expected use_block_editor_for_post_type callback to be registered.\n");
+    exit(1);
+}
+if (count($post_callbacks) < 1) {
+    fwrite(STDERR, "Expected use_block_editor_for_post callback to be registered.\n");
+    exit(1);
+}
+
+foreach ($post_type_callbacks as $callback) {
+    // Incoming true = block editor would be used; staging must force classic (false).
+    assert_same(
+        false,
+        call_user_func($callback, true, 'post'),
+        'Registered post_type filter must force classic for posts.'
+    );
+    assert_same(
+        false,
+        call_user_func($callback, true, 'page'),
+        'Registered post_type filter must force classic for pages (About/Contact body).'
+    );
+    assert_same(
+        true,
+        call_user_func($callback, true, 'event'),
+        'Registered post_type filter must preserve block editor for other CPTs.'
+    );
+    assert_same(
+        false,
+        call_user_func($callback, false, 'event'),
+        'Registered post_type filter must preserve an already-disabled block editor.'
+    );
+}
+
+foreach ($post_callbacks as $callback) {
+    assert_same(
+        false,
+        call_user_func($callback, true, (object) array('post_type' => 'post')),
+        'Registered post filter must force classic for posts.'
+    );
+    assert_same(
+        false,
+        call_user_func($callback, true, (object) array('post_type' => 'page')),
+        'Registered post filter must force classic for pages.'
+    );
+    assert_same(
+        true,
+        call_user_func($callback, true, (object) array('post_type' => 'event')),
+        'Registered post filter must preserve block editor for other CPTs.'
+    );
+}
 
 echo "HEC staging content controls tests passed.\n";
