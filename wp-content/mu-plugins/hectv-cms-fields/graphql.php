@@ -550,27 +550,30 @@ add_action(
 		);
 
 		// topbarCtas: only register if staging plugin did not already.
+		// Appearance → Menus → Header Actions is canonical (supports external
+		// PayPal Support URLs). Stale hectv_topbar_ctas options must not win.
 		add_filter(
 			'graphql_RootQuery_fields',
 			static function ( $fields ) {
 				if ( isset( $fields['topbarCtas'] ) ) {
 					$original = $fields['topbarCtas']['resolve'] ?? null;
 					$fields['topbarCtas']['resolve'] = static function ( $root, $args, $context, $info ) use ( $original ) {
+						$menu_rows = hectv_cms_get_header_action_items();
+						if ( is_array( $menu_rows ) && count( $menu_rows ) > 0 ) {
+							return $menu_rows;
+						}
 						$rows = array();
 						if ( is_callable( $original ) ) {
 							$rows = $original( $root, $args, $context, $info );
 						}
-						if ( is_array( $rows ) && count( $rows ) > 0 ) {
-							return $rows;
-						}
-						return hectv_cms_get_header_action_items();
+						return is_array( $rows ) ? $rows : array();
 					};
 					return $fields;
 				}
 
 				$fields['topbarCtas'] = array(
 					'type'        => array( 'list_of' => 'HectvTopbarCta' ),
-					'description' => 'Header action links (Support / Subscribe) from the header_actions menu.',
+					'description' => 'Header action links (Support / Subscribe) from the header_actions menu. External hosts (e.g. PayPal) are returned as absolute URLs.',
 					'resolve'     => static function () {
 						return hectv_cms_get_header_action_items();
 					},

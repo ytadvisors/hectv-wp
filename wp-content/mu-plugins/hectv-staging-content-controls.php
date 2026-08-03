@@ -297,7 +297,20 @@ add_action('graphql_register_types', function () {
         array(
             'type' => array('list_of' => 'HectvTopbarCta'),
             'resolve' => function () {
-                return hectv_staging_get_topbar_ctas();
+                // Prefer Appearance → Menus → Header Actions (may include external
+                // PayPal Support). Option table is a fallback only when the menu
+                // is empty / unassigned.
+                if (function_exists('hectv_cms_get_header_action_items')) {
+                    $menu_rows = hectv_cms_get_header_action_items();
+                    if (is_array($menu_rows) && count($menu_rows) > 0) {
+                        return $menu_rows;
+                    }
+                }
+                $option_rows = hectv_staging_get_topbar_ctas();
+                if (is_array($option_rows) && count($option_rows) > 0) {
+                    return $option_rows;
+                }
+                return hectv_staging_default_topbar_ctas();
             },
         )
     );
