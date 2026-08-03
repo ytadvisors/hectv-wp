@@ -252,6 +252,30 @@ function hectv_newsletter_accepted_response() {
 }
 
 /**
+ * Whether Mailchimp already has the member in a non-enumerating accepted state.
+ */
+function hectv_newsletter_member_is_accepted( $member ) {
+	return is_object( $member )
+		&& isset( $member->status )
+		&& in_array( $member->status, array( 'pending', 'subscribed' ), true );
+}
+
+/**
+ * Recover a concurrent upsert whose provider response failed after another
+ * request created the member. Only an observed accepted state is swallowed;
+ * transport errors and non-active states continue to fail closed.
+ */
+function hectv_newsletter_member_became_accepted( $api, $list_id, $email ) {
+	try {
+		$member = $api->get_list_member( $list_id, $email );
+	} catch ( Exception $exception ) {
+		return false;
+	}
+
+	return hectv_newsletter_member_is_accepted( $member );
+}
+
+/**
  * Add a subscriber as pending so Mailchimp owns confirmation and consent proof.
  */
 function hectv_newsletter_subscribe( $request ) {
@@ -296,13 +320,16 @@ function hectv_newsletter_subscribe( $request ) {
 		);
 	}
 
-	if ( is_object( $member ) && isset( $member->status ) ) {
-		if ( $member->status === 'subscribed' || $member->status === 'pending' ) {
-			return hectv_newsletter_accepted_response();
-		}
+	if ( hectv_newsletter_member_is_accepted( $member ) ) {
+		return hectv_newsletter_accepted_response();
 	}
 
 	try {
+		// MC4WP 4.3.3 implements add_list_member() as a subscriber-hash PUT,
+		// despite the historical method name. Keep this upsert path: it moves
+		// known inactive members back to pending and makes concurrent creates
+		// idempotent. update_list_member() is PATCH-only and cannot create a
+		// member that was absent when the request began.
 		$result = $api->add_list_member(
 			$list_id,
 			array(
@@ -316,6 +343,10 @@ function hectv_newsletter_subscribe( $request ) {
 			)
 		);
 	} catch ( Exception $exception ) {
+		if ( hectv_newsletter_member_became_accepted( $api, $list_id, $payload['email'] ) ) {
+			return hectv_newsletter_accepted_response();
+		}
+
 		return hectv_newsletter_error(
 			'hectv_newsletter_provider_error',
 			'Newsletter signup could not be completed.',

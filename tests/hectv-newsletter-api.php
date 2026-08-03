@@ -101,6 +101,23 @@ class WP_REST_Response {
 
 class MC4WP_API_Resource_Not_Found_Exception extends Exception {}
 
+require dirname( __DIR__ ) . '/wp-content/plugins/mailchimp-for-wp/includes/api/class-api-v3.php';
+
+class Hectv_Newsletter_Fake_Client {
+	public $put_calls = array();
+
+	public function put( $resource, $payload ) {
+		$this->put_calls[] = array( $resource, $payload );
+		return (object) array( 'status' => 'pending' );
+	}
+}
+
+class Hectv_Newsletter_Pinned_Api extends MC4WP_API_v3 {
+	public function __construct( $client ) {
+		$this->client = $client;
+	}
+}
+
 class Hectv_Newsletter_Test_Request {
 	private $params;
 
@@ -116,11 +133,21 @@ class Hectv_Newsletter_Test_Request {
 class Hectv_Newsletter_Fake_Api {
 	public $member;
 	public $get_exception;
+	public $get_sequence = array();
 	public $add_exception;
 	public $add_result;
+	public $get_calls = array();
 	public $add_calls = array();
 
 	public function get_list_member( $list_id, $email ) {
+		$this->get_calls[] = array( $list_id, $email );
+		if ( count( $this->get_sequence ) > 0 ) {
+			$next = array_shift( $this->get_sequence );
+			if ( $next instanceof Exception ) {
+				throw $next;
+			}
+			return $next;
+		}
 		if ( $this->get_exception ) {
 			throw $this->get_exception;
 		}
@@ -167,6 +194,27 @@ function captcha_response( $success, $hostname = 'hecmedia.org' ) {
 }
 
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-newsletter-api.php';
+
+$pinned_client = new Hectv_Newsletter_Fake_Client();
+$pinned_api    = new Hectv_Newsletter_Pinned_Api( $pinned_client );
+$pinned_result = $pinned_api->add_list_member(
+	'newsletter-list',
+	array(
+		'email_address' => 'reader@example.com',
+		'status'        => 'pending',
+	)
+);
+expect_same( 'pending', $pinned_result->status, 'The pinned provider upsert returns the member state.' );
+expect_same( 1, count( $pinned_client->put_calls ), 'The pinned add_list_member method performs one request.' );
+expect_true(
+	strpos( $pinned_client->put_calls[0][0], '/lists/newsletter-list/members/' ) === 0,
+	'The pinned provider targets the subscriber-hash member resource.'
+);
+expect_same(
+	'pending',
+	$pinned_client->put_calls[0][1]['status'],
+	'The pinned provider sends the pending double-opt-in state via PUT.'
+);
 
 foreach ( $actions['rest_api_init'] as $callback ) {
 	$callback();
@@ -240,6 +288,15 @@ expect_same( 202, $subscribed->status, 'Existing subscribers receive the same ac
 expect_same( $pending->data, $subscribed->data, 'The API cannot be used to enumerate subscribers.' );
 expect_same( 0, count( $mailchimp_api->add_calls ), 'Existing subscribers are not rewritten.' );
 
+$mailchimp_api             = new Hectv_Newsletter_Fake_Api();
+$mailchimp_api->member     = (object) array( 'status' => 'unsubscribed' );
+$mailchimp_api->add_result = (object) array( 'status' => 'pending' );
+$resubscribed              = hectv_newsletter_subscribe( newsletter_request( $valid_payload ) );
+expect_same( 202, $resubscribed->status, 'Unsubscribed members can restart double opt-in.' );
+expect_same( $pending->data, $resubscribed->data, 'Re-subscribe does not reveal the previous member state.' );
+expect_same( 1, count( $mailchimp_api->add_calls ), 'A non-active member is updated through one idempotent upsert.' );
+expect_same( 'pending', $mailchimp_api->add_calls[0][1]['status'], 'The upsert returns a non-active member to pending.' );
+
 $mailchimp_api                = new Hectv_Newsletter_Fake_Api();
 $mailchimp_api->get_exception = new MC4WP_API_Resource_Not_Found_Exception();
 $mailchimp_api->add_result    = (object) array( 'status' => 'pending' );
@@ -253,6 +310,26 @@ expect_same( 'reader@example.com', $mailchimp_api->add_calls[0][1]['email_addres
 expect_same( 'Ada', $mailchimp_api->add_calls[0][1]['merge_fields']['FNAME'], 'First name maps to Mailchimp FNAME.' );
 expect_same( 'Lovelace', $mailchimp_api->add_calls[0][1]['merge_fields']['LNAME'], 'Last name maps to Mailchimp LNAME.' );
 expect_same( 'pending', $mailchimp_api->add_calls[0][1]['status'], 'Double opt-in is mandatory.' );
+
+$mailchimp_api                = new Hectv_Newsletter_Fake_Api();
+$mailchimp_api->get_sequence  = array(
+	new MC4WP_API_Resource_Not_Found_Exception(),
+	(object) array( 'status' => 'pending' ),
+);
+$mailchimp_api->add_exception = new RuntimeException( 'concurrent provider conflict' );
+$raced                        = hectv_newsletter_subscribe( newsletter_request( $valid_payload ) );
+expect_same( 202, $raced->status, 'A concurrent create that becomes pending remains accepted.' );
+expect_same( $pending->data, $raced->data, 'Race recovery keeps the response non-enumerating.' );
+expect_same( 2, count( $mailchimp_api->get_calls ), 'Race recovery re-reads the member after the failed upsert.' );
+
+$mailchimp_api                = new Hectv_Newsletter_Fake_Api();
+$mailchimp_api->get_sequence  = array(
+	new MC4WP_API_Resource_Not_Found_Exception(),
+	new RuntimeException( 'provider still unavailable' ),
+);
+$mailchimp_api->add_exception = new RuntimeException( 'provider write failed' );
+$unrecovered                  = hectv_newsletter_subscribe( newsletter_request( $valid_payload ) );
+expect_same( 502, $unrecovered->data['status'], 'A failed upsert without an accepted member state still fails closed.' );
 
 $last_captcha_call = end( $remote_post_calls );
 expect_same( HECTV_NEWSLETTER_RECAPTCHA_VERIFY_URL, $last_captcha_call[0], 'WordPress uses the canonical reCAPTCHA verification endpoint.' );
