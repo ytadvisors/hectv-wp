@@ -5,7 +5,7 @@
  *              Trending / For Educators settings, GraphQL exposure, and header
  *              action menu location (Support / Subscribe). Source of truth lives
  *              in this repo (see hectv-cms-fields/acf-field-groups.json).
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: YT Advisors
  */
 
@@ -13,17 +13,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HECTV_CMS_FIELDS_VERSION', '1.2.0' );
+define( 'HECTV_CMS_FIELDS_VERSION', '1.3.0' );
 define( 'HECTV_CMS_FIELDS_DIR', __DIR__ . '/hectv-cms-fields' );
 
 // Option keys (site-wide — not post meta).
 define( 'HECTV_OPT_TRENDING_MAX_VIDEOS', 'hectv_trending_max_videos' );
+define( 'HECTV_OPT_TRENDING_TITLE', 'hectv_trending_title' );
+define( 'HECTV_OPT_SPOTLIGHT_TITLE', 'hectv_spotlight_title' );
+define( 'HECTV_OPT_MOBILE_DISPLAY', 'hectv_mobile_display' );
+define( 'HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED', 'hectv_newsletter_captcha_enabled' );
 define( 'HECTV_OPT_EDUCATORS_LOGO_ID', 'hectv_educators_logo_id' );
 define( 'HECTV_OPT_EDUCATORS_URL', 'hectv_educators_url' );
 define( 'HECTV_OPT_EDUCATORS_LABEL', 'hectv_educators_label' );
 
 // Post meta keys (Post Details).
 define( 'HECTV_META_IS_TRENDING', 'is_trending' );
+define( 'HECTV_META_TRENDING_ORDER', 'trending_order' );
 define( 'HECTV_META_IS_VIDEO', 'is_video' );
 define( 'HECTV_META_POST_HEADER', 'post_header' );
 define( 'HECTV_META_POST_HERO', 'post_hero' );
