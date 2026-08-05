@@ -21,7 +21,9 @@ function hectv_cms_trending_max_videos_default() {
 }
 
 function hectv_cms_mobile_display_default() {
-	return 'menu-content';
+	// Content-first matches the longstanding Next.js DEFAULT_SITE_CONTENT
+	// (mobileRailFirst: false). Unsaved options must not flip mobile rail order.
+	return 'content-menu';
 }
 
 function hectv_cms_get_trending_max_videos() {

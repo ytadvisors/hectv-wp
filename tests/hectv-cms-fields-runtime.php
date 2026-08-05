@@ -193,7 +193,8 @@ foreach ( array( HECTV_OPT_TRENDING_TITLE, HECTV_OPT_SPOTLIGHT_TITLE, HECTV_OPT_
 }
 $mobile_sanitize = $registered_settings[ HECTV_OPT_MOBILE_DISPLAY ]['config']['sanitize_callback'];
 expect_same( 'content-menu', $mobile_sanitize( 'content-menu' ), 'Mobile display accepts content-menu.' );
-expect_same( 'menu-content', $mobile_sanitize( 'unexpected' ), 'Mobile display rejects unknown values to its safe default.' );
+expect_same( 'menu-content', $mobile_sanitize( 'menu-content' ), 'Mobile display accepts menu-content.' );
+expect_same( 'content-menu', $mobile_sanitize( 'unexpected' ), 'Mobile display rejects unknown values to content-first default.' );
 $captcha_sanitize = $registered_settings[ HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED ]['config']['sanitize_callback'];
 expect_same( true, $captcha_sanitize( '1' ), 'CAPTCHA setting accepts enabled.' );
 expect_same( false, $captcha_sanitize( '0' ), 'CAPTCHA setting accepts disabled.' );
@@ -215,7 +216,7 @@ $trending_settings = $graphql_fields['RootQuery']['trendingSettings']['resolve']
 expect_same( 5, $trending_settings['maxVideos'], 'Trending settings use the default max.' );
 expect_same( 'Trending Now', $trending_settings['trendingTitle'], 'Trending heading defaults safely.' );
 expect_same( 'Spotlight STL', $trending_settings['spotlightTitle'], 'Spotlight heading defaults safely.' );
-expect_same( 'menu-content', $trending_settings['mobileDisplay'], 'Mobile display defaults to menu before content.' );
+expect_same( 'content-menu', $trending_settings['mobileDisplay'], 'Mobile display defaults to content before menu.' );
 expect_same( true, $graphql_fields['RootQuery']['newsletterSettings']['resolve']()['captchaEnabled'], 'Newsletter CAPTCHA defaults on.' );
 
 $options = array(
