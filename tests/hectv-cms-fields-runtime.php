@@ -13,6 +13,7 @@ $graphql_types       = array();
 $graphql_fields      = array();
 $acf_groups          = array();
 $acf_fields          = array();
+$registered_settings = array();
 $existing_acf_groups = array(
 	array( 'key' => 'group_legacy_post_details', 'title' => 'Post Details' ),
 	array( 'key' => 'group_legacy_about', 'title' => 'About' ),
@@ -42,6 +43,14 @@ function register_graphql_object_type( $name, $config ) {
 function register_graphql_field( $type, $name, $config ) {
 	global $graphql_fields;
 	$graphql_fields[ $type ][ $name ] = $config;
+}
+
+function register_setting( $group, $name, $config ) {
+	global $registered_settings;
+	$registered_settings[ $name ] = array(
+		'group'  => $group,
+		'config' => $config,
+	);
 }
 
 function acf_get_field_groups() {
@@ -123,8 +132,10 @@ class WP_Post {
 	public $ID;
 	public $post_status = 'publish';
 	public $post_type = 'post';
-	public function __construct( $id ) {
+	public $post_date_gmt = '';
+	public function __construct( $id, $post_date_gmt = '' ) {
 		$this->ID = (int) $id;
+		$this->post_date_gmt = $post_date_gmt;
 	}
 }
 
@@ -171,6 +182,22 @@ function expect_true( $cond, $message ) {
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-content-controls.php';
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cms-fields.php';
 
+foreach ( $actions['admin_init'] as $callbacks ) {
+	foreach ( $callbacks as $callback ) {
+		$callback();
+	}
+}
+
+foreach ( array( HECTV_OPT_TRENDING_TITLE, HECTV_OPT_SPOTLIGHT_TITLE, HECTV_OPT_MOBILE_DISPLAY, HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED ) as $option_name ) {
+	expect_true( isset( $registered_settings[ $option_name ] ), "Site Settings registers $option_name." );
+}
+$mobile_sanitize = $registered_settings[ HECTV_OPT_MOBILE_DISPLAY ]['config']['sanitize_callback'];
+expect_same( 'content-menu', $mobile_sanitize( 'content-menu' ), 'Mobile display accepts content-menu.' );
+expect_same( 'menu-content', $mobile_sanitize( 'unexpected' ), 'Mobile display rejects unknown values to its safe default.' );
+$captcha_sanitize = $registered_settings[ HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED ]['config']['sanitize_callback'];
+expect_same( true, $captcha_sanitize( '1' ), 'CAPTCHA setting accepts enabled.' );
+expect_same( false, $captcha_sanitize( '0' ), 'CAPTCHA setting accepts disabled.' );
+
 expect_same( false, $filters['acf/settings/show_admin'][99][0](), 'Git-canonical ACF hides the Custom Fields schema menu by default.' );
 
 foreach ( $actions['graphql_register_types'] as $callbacks ) {
@@ -182,6 +209,27 @@ foreach ( $actions['graphql_register_types'] as $callbacks ) {
 expect_same( true, isset( $graphql_types['HectvForEducators'] ), 'Staging educator type should remain registered.' );
 expect_same( true, isset( $graphql_types['HectvForEducatorsCard'] ), 'CMS educator card must use a distinct type.' );
 expect_same( 'HectvForEducatorsCard', $graphql_fields['RootQuery']['forEducators']['type'], 'forEducators should use the collision-free type.' );
+expect_same( true, isset( $graphql_types['HectvNewsletterSettings'] ), 'Newsletter settings GraphQL type registered.' );
+
+$trending_settings = $graphql_fields['RootQuery']['trendingSettings']['resolve']();
+expect_same( 5, $trending_settings['maxVideos'], 'Trending settings use the default max.' );
+expect_same( 'Trending Now', $trending_settings['trendingTitle'], 'Trending heading defaults safely.' );
+expect_same( 'Spotlight STL', $trending_settings['spotlightTitle'], 'Spotlight heading defaults safely.' );
+expect_same( 'menu-content', $trending_settings['mobileDisplay'], 'Mobile display defaults to menu before content.' );
+expect_same( true, $graphql_fields['RootQuery']['newsletterSettings']['resolve']()['captchaEnabled'], 'Newsletter CAPTCHA defaults on.' );
+
+$options = array(
+	HECTV_OPT_TRENDING_TITLE             => 'What is popular',
+	HECTV_OPT_SPOTLIGHT_TITLE            => 'Community Spotlight',
+	HECTV_OPT_MOBILE_DISPLAY             => 'content-menu',
+	HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED => '0',
+);
+$custom_settings = $graphql_fields['RootQuery']['trendingSettings']['resolve']();
+expect_same( 'What is popular', $custom_settings['trendingTitle'], 'Trending heading reads Site Settings.' );
+expect_same( 'Community Spotlight', $custom_settings['spotlightTitle'], 'Spotlight heading reads Site Settings.' );
+expect_same( 'content-menu', $custom_settings['mobileDisplay'], 'Mobile display reads Site Settings.' );
+expect_same( false, $graphql_fields['RootQuery']['newsletterSettings']['resolve']()['captchaEnabled'], 'Newsletter CAPTCHA can be disabled in Site Settings.' );
+$options = array();
 
 $root_fields = array(
 	'topbarCtas' => $graphql_fields['RootQuery']['topbarCtas'],
@@ -204,7 +252,7 @@ $trending         = $graphql_fields['RootQuery']['trendingPosts']['resolve']( nu
 expect_same( array(), $trending, 'Empty query results should return an empty GraphQL list.' );
 expect_same( 2, count( $wp_query_log ), 'Empty rail runs trending query then backfill query.' );
 expect_same( HECTV_META_IS_TRENDING, $wp_query_log[0]['meta_query'][0]['key'], 'First query filters is_trending.' );
-expect_same( 3, $wp_query_log[0]['posts_per_page'], 'Trending query uses requested limit.' );
+expect_same( -1, $wp_query_log[0]['posts_per_page'], 'Trending query loads all flagged posts before applying editor order.' );
 expect_true( empty( $wp_query_log[1]['meta_query'] ), 'Backfill query is most-recent without is_trending filter.' );
 expect_same( 3, $wp_query_log[1]['posts_per_page'], 'Backfill asks for remaining slots (full limit when none trending).' );
 
@@ -240,18 +288,40 @@ $full = hectv_cms_query_trending_posts( 3 );
 expect_same( 3, count( $full ), 'When enough trending posts exist, return exactly the limit.' );
 expect_same( 1, count( $wp_query_log ), 'No backfill query when trending set already full.' );
 
+// Per-post order wins over publish date; positive positions precede unset rows.
+$GLOBALS['hectv_test_meta'] = array(
+	101 => array( HECTV_META_TRENDING_ORDER => '3' ),
+	102 => array( HECTV_META_TRENDING_ORDER => '1' ),
+	103 => array( HECTV_META_TRENDING_ORDER => '' ),
+	104 => array( HECTV_META_TRENDING_ORDER => '2' ),
+);
+$wp_query_log     = array();
+$wp_query_fixture = array(
+	'trending' => array(
+		new WP_Post( 101, '2026-08-05 12:00:00' ),
+		new WP_Post( 102, '2026-07-01 12:00:00' ),
+		new WP_Post( 103, '2026-08-06 12:00:00' ),
+		new WP_Post( 104, '2026-06-01 12:00:00' ),
+	),
+	'fill'     => array(),
+);
+$ordered = hectv_cms_query_trending_posts( 4 );
+expect_same( array( 102, 104, 101, 103 ), array_map( static function ( $post ) { return (int) $post->ID; }, $ordered ), 'Trending posts follow their per-post numeric order before unordered posts.' );
+
 // Config default size when first omitted (options stub → default 5).
+$GLOBALS['hectv_test_meta'] = array();
 $wp_query_log     = array();
 $wp_query_fixture = array( 'trending' => array(), 'fill' => array() );
 hectv_cms_query_trending_posts( null );
-expect_same( 5, $wp_query_log[0]['posts_per_page'], 'Default limit comes from trending max config (5).' );
+expect_same( -1, $wp_query_log[0]['posts_per_page'], 'Default-sized rail still loads all flagged posts for ordering.' );
 
 // postDetails GraphQL type + field must be registered with integrated ACF fields.
 expect_same( true, isset( $graphql_types['HecPostDetails'] ), 'HecPostDetails type registered.' );
 expect_same( true, isset( $graphql_fields['Post']['postDetails'] ), 'Post.postDetails field registered.' );
 expect_same( true, isset( $graphql_fields['Post']['isTrending'] ), 'Post.isTrending field registered.' );
+expect_same( true, isset( $graphql_fields['Post']['trendingOrder'] ), 'Post.trendingOrder field registered.' );
 $pd_fields = $graphql_types['HecPostDetails']['fields'];
-foreach ( array( 'youtubeId', 'vimeoId', 'embedUrl', 'isVideo', 'isTrending', 'videoImage', 'postHeader', 'postHero', 'showPodcasts', 'hidePageThumbnail', 'pollForUpdates', 'relatedPosts', 'postEvents', 'broadcastLocation', 'internalId', 'duration' ) as $fname ) {
+foreach ( array( 'youtubeId', 'vimeoId', 'embedUrl', 'isVideo', 'isTrending', 'trendingOrder', 'videoImage', 'postHeader', 'postHero', 'showPodcasts', 'hidePageThumbnail', 'pollForUpdates', 'relatedPosts', 'postEvents', 'broadcastLocation', 'internalId', 'duration' ) as $fname ) {
 	expect_true( isset( $pd_fields[ $fname ] ), "HecPostDetails includes $fname" );
 }
 
@@ -260,6 +330,7 @@ $GLOBALS['hectv_test_meta'] = array(
 	7 => array(
 		'is_video'       => '1',
 		'is_trending'    => '1',
+		'trending_order' => '2',
 		'youtube_id'     => 'yt-abc',
 		'vimeo_id'       => 'vim-9',
 		'embed_url'      => 'https://example.test/embed',
@@ -273,6 +344,7 @@ $GLOBALS['hectv_test_meta'] = array(
 $details = $graphql_fields['Post']['postDetails']['resolve']( (object) array( 'databaseId' => 7 ) );
 expect_same( true, $details['isVideo'], 'postDetails.isVideo from meta' );
 expect_same( true, $details['isTrending'], 'postDetails.isTrending from meta' );
+expect_same( 2, $details['trendingOrder'], 'postDetails.trendingOrder from meta' );
 expect_same( 'yt-abc', $details['youtubeId'], 'postDetails.youtubeId from meta' );
 expect_same( 'vim-9', $details['vimeoId'], 'postDetails.vimeoId from meta' );
 expect_same( 'https://example.test/embed', $details['embedUrl'], 'postDetails.embedUrl from meta' );
@@ -340,7 +412,7 @@ expect_true(
 );
 // Required children must all be present (legacy + trending + hero). Avoid a brittle
 // hard-coded total that drifts whenever a single field is added.
-foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POST_HERO, HECTV_META_IS_TRENDING ) as $need ) {
+foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POST_HERO, HECTV_META_IS_TRENDING, HECTV_META_TRENDING_ORDER ) as $need ) {
 	expect_true( in_array( $need, $existing_names, true ), "Existing Post Details overlay includes $need" );
 }
 expect_same( count( $existing_names ), count( array_unique( $existing_names ) ), 'overlay field names are unique' );
@@ -406,6 +478,7 @@ foreach ( (array) $pd['fields'] as $field ) {
 expect_true( in_array( 'is_video', $names, true ), 'Clean Post Details includes legacy is_video.' );
 expect_true( in_array( 'youtube_id', $names, true ), 'Clean Post Details includes legacy youtube_id.' );
 expect_true( in_array( HECTV_META_IS_TRENDING, $names, true ), 'Clean Post Details includes git-owned is_trending.' );
+expect_true( in_array( HECTV_META_TRENDING_ORDER, $names, true ), 'Clean Post Details includes git-owned trending_order.' );
 
 // When Post Details is registered with nested is_trending, no separate acf_add_local_field is needed.
 $trending_attaches = array_values(
@@ -417,5 +490,15 @@ $trending_attaches = array_values(
 	)
 );
 expect_same( array(), $trending_attaches, 'is_trending should be nested in Post Details fields, not double-attached.' );
+
+$order_attaches = array_values(
+	array_filter(
+		$acf_fields,
+		static function ( $f ) {
+			return isset( $f['name'] ) && $f['name'] === HECTV_META_TRENDING_ORDER;
+		}
+	)
+);
+expect_same( array(), $order_attaches, 'trending_order should be nested in Post Details fields, not double-attached.' );
 
 echo "HEC CMS fields runtime contracts passed.\n";

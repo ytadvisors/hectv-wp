@@ -195,6 +195,8 @@ function captcha_response( $success, $hostname = 'hecmedia.org' ) {
 
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-newsletter-api.php';
 
+expect_same( true, hectv_newsletter_captcha_enabled(), 'CAPTCHA defaults on when Site Settings has not been saved.' );
+
 $pinned_client = new Hectv_Newsletter_Fake_Client();
 $pinned_api    = new Hectv_Newsletter_Pinned_Api( $pinned_client );
 $pinned_result = $pinned_api->add_list_member(
@@ -280,6 +282,19 @@ $pending               = hectv_newsletter_subscribe( newsletter_request( $valid_
 expect_same( 202, $pending->status, 'Already-pending subscribers remain an accepted request.' );
 expect_same( 'accepted', $pending->data['status'], 'The response does not reveal member state.' );
 expect_same( 0, count( $mailchimp_api->add_calls ), 'A retry does not resend the double-opt-in request.' );
+
+// The WordPress setting is authoritative: when explicitly disabled, a missing
+// browser token reaches Mailchimp without contacting Google.
+$options['hectv_newsletter_captcha_enabled'] = '0';
+$captcha_free_payload = $valid_payload;
+unset( $captcha_free_payload['captchaToken'] );
+$captcha_calls_before = count( $remote_post_calls );
+$mailchimp_api         = new Hectv_Newsletter_Fake_Api();
+$mailchimp_api->member = (object) array( 'status' => 'pending' );
+$captcha_free          = hectv_newsletter_subscribe( newsletter_request( $captcha_free_payload ) );
+expect_same( 202, $captcha_free->status, 'Site Settings can disable CAPTCHA for newsletter signup.' );
+expect_same( $captcha_calls_before, count( $remote_post_calls ), 'Disabled CAPTCHA never calls the Google verification endpoint.' );
+$options['hectv_newsletter_captcha_enabled'] = '1';
 
 $mailchimp_api         = new Hectv_Newsletter_Fake_Api();
 $mailchimp_api->member = (object) array( 'status' => 'subscribed' );

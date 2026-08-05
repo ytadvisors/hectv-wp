@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: HEC newsletter API
- * Description: CAPTCHA-protected bridge from HEC Media to Mailchimp for WordPress.
+ * Description: Site-controlled newsletter bridge from HEC Media to Mailchimp for WordPress.
  */
 
 define( 'HECTV_NEWSLETTER_AUDIENCE_NAME', 'Newsletter Master' );
@@ -45,6 +45,22 @@ function hectv_newsletter_delivery_enabled() {
 
 	return getenv( 'HECTV_ENVIRONMENT' ) === 'production'
 		|| getenv( 'HECTV_NEWSLETTER_ALLOW_NON_PRODUCTION' ) === '1';
+}
+
+/**
+ * WordPress is the authority for whether the public newsletter route requires
+ * CAPTCHA. The option defaults on and remains available even if the CMS fields
+ * MU-plugin is temporarily unavailable or loads after this file in a test.
+ */
+function hectv_newsletter_captcha_enabled() {
+	$option_name = defined( 'HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED' )
+		? HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED
+		: 'hectv_newsletter_captcha_enabled';
+	$value = get_option( $option_name, '1' );
+	if ( is_bool( $value ) ) {
+		return $value;
+	}
+	return ! in_array( strtolower( trim( (string) $value ) ), array( '0', 'false', 'off', 'no' ), true );
 }
 
 /**
@@ -214,6 +230,7 @@ function hectv_newsletter_payload( $request ) {
 	$captcha_token = isset( $data['captchaToken'] ) && is_string( $data['captchaToken'] )
 		? trim( $data['captchaToken'] )
 		: '';
+	$captcha_required = hectv_newsletter_captcha_enabled();
 
 	if (
 		$first_name === ''
@@ -221,7 +238,7 @@ function hectv_newsletter_payload( $request ) {
 		|| ! is_email( $email )
 		|| ! isset( $data['consent'] )
 		|| $data['consent'] !== true
-		|| strlen( $captcha_token ) < 10
+		|| ( $captcha_required && strlen( $captcha_token ) < 10 )
 		|| strlen( $captcha_token ) > 4096
 	) {
 		return hectv_newsletter_error(
@@ -292,9 +309,11 @@ function hectv_newsletter_subscribe( $request ) {
 		return $payload;
 	}
 
-	$captcha = hectv_newsletter_verify_captcha( $payload['captcha'] );
-	if ( is_wp_error( $captcha ) ) {
-		return $captcha;
+	if ( hectv_newsletter_captcha_enabled() ) {
+		$captcha = hectv_newsletter_verify_captcha( $payload['captcha'] );
+		if ( is_wp_error( $captcha ) ) {
+			return $captcha;
+		}
 	}
 
 	$list_id = hectv_newsletter_audience_id();

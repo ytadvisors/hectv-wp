@@ -10,8 +10,8 @@
  *  2. Register every exported group as one complete same-key local group. The
  *     local definition overlays a database copy instead of creating a second
  *     metabox, so PHP and GraphQL cannot drift from admin-created definitions.
- *  3. Always ensure the git-owned Trending field (`is_trending`) is nested in
- *     that complete Post Details definition.
+ *  3. Always ensure the git-owned Trending fields (`is_trending` and
+ *     `trending_order`) are nested in that complete Post Details definition.
  *  4. If an older database group has the same title under a different group
  *     key, reuse that active key while retaining the exported field keys.
  */
@@ -41,6 +41,9 @@ define( 'HECTV_ACF_POST_DETAILS_KEY', 'group_5a9bf131f2b91' );
 
 /** Git-owned Trending field key. */
 define( 'HECTV_ACF_IS_TRENDING_KEY', 'field_hectv_is_trending' );
+
+/** Git-owned per-post Trending order field key. */
+define( 'HECTV_ACF_TRENDING_ORDER_KEY', 'field_hectv_trending_order' );
 
 /**
  * Path to the exported field-group JSON.
@@ -119,37 +122,112 @@ function hectv_cms_is_trending_field( $parent_group_key ) {
 }
 
 /**
- * Inject is_trending into a Post Details group field list if missing.
+ * Per-post display position for Trending Now.
+ *
+ * @param string $parent_group_key Parent field group key.
+ * @return array<string, mixed>
+ */
+function hectv_cms_trending_order_field( $parent_group_key ) {
+	return array(
+		'key'               => HECTV_ACF_TRENDING_ORDER_KEY,
+		'parent'            => $parent_group_key,
+		'label'             => 'Trending order',
+		'name'              => HECTV_META_TRENDING_ORDER,
+		'type'              => 'number',
+		'instructions'      => 'Position in the Trending Now list. Use each number once: 1 is first, 2 is second, and so on. Empty positions follow ordered posts.',
+		'required'          => 0,
+		'min'               => 1,
+		'step'              => 1,
+		'default_value'     => '',
+		'conditional_logic' => array(
+			array(
+				array(
+					'field'    => HECTV_ACF_IS_TRENDING_KEY,
+					'operator' => '==',
+					'value'    => '1',
+				),
+			),
+		),
+		'wrapper'           => array(
+			'width' => '',
+			'class' => '',
+			'id'    => '',
+		),
+	);
+}
+
+/**
+ * Inject both Trending controls into a Post Details group if missing.
  *
  * @param array<string, mixed> $group Field group.
  * @return array<string, mixed>
  */
-function hectv_cms_with_is_trending( array $group ) {
-	$fields = isset( $group['fields'] ) && is_array( $group['fields'] ) ? $group['fields'] : array();
+function hectv_cms_with_trending_controls( array $group ) {
+	$fields       = isset( $group['fields'] ) && is_array( $group['fields'] ) ? $group['fields'] : array();
+	$has_trending = false;
+	$has_order    = false;
 	foreach ( $fields as $field ) {
-		if ( isset( $field['name'] ) && $field['name'] === HECTV_META_IS_TRENDING ) {
-			return $group;
+		if (
+			( isset( $field['name'] ) && $field['name'] === HECTV_META_IS_TRENDING )
+			|| ( isset( $field['key'] ) && $field['key'] === HECTV_ACF_IS_TRENDING_KEY )
+		) {
+			$has_trending = true;
 		}
-		if ( isset( $field['key'] ) && $field['key'] === HECTV_ACF_IS_TRENDING_KEY ) {
-			return $group;
+		if (
+			( isset( $field['name'] ) && $field['name'] === HECTV_META_TRENDING_ORDER )
+			|| ( isset( $field['key'] ) && $field['key'] === HECTV_ACF_TRENDING_ORDER_KEY )
+		) {
+			$has_order = true;
 		}
 	}
+	if ( $has_trending && $has_order ) {
+		return $group;
+	}
 
-	// Place Trending near the top, after is_video when present.
 	$trending = hectv_cms_is_trending_field( $group['key'] );
-	unset( $trending['parent'] ); // Parent is implied when nested under group.fields.
+	$order    = hectv_cms_trending_order_field( $group['key'] );
+	unset( $trending['parent'], $order['parent'] ); // Parent is implied under group.fields.
 
-	$inserted = false;
-	$out      = array();
+	$out                = array();
+	$trending_inserted  = $has_trending;
+	$order_inserted     = $has_order;
 	foreach ( $fields as $field ) {
+		$field_name = isset( $field['name'] ) ? (string) $field['name'] : '';
+		if ( ! $trending_inserted && $field_name === HECTV_META_TRENDING_ORDER ) {
+			$out[]              = $trending;
+			$trending_inserted = true;
+		}
 		$out[] = $field;
-		if ( ! $inserted && isset( $field['name'] ) && $field['name'] === 'is_video' ) {
-			$out[]    = $trending;
-			$inserted = true;
+		if ( ! $order_inserted && $field_name === HECTV_META_IS_TRENDING ) {
+			$out[]          = $order;
+			$order_inserted = true;
+		}
+		if ( $field_name === 'is_video' && ! $trending_inserted ) {
+			$out[]              = $trending;
+			$trending_inserted = true;
+			if ( ! $order_inserted ) {
+				$out[]          = $order;
+				$order_inserted = true;
+			}
 		}
 	}
-	if ( ! $inserted ) {
+	if ( ! $trending_inserted ) {
 		array_unshift( $out, $trending );
+		$trending_inserted = true;
+	}
+	if ( ! $order_inserted ) {
+		$trending_index = null;
+		foreach ( $out as $index => $field ) {
+			if ( isset( $field['name'] ) && $field['name'] === HECTV_META_IS_TRENDING ) {
+				$trending_index = $index;
+				break;
+			}
+		}
+		if ( $trending_index === null ) {
+			$out[] = $order;
+		} else {
+			array_splice( $out, $trending_index + 1, 0, array( $order ) );
+		}
 	}
 
 	$group['fields'] = $out;
@@ -187,7 +265,7 @@ function hectv_cms_normalize_local_group( array $group ) {
 	}
 
 	if ( isset( $group['title'] ) && $group['title'] === 'Post Details' ) {
-		$group = hectv_cms_with_is_trending( $group );
+		$group = hectv_cms_with_trending_controls( $group );
 	}
 
 	return $group;
@@ -346,11 +424,14 @@ function hectv_cms_register_acf_groups() {
 		);
 	}
 
-	// Full exported Post Details already nests is_trending. Only the last-resort
-	// fallback needs a separately attached field.
+	// The complete Post Details overlay already nests both Trending controls.
+	// Only the last-resort fallback needs separately attached fields.
 	if ( $registered_post_details_key === null ) {
 		if ( ! hectv_cms_group_has_field( $parent, HECTV_META_IS_TRENDING ) ) {
 			acf_add_local_field( hectv_cms_is_trending_field( $parent ) );
+		}
+		if ( ! hectv_cms_group_has_field( $parent, HECTV_META_TRENDING_ORDER ) ) {
+			acf_add_local_field( hectv_cms_trending_order_field( $parent ) );
 		}
 	}
 }
@@ -360,7 +441,7 @@ add_action( 'acf/init', 'hectv_cms_register_acf_groups' );
 /**
  * Register core post meta for REST/admin tools that do not go through ACF.
  *
- * Covers legacy Post Details scalars plus the git-owned Trending flag so meta
+ * Covers legacy Post Details scalars plus the git-owned Trending controls so meta
  * remains readable even when ACF is offline.
  */
 add_action(
@@ -415,6 +496,21 @@ add_action(
 		register_post_meta( 'post', HECTV_META_POST_HEADER, $number_args );
 		register_post_meta( 'post', HECTV_META_POST_HERO, $number_args );
 		register_post_meta( 'post', HECTV_META_VIDEO_IMAGE, $number_args );
+		register_post_meta(
+			'post',
+			HECTV_META_TRENDING_ORDER,
+			array(
+				'type'              => 'integer',
+				'single'            => true,
+				'show_in_rest'      => true,
+				'auth_callback'     => static function () {
+					return current_user_can( 'edit_posts' );
+				},
+				'sanitize_callback' => static function ( $value ) {
+					return max( 0, (int) $value );
+				},
+			)
+		);
 
 		// Poll interval / flag (export type is number).
 		register_post_meta( 'post', HECTV_META_POLL_FOR_UPDATES, $number_args );

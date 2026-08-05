@@ -1,7 +1,9 @@
 <?php
 /**
  * Site-wide settings (not post custom fields):
+ *  - Trending / Spotlight headings and mobile rail placement
  *  - Trending max videos
+ *  - Newsletter CAPTCHA toggle
  *  - For Educators logo image + destination URL
  *
  * Uses the Settings API so it works without ACF Pro options pages.
@@ -18,6 +20,10 @@ function hectv_cms_trending_max_videos_default() {
 	return 5;
 }
 
+function hectv_cms_mobile_display_default() {
+	return 'menu-content';
+}
+
 function hectv_cms_get_trending_max_videos() {
 	$raw = get_option( HECTV_OPT_TRENDING_MAX_VIDEOS, hectv_cms_trending_max_videos_default() );
 	$n   = (int) $raw;
@@ -28,6 +34,46 @@ function hectv_cms_get_trending_max_videos() {
 		$n = 50;
 	}
 	return $n;
+}
+
+/**
+ * Return a non-empty, plain-text option or its editorial default.
+ *
+ * @param string $option_name Option key.
+ * @param string $default     Display fallback.
+ * @return string
+ */
+function hectv_cms_get_heading( $option_name, $default ) {
+	$value = trim( (string) get_option( $option_name, $default ) );
+	return $value !== '' ? $value : $default;
+}
+
+function hectv_cms_get_trending_title() {
+	return hectv_cms_get_heading( HECTV_OPT_TRENDING_TITLE, 'Trending Now' );
+}
+
+function hectv_cms_get_spotlight_title() {
+	return hectv_cms_get_heading( HECTV_OPT_SPOTLIGHT_TITLE, 'Spotlight STL' );
+}
+
+function hectv_cms_get_mobile_display() {
+	$value = (string) get_option( HECTV_OPT_MOBILE_DISPLAY, hectv_cms_mobile_display_default() );
+	return in_array( $value, array( 'content-menu', 'menu-content' ), true )
+		? $value
+		: hectv_cms_mobile_display_default();
+}
+
+/**
+ * CAPTCHA is enabled unless the saved option is explicitly false-like.
+ *
+ * @return bool
+ */
+function hectv_cms_newsletter_captcha_enabled() {
+	$value = get_option( HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED, '1' );
+	if ( is_bool( $value ) ) {
+		return $value;
+	}
+	return ! in_array( strtolower( trim( (string) $value ) ), array( '0', 'false', 'off', 'no' ), true );
 }
 
 function hectv_cms_get_educators_settings() {
@@ -81,6 +127,53 @@ add_action(
 					return $n;
 				},
 				'default'           => hectv_cms_trending_max_videos_default(),
+			)
+		);
+
+		register_setting(
+			'hectv_site_settings',
+			HECTV_OPT_TRENDING_TITLE,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => 'Trending Now',
+			)
+		);
+
+		register_setting(
+			'hectv_site_settings',
+			HECTV_OPT_SPOTLIGHT_TITLE,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => 'Spotlight STL',
+			)
+		);
+
+		register_setting(
+			'hectv_site_settings',
+			HECTV_OPT_MOBILE_DISPLAY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => static function ( $value ) {
+					$value = (string) $value;
+					return in_array( $value, array( 'content-menu', 'menu-content' ), true )
+						? $value
+						: hectv_cms_mobile_display_default();
+				},
+				'default'           => hectv_cms_mobile_display_default(),
+			)
+		);
+
+		register_setting(
+			'hectv_site_settings',
+			HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED,
+			array(
+				'type'              => 'boolean',
+				'sanitize_callback' => static function ( $value ) {
+					return in_array( $value, array( true, 1, '1', 'true', 'on' ), true );
+				},
+				'default'           => true,
 			)
 		);
 
@@ -146,10 +239,14 @@ function hectv_cms_render_site_settings_page() {
 		return;
 	}
 
-	$max     = hectv_cms_get_trending_max_videos();
-	$edu     = hectv_cms_get_educators_settings();
-	$logo_id = $edu['logo_id'] ? (int) $edu['logo_id'] : 0;
-	$preview = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+	$max             = hectv_cms_get_trending_max_videos();
+	$trending_title  = hectv_cms_get_trending_title();
+	$spotlight_title = hectv_cms_get_spotlight_title();
+	$mobile_display  = hectv_cms_get_mobile_display();
+	$captcha_enabled = hectv_cms_newsletter_captcha_enabled();
+	$edu             = hectv_cms_get_educators_settings();
+	$logo_id         = $edu['logo_id'] ? (int) $edu['logo_id'] : 0;
+	$preview         = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
 	?>
 	<div class="wrap">
 		<h1>HEC Site Settings</h1>
@@ -164,6 +261,45 @@ function hectv_cms_render_site_settings_page() {
 
 			<h2>Trending Now</h2>
 			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="hectv_trending_title">Trending heading</label></th>
+					<td>
+						<input
+							name="<?php echo esc_attr( HECTV_OPT_TRENDING_TITLE ); ?>"
+							id="hectv_trending_title"
+							type="text"
+							class="regular-text"
+							value="<?php echo esc_attr( $trending_title ); ?>"
+						/>
+						<p class="description">Heading displayed above the Trending Now list.</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="hectv_spotlight_title">Spotlight heading</label></th>
+					<td>
+						<input
+							name="<?php echo esc_attr( HECTV_OPT_SPOTLIGHT_TITLE ); ?>"
+							id="hectv_spotlight_title"
+							type="text"
+							class="regular-text"
+							value="<?php echo esc_attr( $spotlight_title ); ?>"
+						/>
+						<p class="description">Heading displayed above the Spotlight STL list.</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="hectv_mobile_display">Mobile display</label></th>
+					<td>
+						<select
+							name="<?php echo esc_attr( HECTV_OPT_MOBILE_DISPLAY ); ?>"
+							id="hectv_mobile_display"
+						>
+							<option value="content-menu" <?php selected( $mobile_display, 'content-menu' ); ?>>Content, then menu</option>
+							<option value="menu-content" <?php selected( $mobile_display, 'menu-content' ); ?>>Menu, then content</option>
+						</select>
+						<p class="description">Controls whether the main page content or the right-hand menu appears first on mobile.</p>
+					</td>
+				</tr>
 				<tr>
 					<th scope="row"><label for="hectv_trending_max_videos">Max videos to show</label></th>
 					<td>
@@ -180,6 +316,30 @@ function hectv_cms_render_site_settings_page() {
 							Maximum number of posts with <strong>Post Details → Trending</strong> checked
 							that the Trending Now rail should return (default 5).
 						</p>
+					</td>
+				</tr>
+			</table>
+
+			<h2>Newsletter</h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">CAPTCHA</th>
+					<td>
+						<input
+							type="hidden"
+							name="<?php echo esc_attr( HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED ); ?>"
+							value="0"
+						/>
+						<label>
+							<input
+								type="checkbox"
+								name="<?php echo esc_attr( HECTV_OPT_NEWSLETTER_CAPTCHA_ENABLED ); ?>"
+								value="1"
+								<?php checked( $captcha_enabled ); ?>
+							/>
+							Require CAPTCHA for newsletter signup
+						</label>
+						<p class="description">Enabled by default. Turn this off only for controlled testing; public signups will have less spam protection.</p>
 					</td>
 				</tr>
 			</table>

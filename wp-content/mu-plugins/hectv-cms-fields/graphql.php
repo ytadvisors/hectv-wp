@@ -5,16 +5,17 @@
  * Owns the frontend contracts for Page.about, Page.contact, and Post.postDetails
  * so integrated ACF field groups are queryable without legacy wp-graphql-acf:
  *
- * - Post.postDetails { isVideo, isTrending, youtubeId, vimeoId, embedUrl,
+ * - Post.postDetails { isVideo, isTrending, trendingOrder, youtubeId, vimeoId, embedUrl,
  *     postHeader, postHero, videoImage, showPodcasts, hidePageThumbnail, pollForUpdates,
  *     broadcastLocation, internalId, duration, relatedPosts, postEvents }
- * - Post.isTrending
+ * - Post.isTrending / Post.trendingOrder
  * - Page.about { address, phoneNumber, faxNumber, videoId, team,
  *     tvProviders, partnerLogos, publicSchoolPartners,
  *     higherEducationPartners, boardOfDirectors }
  * - Page.contact { address, phoneNumber, faxNumber, directions,
  *     opportunities, contactSubjects }
- * - RootQuery.trendingSettings / forEducators / trendingPosts / topbarCtas
+ * - RootQuery.trendingSettings / newsletterSettings / forEducators /
+ *     trendingPosts / topbarCtas
  *
  * When staging-compat already registered the same types/fields, we still ensure
  * a complete postDetails resolver (filter priority 50) so incomplete types cannot
@@ -119,6 +120,17 @@ function hectv_cms_gql_float( $val ) {
 		return null;
 	}
 	return (float) $val;
+}
+
+/**
+ * Coerce a one-based ordering value into a GraphQL Int, or null when unset.
+ *
+ * @param mixed $val Raw meta.
+ * @return int|null
+ */
+function hectv_cms_gql_positive_int( $val ) {
+	$val = (int) $val;
+	return $val > 0 ? $val : null;
 }
 
 /**
@@ -297,6 +309,7 @@ function hectv_cms_resolve_post_details( $source ) {
 		'postHero'           => hectv_cms_gql_media_model( hectv_cms_gql_meta( $id, HECTV_META_POST_HERO ) ),
 		'isVideo'            => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_IS_VIDEO, '0' ) ),
 		'isTrending'         => hectv_cms_gql_bool( hectv_cms_gql_meta( $id, HECTV_META_IS_TRENDING, '0' ) ),
+		'trendingOrder'      => hectv_cms_gql_positive_int( hectv_cms_gql_meta( $id, HECTV_META_TRENDING_ORDER, 0 ) ),
 		'youtubeId'          => hectv_cms_gql_meta( $id, HECTV_META_YOUTUBE_ID, null ),
 		'vimeoId'            => hectv_cms_gql_meta( $id, HECTV_META_VIMEO_ID, null ),
 		'embedUrl'           => hectv_cms_gql_meta( $id, HECTV_META_EMBED_URL, null ),
@@ -488,6 +501,31 @@ add_action(
 						'type'        => 'Int',
 						'description' => 'Maximum number of trending videos to show in the rail.',
 					),
+					'trendingTitle'  => array(
+						'type'        => 'String',
+						'description' => 'Editor-controlled heading above the Trending list.',
+					),
+					'spotlightTitle' => array(
+						'type'        => 'String',
+						'description' => 'Editor-controlled heading above the Spotlight list.',
+					),
+					'mobileDisplay'  => array(
+						'type'        => 'String',
+						'description' => 'Mobile order: content-menu or menu-content.',
+					),
+				),
+			)
+		);
+
+		hectv_cms_register_object_type(
+			'HectvNewsletterSettings',
+			array(
+				'description' => 'Site-wide newsletter signup settings.',
+				'fields'      => array(
+					'captchaEnabled' => array(
+						'type'        => 'Boolean',
+						'description' => 'Whether newsletter signup requires CAPTCHA verification.',
+					),
 				),
 			)
 		);
@@ -518,7 +556,24 @@ add_action(
 				'description' => 'Site-wide Trending Now configuration.',
 				'resolve'     => static function () {
 					return array(
-						'maxVideos' => hectv_cms_get_trending_max_videos(),
+						'maxVideos'      => hectv_cms_get_trending_max_videos(),
+						'trendingTitle'  => hectv_cms_get_trending_title(),
+						'spotlightTitle' => hectv_cms_get_spotlight_title(),
+						'mobileDisplay'  => hectv_cms_get_mobile_display(),
+					);
+				},
+			)
+		);
+
+		register_graphql_field(
+			'RootQuery',
+			'newsletterSettings',
+			array(
+				'type'        => 'HectvNewsletterSettings',
+				'description' => 'Site-wide newsletter signup configuration.',
+				'resolve'     => static function () {
+					return array(
+						'captchaEnabled' => hectv_cms_newsletter_captcha_enabled(),
 					);
 				},
 			)
@@ -764,6 +819,10 @@ add_action(
 						'type'        => 'Boolean',
 						'description' => 'Include in Trending Now rail (ACF is_trending).',
 					),
+					'trendingOrder'      => array(
+						'type'        => 'Int',
+						'description' => 'One-based position in the Trending Now rail (ACF trending_order).',
+					),
 					'youtubeId'         => array(
 						'type'        => 'String',
 						'description' => 'YouTube video id (ACF youtube_id).',
@@ -823,6 +882,7 @@ add_action(
 					'postHero'          => 'MediaItem',
 					'isVideo'           => 'Boolean',
 					'isTrending'        => 'Boolean',
+					'trendingOrder'      => 'Int',
 					'youtubeId'         => 'String',
 					'vimeoId'           => 'String',
 					'embedUrl'          => 'String',
@@ -894,6 +954,22 @@ add_action(
 			)
 		);
 
+		register_graphql_field(
+			'Post',
+			'trendingOrder',
+			array(
+				'type'        => 'Int',
+				'description' => 'One-based position in Trending Now (post meta trending_order).',
+				'resolve'     => static function ( $post ) {
+					$id = hectv_cms_graphql_post_id( $post );
+					if ( ! $id ) {
+						return null;
+					}
+					return hectv_cms_gql_positive_int( hectv_cms_gql_meta( $id, HECTV_META_TRENDING_ORDER, 0 ) );
+				},
+			)
+		);
+
 		// --- trendingPosts -------------------------------------------------
 
 		register_graphql_field(
@@ -901,7 +977,7 @@ add_action(
 			'trendingPosts',
 			array(
 				'type'        => array( 'list_of' => 'Post' ),
-				'description' => 'Trending Now rail: is_trending posts first (newest), then backfill with most recent posts up to trendingSettings.maxVideos.',
+				'description' => 'Trending Now rail: is_trending posts by their per-post order, then unordered trending posts and recent backfill up to trendingSettings.maxVideos.',
 				'args'        => array(
 					'first' => array(
 						'type'        => 'Int',
@@ -939,9 +1015,76 @@ function hectv_cms_trending_limit( $limit = null ) {
 }
 
 /**
+ * Positive per-post Trending position, or zero when the editor left it empty.
+ *
+ * @param mixed $post WP post-like object.
+ * @return int
+ */
+function hectv_cms_trending_order_value( $post ) {
+	if ( ! is_object( $post ) || ! isset( $post->ID ) ) {
+		return 0;
+	}
+	$value = (int) get_post_meta( (int) $post->ID, HECTV_META_TRENDING_ORDER, true );
+	return $value > 0 ? $value : 0;
+}
+
+/**
+ * Timestamp used to keep equal/unset Trending positions deterministic.
+ *
+ * @param mixed $post WP post-like object.
+ * @return int
+ */
+function hectv_cms_trending_post_timestamp( $post ) {
+	if ( ! is_object( $post ) ) {
+		return 0;
+	}
+	foreach ( array( 'post_date_gmt', 'post_date' ) as $property ) {
+		if ( ! empty( $post->{$property} ) ) {
+			$timestamp = strtotime( (string) $post->{$property} );
+			if ( $timestamp !== false ) {
+				return (int) $timestamp;
+			}
+		}
+	}
+	return 0;
+}
+
+/**
+ * Sort ordered posts first (ascending), then equal/unset positions newest first.
+ *
+ * @param mixed $a First post.
+ * @param mixed $b Second post.
+ * @return int
+ */
+function hectv_cms_compare_trending_posts( $a, $b ) {
+	$a_order = hectv_cms_trending_order_value( $a );
+	$b_order = hectv_cms_trending_order_value( $b );
+	if ( $a_order > 0 && $b_order <= 0 ) {
+		return -1;
+	}
+	if ( $b_order > 0 && $a_order <= 0 ) {
+		return 1;
+	}
+	if ( $a_order > 0 && $b_order > 0 && $a_order !== $b_order ) {
+		return $a_order <=> $b_order;
+	}
+
+	$a_time = hectv_cms_trending_post_timestamp( $a );
+	$b_time = hectv_cms_trending_post_timestamp( $b );
+	if ( $a_time !== $b_time ) {
+		return $b_time <=> $a_time;
+	}
+
+	$a_id = is_object( $a ) && isset( $a->ID ) ? (int) $a->ID : 0;
+	$b_id = is_object( $b ) && isset( $b->ID ) ? (int) $b->ID : 0;
+	return $b_id <=> $a_id;
+}
+
+/**
  * Query WP posts for the Trending Now rail.
  *
- * 1. Take up to $limit posts with is_trending truthy (newest first).
+ * 1. Take posts with is_trending truthy and sort positive trending_order
+ *    values ascending (1, 2, 3...). Unordered posts follow, newest first.
  * 2. If fewer than $limit, backfill with the most recent published posts
  *    not already selected, until the list is full.
  *
@@ -964,12 +1107,13 @@ function hectv_cms_query_trending_posts( $limit = null ) {
 		'update_post_term_cache' => false,
 	);
 
-	// Prefer explicitly flagged trending posts.
+	// Fetch every explicitly flagged post before sorting. Limiting by publish date
+	// here could omit an older post that an editor intentionally placed at #1.
 	$trending_q = new WP_Query(
 		array_merge(
 			$base,
 			array(
-				'posts_per_page' => $limit,
+				'posts_per_page' => -1,
 				'meta_query'     => array(
 					array(
 						'key'     => HECTV_META_IS_TRENDING,
@@ -982,7 +1126,16 @@ function hectv_cms_query_trending_posts( $limit = null ) {
 	);
 
 	if ( ! empty( $trending_q->posts ) ) {
-		foreach ( $trending_q->posts as $p ) {
+		$flagged = array_values(
+			array_filter(
+				$trending_q->posts,
+				static function ( $post ) {
+					return is_object( $post ) && isset( $post->ID );
+				}
+			)
+		);
+		usort( $flagged, 'hectv_cms_compare_trending_posts' );
+		foreach ( array_slice( $flagged, 0, $limit ) as $p ) {
 			if ( ! is_object( $p ) || ! isset( $p->ID ) ) {
 				continue;
 			}
