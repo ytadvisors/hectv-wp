@@ -118,4 +118,9 @@ if [ "${HECTV_DISABLE_PAYMENTS:-0}" = "1" ]; then
   unset STRIPE_KEY STRIPE_SECRET_KEY
 fi
 
-exec "$@"
+# Preserve the official WordPress image startup behavior after the HEC safety
+# checks above. The upstream entrypoint installs WordPress core into
+# /var/www/html when the runtime volume does not already contain it, then starts
+# Apache. Invoking Apache directly leaves only the HEC overlay in the image and
+# makes /wp-admin and /graphql return Apache 404 responses.
+exec docker-entrypoint.sh "$@"
