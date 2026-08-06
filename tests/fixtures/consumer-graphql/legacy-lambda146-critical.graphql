@@ -1,18 +1,18 @@
-# Captured legacy contract fragments from the live Lambda@Edge v146 failure mode
-# (2026-08-06). Dual-schema expand must accept these documents without schema errors.
+# Captured from historical hecmedia/lib/graphql.js @ 711fd3610f93
+# (live Lambda@Edge v146 contract). Nested Post.categories(where:) resolves
+# against PostToCategoryConnectionWhereArgs — the 2026-08-06 failure mode.
 
-query LegacyCategoryFlatList( $categories: [ID] ) {
-  categoryPosts: posts(
-    first: 5
-    where: {
-      categoryIn: $categories
-      shouldOutputInFlatList: true
-      orderby: { field: DATE, order: DESC }
-    }
-  ) {
+query LegacyPostCategoriesFlatList {
+  posts(first: 1, where: { orderby: { field: DATE, order: DESC } }) {
     nodes {
       title
       excerpt(format: RENDERED)
+      categories(where: { shouldOutputInFlatList: true }, first: 3) {
+        nodes {
+          name
+          link
+        }
+      }
     }
   }
 }
@@ -22,6 +22,15 @@ query LegacyEventExcerpt {
     nodes {
       title
       excerpt(format: RENDERED)
+    }
+  }
+}
+
+query LegacyEventCategoriesFlatList {
+  eventCategories(first: 5, where: { shouldOutputInFlatList: true }) {
+    nodes {
+      name
+      slug
     }
   }
 }

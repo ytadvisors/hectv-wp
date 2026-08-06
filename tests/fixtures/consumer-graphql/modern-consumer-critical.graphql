@@ -1,0 +1,37 @@
+# Modern hecmedia consumer checks (current master contract shape).
+
+query ModernGeneralAndTrending {
+  generalSettings {
+    title
+  }
+  trendingSettings {
+    maxVideos
+  }
+  topbarCtas {
+    label
+    url
+    style
+  }
+}
+
+query ModernPostsWithDetails {
+  posts(first: 1, where: { orderby: { field: DATE, order: DESC } }) {
+    nodes {
+      title
+      postDetails {
+        isVideo
+        videoImage {
+          medium: sourceUrl(size: MEDIUM)
+        }
+        postHeader {
+          medium: sourceUrl(size: MEDIUM)
+        }
+      }
+      categories(where: { shouldOutputInFlatList: true }, first: 1) {
+        nodes {
+          name
+        }
+      }
+    }
+  }
+}

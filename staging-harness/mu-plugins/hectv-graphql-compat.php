@@ -184,9 +184,16 @@ add_action(
  * WPGraphQL serves /graphql via its own router (not only REST), so hook the
  * GraphQL request lifecycle rather than rest_pre_dispatch alone.
  */
+// Block mutations only on the public read-only staging contract. Production
+// dual-schema must not inherit a staging-only write ban.
 add_action(
 	'do_graphql_request',
 	static function ( $query, $operation, $variables, $params ) {
+		$env = (string) ( getenv( 'HECTV_ENVIRONMENT' ) ?: '' );
+		$ro  = (string) ( getenv( 'HECTV_PUBLIC_READ_ONLY' ) ?: '0' );
+		if ( $env !== 'staging' && $ro !== '1' ) {
+			return;
+		}
 		$haystack = is_string( $query ) ? $query : '';
 		if ( is_string( $operation ) && strcasecmp( $operation, 'mutation' ) === 0 ) {
 			$GLOBALS['hectv_gql_block_mutation'] = true;
@@ -340,6 +347,10 @@ function hectv_gql_media( $id ) {
 add_action(
 	'graphql_register_types',
 	static function () {
+		// Fail closed unless the explicit dual-schema profile is active.
+		if ( function_exists( 'hectv_graphql_consumer_contract_enabled' ) && ! hectv_graphql_consumer_contract_enabled() ) {
+			return;
+		}
 		// --- Shared leaf types -------------------------------------------------
 
 		register_graphql_object_type(
