@@ -109,7 +109,7 @@ jobs:
         if: always()
         run: |
           if [ -f "$EVIDENCE_PATH" ]; then
-            jq -r '"Backend production outcome: \(.outcome)\nRelease: \(.release_sha)\nTask definition: \(.new_task_definition // \"not registered\")\nRollback: \(.rollback_outcome // \"not needed\")"' "$EVIDENCE_PATH" >> "$GITHUB_STEP_SUMMARY"
+            jq -r '"Backend production outcome: \(.outcome)\nRelease: \(.release_sha)\nTask definition: \(.new_task_definition // "not registered")\nRollback: \(.rollback_outcome // "not needed")"' "$EVIDENCE_PATH" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Backend production evidence was not generated." >> "$GITHUB_STEP_SUMMARY"
           fi

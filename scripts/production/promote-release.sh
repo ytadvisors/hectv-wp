@@ -29,6 +29,7 @@ readonly CONFIRMATION_PHRASE="DEPLOY HEC BACKEND PRODUCTION"
 readonly REGISTRY_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 readonly STAGING_REPOSITORY_URI="${REGISTRY_HOST}/${STAGING_ECR_REPOSITORY}"
 readonly PRODUCTION_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PRODUCTION_ECR_REPOSITORY}"
+readonly SKOPEO_IMAGE="quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
 
 for command in aws curl docker jq mktemp; do
   command -v "$command" >/dev/null 2>&1 || {
@@ -58,6 +59,9 @@ fi
 }
 
 release_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/hectv-production-release.XXXXXX")"
+docker_config_dir="$release_dir/docker-config"
+mkdir -p "$docker_config_dir"
+export DOCKER_CONFIG="$docker_config_dir"
 service_before="$release_dir/service-before.json"
 task_before="$release_dir/task-before.json"
 config_register_file="$release_dir/task-config-register.json"
@@ -214,9 +218,14 @@ else
     docker login --username AWS --password-stdin "$REGISTRY_HOST" >/dev/null
   staging_image="${STAGING_REPOSITORY_URI}@${ARTIFACT_DIGEST}"
   production_tagged_image="${PRODUCTION_REPOSITORY_URI}:${destination_tag}"
-  docker pull "$staging_image"
-  docker tag "$staging_image" "$production_tagged_image"
-  docker push "$production_tagged_image"
+  docker run --rm --pull=always \
+    --volume "$docker_config_dir/config.json:/auth.json:ro" \
+    "$SKOPEO_IMAGE" \
+    copy \
+    --preserve-digests \
+    --authfile /auth.json \
+    "docker://$staging_image" \
+    "docker://$production_tagged_image"
   destination_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$PRODUCTION_ECR_REPOSITORY" --image-ids "imageTag=$destination_tag" --query 'imageDetails[0].imageDigest' --output text)"
   [[ "$destination_digest" == "$ARTIFACT_DIGEST" ]] || {
     echo "Promoted production image digest does not match staging." >&2
