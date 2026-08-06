@@ -114,6 +114,18 @@ Full staging lifecycle against AWS (refresh from snapshot, start/stop ECS servic
 
 ---
 
+## Production releases
+
+Production releases use `.github/workflows/production-deploy.yml` and the
+protected GitHub `production` environment. The workflow promotes the exact
+digest already running on both staging services, verifies the live production
+baseline before its first write, deploys through the existing ECS circuit
+breaker, and automatically restores the recorded task definition if any
+post-update verification fails. See `infra/github-production/README.md` for
+the least-privilege OIDC role contract.
+
+---
+
 ## Documentation map
 
 | Doc | Purpose |
