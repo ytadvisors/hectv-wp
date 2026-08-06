@@ -13,6 +13,13 @@ derived from the authorized live definition, and update exactly one ECS
 service. It cannot create services, change DNS, read production runtime secrets,
 or modify IAM.
 
+Cross-repository promotion runs the official Skopeo container pinned by digest
+with `--preserve-digests`. A normal Docker pull/tag/push is intentionally
+forbidden because Docker can reserialize an otherwise identical manifest and
+therefore change the ECR digest. The workflow verifies the destination tag still
+resolves to the exact staging digest before it can register or deploy a task
+definition.
+
 An AWS administrator bootstraps this role once after the release-path pull
 request merges. Do not run these commands with the fleet read-only profile or
 bypass a local mutation gate.

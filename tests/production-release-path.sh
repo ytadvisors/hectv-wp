@@ -17,6 +17,8 @@ grep -Fq 'DEPLOY HEC BACKEND PRODUCTION' "$workflow"
 grep -Fq 'role/hectv-wp-production-deploy' "$workflow"
 grep -Eq 'aws-actions/configure-aws-credentials@[0-9a-f]{40}' "$workflow"
 grep -Eq 'actions/upload-artifact@[0-9a-f]{40}' "$workflow"
+grep -Fq '.new_task_definition // "not registered"' "$workflow"
+grep -Fq '.rollback_outcome // "not needed"' "$workflow"
 
 grep -Fq 'governed production workflow_dispatch' "$release"
 grep -Fq 'deploymentCircuitBreaker' "$release"
@@ -25,12 +27,16 @@ grep -Fq 'restoring the recorded baseline task definition' "$release"
 grep -Fq 'hectv-wp-staging-admin' "$release"
 grep -Fq 'HECTV_RECAPTCHA_ALLOWED_HOSTS' "$release"
 grep -Fq 'imageTag=$RELEASE_SHA' "$release"
-grep -Fq 'docker pull "$staging_image"' "$release"
+grep -Eq 'SKOPEO_IMAGE="quay\.io/skopeo/stable@sha256:[0-9a-f]{64}"' "$release"
+grep -Fq 'copy \' "$release"
+grep -Fq -- '--preserve-digests' "$release"
+grep -Fq -- '--authfile /auth.json' "$release"
+grep -Fq 'export DOCKER_CONFIG="$docker_config_dir"' "$release"
 grep -Fq "' \"\$task_release_source\" > \"\$register_file\"" "$release"
 grep -Fq 'Final production task definition contains changes beyond the reviewed image digest.' "$release"
 grep -Fq 'Refusing a production config migration containing changes beyond the two reviewed reCAPTCHA references.' "$release"
 
-if grep -Eq 'TASK_DEFINITION_TEMPLATE|manifest-only|batch-get-image' "$release"; then
+if grep -Eq 'TASK_DEFINITION_TEMPLATE|manifest-only|batch-get-image|docker pull "\$staging_image"|docker tag "\$staging_image"|docker push "\$production_tagged_image"' "$release"; then
   echo "Production release must copy image layers and derive from the live task definition." >&2
   exit 1
 fi
