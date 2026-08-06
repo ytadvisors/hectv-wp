@@ -17,7 +17,7 @@ set -euo pipefail
 : "${STAGING_ADMIN_SERVICE:=hectv-wp-staging-admin}"
 : "${STAGING_ECR_REPOSITORY:=hectv-wp-staging}"
 : "${PRODUCTION_ECR_REPOSITORY:=hectv-wp-production}"
-: "${TASK_DEFINITION_TEMPLATE:=arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production:11}"
+: "${PRODUCTION_RUNTIME_SECRET_ARN:=arn:aws:secretsmanager:us-east-2:850335719356:secret:hectv-wp/production-runtime-Eny4Q8}"
 : "${ORIGIN_HEALTH_URL:=https://prod-wp-ecs.hectv.org/healthz}"
 : "${PUBLIC_HEALTH_URL:=https://prod-wp.hectv.org/healthz}"
 : "${GRAPHQL_URL:=https://prod-wp.hectv.org/graphql}"
@@ -26,9 +26,11 @@ set -euo pipefail
 
 readonly EXPECTED_WORKFLOW="/.github/workflows/production-deploy.yml@"
 readonly CONFIRMATION_PHRASE="DEPLOY HEC BACKEND PRODUCTION"
+readonly REGISTRY_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+readonly STAGING_REPOSITORY_URI="${REGISTRY_HOST}/${STAGING_ECR_REPOSITORY}"
 readonly PRODUCTION_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PRODUCTION_ECR_REPOSITORY}"
 
-for command in aws curl jq mktemp; do
+for command in aws curl docker jq mktemp; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Required command is not installed: $command" >&2
     exit 1
@@ -58,16 +60,17 @@ fi
 release_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/hectv-production-release.XXXXXX")"
 service_before="$release_dir/service-before.json"
 task_before="$release_dir/task-before.json"
-template_file="$release_dir/task-template.json"
+config_register_file="$release_dir/task-config-register.json"
+task_release_source="$release_dir/task-release-source.json"
 register_file="$release_dir/task-register.json"
-manifest_response="$release_dir/manifest-response.json"
-manifest_file="$release_dir/manifest.json"
 graphql_response="$release_dir/graphql-response.json"
 newsletter_response="$release_dir/newsletter-response.json"
 
 deploy_started=0
 deploy_succeeded=0
+config_task_definition=""
 new_task_definition=""
+rollback_task_definition="$EXPECTED_CURRENT_TASK_DEFINITION"
 rollback_outcome="not-needed"
 
 write_evidence() {
@@ -81,10 +84,12 @@ write_evidence() {
     --arg actor "${GITHUB_ACTOR:-unknown}" \
     --arg baseline_task_definition "$EXPECTED_CURRENT_TASK_DEFINITION" \
     --arg baseline_image_digest "$EXPECTED_CURRENT_IMAGE_DIGEST" \
+    --arg config_task_definition "$config_task_definition" \
     --arg new_task_definition "$new_task_definition" \
+    --arg rollback_task_definition "$rollback_task_definition" \
     --arg rollback_outcome "$rollback_outcome" \
     --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    '{target:$target,outcome:$outcome,release_sha:$release_sha,artifact_digest:$artifact_digest,request_task_id:$request_task_id,dispatch_actor:$actor,baseline_task_definition:$baseline_task_definition,baseline_image_digest:$baseline_image_digest,new_task_definition:(if ($new_task_definition|length)>0 then $new_task_definition else null end),rollback_outcome:$rollback_outcome,generated_at:$generated_at}' \
+    '{target:$target,outcome:$outcome,release_sha:$release_sha,artifact_digest:$artifact_digest,request_task_id:$request_task_id,dispatch_actor:$actor,baseline_task_definition:$baseline_task_definition,baseline_image_digest:$baseline_image_digest,config_task_definition:(if ($config_task_definition|length)>0 then $config_task_definition else null end),new_task_definition:(if ($new_task_definition|length)>0 then $new_task_definition else null end),rollback_task_definition:$rollback_task_definition,rollback_outcome:$rollback_outcome,generated_at:$generated_at}' \
     > "$EVIDENCE_PATH"
 }
 
@@ -98,11 +103,8 @@ finish() {
       --region "$AWS_REGION" \
       --cluster "$ECS_CLUSTER" \
       --service "$ECS_SERVICE" \
-      --task-definition "$EXPECTED_CURRENT_TASK_DEFINITION" >/dev/null
-    aws ecs wait services-stable \
-      --region "$AWS_REGION" \
-      --cluster "$ECS_CLUSTER" \
-      --services "$ECS_SERVICE"
+      --task-definition "$rollback_task_definition" >/dev/null
+    wait_for_service_stable
     rollback_code="$?"
     set -e
     if [[ "$rollback_code" -eq 0 ]]; then rollback_outcome="restored-baseline"; else rollback_outcome="rollback-failed"; fi
@@ -111,10 +113,37 @@ finish() {
   fi
 
   if [[ "$exit_code" -eq 0 ]]; then write_evidence "success"; else write_evidence "failed"; fi
+  docker logout "$REGISTRY_HOST" >/dev/null 2>&1 || true
   rm -rf "$release_dir"
   exit "$exit_code"
 }
 trap finish EXIT
+
+wait_for_service_stable() {
+  local attempt service_state rollout deployment_count desired running pending
+  for attempt in $(seq 1 180); do
+    service_state="$(aws ecs describe-services \
+      --region "$AWS_REGION" \
+      --cluster "$ECS_CLUSTER" \
+      --services "$ECS_SERVICE" \
+      --output json)"
+    rollout="$(jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // empty' <<<"$service_state")"
+    if [[ "$rollout" == "FAILED" ]]; then
+      echo "Production ECS deployment circuit breaker reported FAILED." >&2
+      return 1
+    fi
+    deployment_count="$(jq -r '.services[0].deployments | length' <<<"$service_state")"
+    desired="$(jq -r '.services[0].desiredCount // -1' <<<"$service_state")"
+    running="$(jq -r '.services[0].runningCount // -1' <<<"$service_state")"
+    pending="$(jq -r '.services[0].pendingCount // -1' <<<"$service_state")"
+    if [[ "$deployment_count" -eq 1 && "$desired" -gt 0 && "$running" -eq "$desired" && "$pending" -eq 0 && "$rollout" == "COMPLETED" ]]; then
+      return 0
+    fi
+    sleep 10
+  done
+  echo "Production ECS service did not become stable within 30 minutes." >&2
+  return 1
+}
 
 aws ecs describe-services \
   --region "$AWS_REGION" \
@@ -181,25 +210,13 @@ if [[ -n "$destination_digest" && "$destination_digest" != "None" ]]; then
     exit 1
   }
 else
-  aws ecr batch-get-image \
-    --region "$AWS_REGION" \
-    --repository-name "$STAGING_ECR_REPOSITORY" \
-    --image-ids "imageDigest=$ARTIFACT_DIGEST" \
-    --accepted-media-types \
-      application/vnd.oci.image.index.v1+json \
-      application/vnd.oci.image.manifest.v1+json \
-      application/vnd.docker.distribution.manifest.list.v2+json \
-      application/vnd.docker.distribution.manifest.v2+json \
-    --output json > "$manifest_response"
-  jq -e '.failures | length == 0' "$manifest_response" >/dev/null
-  jq -er '.images[0].imageManifest' "$manifest_response" > "$manifest_file"
-  manifest_media_type="$(jq -r '.images[0].imageManifestMediaType // empty' "$manifest_response")"
-  aws ecr put-image \
-    --region "$AWS_REGION" \
-    --repository-name "$PRODUCTION_ECR_REPOSITORY" \
-    --image-tag "$destination_tag" \
-    --image-manifest "file://$manifest_file" \
-    --image-manifest-media-type "$manifest_media_type" >/dev/null
+  aws ecr get-login-password --region "$AWS_REGION" |
+    docker login --username AWS --password-stdin "$REGISTRY_HOST" >/dev/null
+  staging_image="${STAGING_REPOSITORY_URI}@${ARTIFACT_DIGEST}"
+  production_tagged_image="${PRODUCTION_REPOSITORY_URI}:${destination_tag}"
+  docker pull "$staging_image"
+  docker tag "$staging_image" "$production_tagged_image"
+  docker push "$production_tagged_image"
   destination_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$PRODUCTION_ECR_REPOSITORY" --image-ids "imageTag=$destination_tag" --query 'imageDetails[0].imageDigest' --output text)"
   [[ "$destination_digest" == "$ARTIFACT_DIGEST" ]] || {
     echo "Promoted production image digest does not match staging." >&2
@@ -207,23 +224,100 @@ else
   }
 fi
 
-aws ecs describe-task-definition \
-  --region "$AWS_REGION" \
-  --task-definition "$TASK_DEFINITION_TEMPLATE" \
-  --output json > "$template_file"
-
 jq -e '
-  .taskDefinition.family == "hectv-wp-production" and
+  (.taskDefinition.family | startswith("hectv-wp-production")) and
   .taskDefinition.runtimePlatform.cpuArchitecture == "ARM64" and
   ([.taskDefinition.containerDefinitions[0].environment[] | {(.name):.value}] | add) as $env |
   $env.HECTV_ENVIRONMENT == "production" and
   $env.DISABLE_WP_CRON == "0" and
   $env.HECTV_DISABLE_OUTBOUND == "0" and
-  $env.HECTV_DISABLE_PAYMENTS == "0" and
-  ([.taskDefinition.containerDefinitions[0].secrets[].name] | index("HECTV_RECAPTCHA_SECRET_KEY")) != null and
-  ([.taskDefinition.containerDefinitions[0].secrets[].name] | index("HECTV_RECAPTCHA_ALLOWED_HOSTS")) != null
-' "$template_file" >/dev/null || {
-  echo "Production task-definition template failed its runtime safety contract." >&2
+  $env.HECTV_DISABLE_PAYMENTS == "0"
+' "$task_before" >/dev/null || {
+  echo "The authorized live task definition failed its production runtime safety contract." >&2
+  exit 1
+}
+
+recaptcha_secret_ref="${PRODUCTION_RUNTIME_SECRET_ARN}:HECTV_RECAPTCHA_SECRET_KEY::"
+recaptcha_hosts_ref="${PRODUCTION_RUNTIME_SECRET_ARN}:HECTV_RECAPTCHA_ALLOWED_HOSTS::"
+recaptcha_entry_count="$(jq -r '[.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY" or .name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] | length' "$task_before")"
+
+if [[ "$recaptcha_entry_count" -eq 0 ]]; then
+  jq --arg secret_ref "$recaptcha_secret_ref" --arg hosts_ref "$recaptcha_hosts_ref" '
+    .taskDefinition
+    | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt)
+    | .containerDefinitions[0].secrets += [
+        {name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref},
+        {name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}
+      ]
+  ' "$task_before" > "$config_register_file"
+
+  jq -n -e \
+    --slurpfile before "$task_before" \
+    --slurpfile after "$config_register_file" \
+    --arg secret_ref "$recaptcha_secret_ref" \
+    --arg hosts_ref "$recaptcha_hosts_ref" '
+      def without_metadata:
+        del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt);
+      def without_recaptcha:
+        .containerDefinitions[0].secrets |= map(select(.name != "HECTV_RECAPTCHA_SECRET_KEY" and .name != "HECTV_RECAPTCHA_ALLOWED_HOSTS"));
+      (($before[0].taskDefinition | without_metadata | without_recaptcha) == ($after[0] | without_recaptcha)) and
+      (([$after[0].containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY")] | unique) == [{name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref}]) and
+      (([$after[0].containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] | unique) == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}])
+    ' >/dev/null || {
+      echo "Refusing a production config migration containing changes beyond the two reviewed reCAPTCHA references." >&2
+      exit 1
+    }
+
+  config_task_definition="$(aws ecs register-task-definition \
+    --region "$AWS_REGION" \
+    --cli-input-json "file://$config_register_file" \
+    --tags "key=ReleaseSha,value=$RELEASE_SHA" "key=RequestTaskId,value=$REQUEST_TASK_ID" "key=ReleasePhase,value=config" \
+    --query 'taskDefinition.taskDefinitionArn' \
+    --output text)"
+  [[ "$config_task_definition" =~ ^arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production[^:]*:[1-9][0-9]*$ ]] || {
+    echo "ECS returned an unexpected config task-definition ARN." >&2
+    exit 1
+  }
+
+  deploy_started=1
+  aws ecs update-service \
+    --region "$AWS_REGION" \
+    --cluster "$ECS_CLUSTER" \
+    --service "$ECS_SERVICE" \
+    --task-definition "$config_task_definition" >/dev/null
+  wait_for_service_stable
+  config_live_task="$(aws ecs describe-services --region "$AWS_REGION" --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].taskDefinition' --output text)"
+  [[ "$config_live_task" == "$config_task_definition" ]] || {
+    echo "Production did not converge on the reCAPTCHA config task definition." >&2
+    exit 1
+  }
+  config_live_image="$(aws ecs describe-task-definition --region "$AWS_REGION" --task-definition "$config_task_definition" --query 'taskDefinition.containerDefinitions[0].image' --output text)"
+  [[ "${config_live_image##*@}" == "$EXPECTED_CURRENT_IMAGE_DIGEST" ]] || {
+    echo "The config-first deployment changed the production image." >&2
+    exit 1
+  }
+  curl --fail --silent --show-error --retry 12 --retry-delay 5 "$ORIGIN_HEALTH_URL" >/dev/null
+  curl --fail --silent --show-error --retry 12 --retry-delay 5 "$PUBLIC_HEALTH_URL" >/dev/null
+  rollback_task_definition="$config_task_definition"
+  aws ecs describe-task-definition \
+    --region "$AWS_REGION" \
+    --task-definition "$config_task_definition" \
+    --output json > "$task_release_source"
+elif jq -e \
+  --arg secret_ref "$recaptcha_secret_ref" \
+  --arg hosts_ref "$recaptcha_hosts_ref" '
+    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY")] == [{name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref}]) and
+    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}])
+  ' "$task_before" >/dev/null; then
+  jq '.' "$task_before" > "$task_release_source"
+else
+  echo "Production has a partial or drifted reCAPTCHA task-definition contract." >&2
+  exit 1
+fi
+
+config_source_image="$(jq -r '.taskDefinition.containerDefinitions[0].image // empty' "$task_release_source")"
+[[ "${config_source_image##*@}" == "$EXPECTED_CURRENT_IMAGE_DIGEST" ]] || {
+  echo "The config-first release source does not retain the authorized baseline image." >&2
   exit 1
 }
 
@@ -231,9 +325,21 @@ production_image="${PRODUCTION_REPOSITORY_URI}@${ARTIFACT_DIGEST}"
 jq --arg image "$production_image" '
   .taskDefinition
   | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt)
-  | .family = "hectv-wp-production"
   | .containerDefinitions[0].image = $image
-' "$template_file" > "$register_file"
+' "$task_release_source" > "$register_file"
+
+jq -n -e \
+  --slurpfile before "$task_release_source" \
+  --slurpfile after "$register_file" \
+  --arg image "$production_image" '
+    def without_metadata:
+      del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt);
+    (($before[0].taskDefinition | without_metadata | .containerDefinitions[0].image = "__IMAGE__") == ($after[0] | .containerDefinitions[0].image = "__IMAGE__")) and
+    ($after[0].containerDefinitions[0].image == $image)
+  ' >/dev/null || {
+    echo "Final production task definition contains changes beyond the reviewed image digest." >&2
+    exit 1
+  }
 
 new_task_definition="$(aws ecs register-task-definition \
   --region "$AWS_REGION" \
@@ -241,7 +347,7 @@ new_task_definition="$(aws ecs register-task-definition \
   --tags "key=ReleaseSha,value=$RELEASE_SHA" "key=RequestTaskId,value=$REQUEST_TASK_ID" \
   --query 'taskDefinition.taskDefinitionArn' \
   --output text)"
-[[ "$new_task_definition" =~ ^arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production:[1-9][0-9]*$ ]] || {
+[[ "$new_task_definition" =~ ^arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production[^:]*:[1-9][0-9]*$ ]] || {
   echo "ECS returned an unexpected task-definition ARN." >&2
   exit 1
 }
@@ -252,10 +358,7 @@ aws ecs update-service \
   --cluster "$ECS_CLUSTER" \
   --service "$ECS_SERVICE" \
   --task-definition "$new_task_definition" >/dev/null
-aws ecs wait services-stable \
-  --region "$AWS_REGION" \
-  --cluster "$ECS_CLUSTER" \
-  --services "$ECS_SERVICE"
+wait_for_service_stable
 
 service_after="$(aws ecs describe-services --region "$AWS_REGION" --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --output json)"
 after_task_definition="$(jq -r '.services[0].taskDefinition // empty' <<<"$service_after")"

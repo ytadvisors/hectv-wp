@@ -2,17 +2,33 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ReadAndPromoteReviewedImages",
+      "Sid": "AuthenticateToTheHECRegistry",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "PullOnlyTheReviewedStagingImage",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchGetImage",
         "ecr:DescribeImages",
-        "ecr:PutImage"
+        "ecr:GetDownloadUrlForLayer"
       ],
-      "Resource": [
-        "arn:aws:ecr:us-east-2:850335719356:repository/hectv-wp-staging",
-        "arn:aws:ecr:us-east-2:850335719356:repository/hectv-wp-production"
-      ]
+      "Resource": "arn:aws:ecr:us-east-2:850335719356:repository/hectv-wp-staging"
+    },
+    {
+      "Sid": "PushTheReviewedLayersToProduction",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:us-east-2:850335719356:repository/hectv-wp-production"
     },
     {
       "Sid": "InspectEcsReleaseState",
