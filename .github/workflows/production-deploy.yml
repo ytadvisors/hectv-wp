@@ -1,0 +1,124 @@
+name: HEC WordPress production deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact merged main commit already proven in staging.
+        required: true
+        type: string
+      artifact_digest:
+        description: Exact staging ECR digest to promote (sha256:...).
+        required: true
+        type: string
+      expected_current_task_definition:
+        description: Full task-definition ARN currently serving production.
+        required: true
+        type: string
+      expected_current_image_digest:
+        description: Exact image digest currently serving production.
+        required: true
+        type: string
+      request_task_id:
+        description: Positive HEC Media queue task recording production authorization.
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY HEC BACKEND PRODUCTION exactly.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: hectv-wp-production-deployment
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Freeze the authorized release inputs
+        env:
+          DISPATCH_ACTOR: ${{ github.actor }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+          CURRENT_TASK_DEFINITION: ${{ inputs.expected_current_task_definition }}
+          CURRENT_IMAGE_DIGEST: ${{ inputs.expected_current_image_digest }}
+          REQUEST_TASK_ID: ${{ inputs.request_task_id }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          case "$DISPATCH_ACTOR" in
+            ytwguru|yt-agent-tom|yt-agent-tom-gpt|yt-agent-tom-grok) ;;
+            *) echo "::error title=Production authorization refused::Actor is not an approved HEC production publisher."; exit 1 ;;
+          esac
+          test "$RELEASE_SHA" = "$WORKFLOW_SHA"
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$CURRENT_TASK_DEFINITION" =~ ^arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production[^:]*:[1-9][0-9]*$ ]]
+          [[ "$CURRENT_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$REQUEST_TASK_ID" =~ ^[1-9][0-9]*$ ]]
+          test "$CONFIRMATION" = "DEPLOY HEC BACKEND PRODUCTION"
+
+  deploy-and-verify:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment:
+      name: production
+      url: https://prod-wp.hectv.org
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+      EXPECTED_CURRENT_TASK_DEFINITION: ${{ inputs.expected_current_task_definition }}
+      EXPECTED_CURRENT_IMAGE_DIGEST: ${{ inputs.expected_current_image_digest }}
+      REQUEST_TASK_ID: ${{ inputs.request_task_id }}
+      PRODUCTION_CONFIRMATION: ${{ inputs.confirmation }}
+      EVIDENCE_PATH: production-deploy-evidence.json
+    steps:
+      - name: Check out the exact merged release
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Verify release ancestry and production safety tests
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main
+          bash tests/no-sensitive-artifacts.sh
+          bash tests/production-efs-probe.sh
+          bash tests/production-release-path.sh
+
+      - name: Assume the least-privilege production role
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: arn:aws:iam::850335719356:role/hectv-wp-production-deploy
+          role-duration-seconds: 7200
+          aws-region: us-east-2
+
+      - name: Promote the proven image, deploy with circuit breaker, and verify
+        run: bash scripts/production/promote-release.sh
+
+      - name: Publish release summary
+        if: always()
+        run: |
+          if [ -f "$EVIDENCE_PATH" ]; then
+            jq -r '"Backend production outcome: \(.outcome)\nRelease: \(.release_sha)\nTask definition: \(.new_task_definition // \"not registered\")\nRollback: \(.rollback_outcome // \"not needed\")"' "$EVIDENCE_PATH" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Backend production evidence was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload immutable deployment evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hectv-wp-production-evidence-${{ github.run_id }}
+          path: production-deploy-evidence.json
+          if-no-files-found: error
+          retention-days: 90
