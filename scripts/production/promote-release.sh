@@ -124,8 +124,8 @@ finish() {
 trap finish EXIT
 
 wait_for_service_stable() {
-  local attempt service_state rollout deployment_count desired running pending
-  for attempt in $(seq 1 180); do
+  local service_state rollout deployment_count desired running pending
+  for _attempt in {1..180}; do
     service_state="$(aws ecs describe-services \
       --region "$AWS_REGION" \
       --cluster "$ECS_CLUSTER" \
