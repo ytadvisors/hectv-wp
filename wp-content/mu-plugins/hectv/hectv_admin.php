@@ -24,10 +24,16 @@ class HECTV_Admin {
 
 
     public function get_thumbnail( $object, $field_name, $request ) {
-        if(get_field("is_video", $object[ 'id' ]))
-            $thumbnail_url = get_field( "video_image", $object[ 'id' ] );
+        // ACF can be unavailable during plugin recovery or before activation.
+        // REST responses must still succeed; the thumbnail field is optional.
+        if ( ! function_exists( 'get_field' ) ) {
+            return "";
+        }
+
+        if(\get_field("is_video", $object[ 'id' ]))
+            $thumbnail_url = \get_field( "video_image", $object[ 'id' ] );
         else
-            $thumbnail_url = get_field( "post_header", $object[ 'id' ] );
+            $thumbnail_url = \get_field( "post_header", $object[ 'id' ] );
 
         if(isset($thumbnail_url)){
             if(isset($thumbnail_url["sizes"]) && isset($thumbnail_url["sizes"]["large"]))
