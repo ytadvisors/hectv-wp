@@ -1,0 +1,27 @@
+# Captured legacy contract fragments from the live Lambda@Edge v146 failure mode
+# (2026-08-06). Dual-schema expand must accept these documents without schema errors.
+
+query LegacyCategoryFlatList( $categories: [ID] ) {
+  categoryPosts: posts(
+    first: 5
+    where: {
+      categoryIn: $categories
+      shouldOutputInFlatList: true
+      orderby: { field: DATE, order: DESC }
+    }
+  ) {
+    nodes {
+      title
+      excerpt(format: RENDERED)
+    }
+  }
+}
+
+query LegacyEventExcerpt {
+  events(first: 1) {
+    nodes {
+      title
+      excerpt(format: RENDERED)
+    }
+  }
+}
