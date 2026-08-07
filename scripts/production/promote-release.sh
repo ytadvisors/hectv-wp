@@ -70,6 +70,8 @@ config_register_file="$release_dir/task-config-register.json"
 task_release_source="$release_dir/task-release-source.json"
 register_file="$release_dir/task-register.json"
 graphql_response="$release_dir/graphql-response.json"
+media_graphql_response="$release_dir/media-graphql-response.json"
+media_urls="$release_dir/media-urls.txt"
 newsletter_response="$release_dir/newsletter-response.json"
 
 deploy_started=0
@@ -434,6 +436,84 @@ jq -e '
   and (.data.topbarCtas != null)
   and (.data.posts != null)
 ' "$graphql_response" >/dev/null
+
+# Public media contract — GraphQL must return the synchronized media origin,
+# and every image URL advertised for the current production feed must decode as
+# an image. Any failure occurs before deploy_succeeded is set, so the EXIT trap
+# restores the recorded production task definition automatically.
+jq -n --arg query '{
+  posts(first: 100) {
+    nodes {
+      postDetails {
+        postHeader {
+          medium: sourceUrl(size: MEDIUM)
+          large: sourceUrl(size: MEDIUM_LARGE)
+        }
+        videoImage {
+          medium: sourceUrl(size: MEDIUM)
+          large: sourceUrl(size: MEDIUM_LARGE)
+        }
+        postHero {
+          medium: sourceUrl(size: MEDIUM)
+          large: sourceUrl(size: MEDIUM_LARGE)
+        }
+      }
+    }
+  }
+}' '{query:$query}' |
+  curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+    --header 'Content-Type: application/json' \
+    --data @- \
+    "$GRAPHQL_URL" > "$media_graphql_response"
+
+jq -e '
+  ((.errors // []) | length == 0)
+  and (.data.posts.nodes | type == "array" and length > 0)
+' "$media_graphql_response" >/dev/null
+
+jq -r '
+  [
+    .data.posts.nodes[]?.postDetails?
+    | (.postHeader?, .videoImage?, .postHero?)
+    | select(type == "object")
+    | (.medium?, .large?)
+    | select(type == "string" and length > 0)
+  ]
+  | unique[]
+' "$media_graphql_response" > "$media_urls"
+
+media_url_count="$(wc -l < "$media_urls" | tr -d ' ')"
+[[ "$media_url_count" -gt 0 ]] || {
+  echo "Production GraphQL media audit returned no attachment URLs." >&2
+  exit 1
+}
+
+while IFS= read -r media_url; do
+  case "$media_url" in
+    https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/*) ;;
+    *)
+      echo "Production GraphQL returned a non-canonical media URL: $media_url" >&2
+      exit 1
+      ;;
+  esac
+
+  media_probe="$(curl --fail --silent --show-error --location \
+    --retry 3 --retry-delay 1 \
+    --range 0-0 \
+    --output /dev/null \
+    --write-out '%{http_code}\t%{content_type}' \
+    "$media_url")"
+  media_status="${media_probe%%$'\t'*}"
+  media_type="${media_probe#*$'\t'}"
+  [[ "$media_status" == "200" || "$media_status" == "206" ]] || {
+    echo "Production media URL returned HTTP $media_status: $media_url" >&2
+    exit 1
+  }
+  [[ "$media_type" == image/* ]] || {
+    echo "Production media URL returned non-image content ($media_type): $media_url" >&2
+    exit 1
+  }
+done < "$media_urls"
 
 newsletter_status="$(curl --silent --show-error --request POST \
   --header 'Content-Type: application/json' \
