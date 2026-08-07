@@ -20,6 +20,8 @@ set -euo pipefail
 : "${PRODUCTION_RUNTIME_SECRET_ARN:=arn:aws:secretsmanager:us-east-2:850335719356:secret:hectv-wp/production-runtime-Eny4Q8}"
 : "${ORIGIN_HEALTH_URL:=https://prod-wp-ecs.hectv.org/healthz}"
 : "${PUBLIC_HEALTH_URL:=https://prod-wp.hectv.org/healthz}"
+: "${ORIGIN_READYZ_URL:=https://prod-wp-ecs.hectv.org/readyz.php}"
+: "${PUBLIC_READYZ_URL:=https://prod-wp.hectv.org/readyz.php}"
 : "${GRAPHQL_URL:=https://prod-wp.hectv.org/graphql}"
 : "${NEWSLETTER_URL:=https://prod-wp.hectv.org/wp-json/hectv/v1/newsletter/subscribe}"
 : "${EVIDENCE_PATH:=production-deploy-evidence.json}"
@@ -380,15 +382,53 @@ after_rollout="$(jq -r '.services[0].deployments[] | select(.status == "PRIMARY"
   exit 1
 }
 
+# Liveness (static file) — infrastructure only.
 curl --fail --silent --show-error --retry 12 --retry-delay 5 "$ORIGIN_HEALTH_URL" >/dev/null
 curl --fail --silent --show-error --retry 12 --retry-delay 5 "$PUBLIC_HEALTH_URL" >/dev/null
 
-jq -n --arg query '{ generalSettings { title url } trendingSettings { maxVideos } topbarCtas { label url style } }' '{query:$query}' |
+# Application readiness — requires GraphQL dual-schema probe (not wp-boot-only).
+readyz_origin_response="$release_dir/readyz-origin.json"
+readyz_public_response="$release_dir/readyz-public.json"
+curl --fail --silent --show-error --retry 12 --retry-delay 5 \
+  "$ORIGIN_READYZ_URL" > "$readyz_origin_response"
+curl --fail --silent --show-error --retry 12 --retry-delay 5 \
+  "$PUBLIC_READYZ_URL" > "$readyz_public_response"
+for readyz_file in "$readyz_origin_response" "$readyz_public_response"; do
+  jq -e '
+    .ok == true
+    and .mode == "graphql"
+    and .profile == "consumer-v1"
+    and (.title | type == "string" and length > 0)
+  ' "$readyz_file" >/dev/null || {
+    echo "Application readiness failed for $readyz_file" >&2
+    cat "$readyz_file" >&2 || true
+    exit 1
+  }
+done
+
+# Legacy Lambda 146 nested flat-list arg + modern consumer fields.
+jq -n --arg query '{
+  generalSettings { title url }
+  trendingSettings { maxVideos }
+  topbarCtas { label url style }
+  posts(first: 1) {
+    nodes {
+      title
+      categories(where: { shouldOutputInFlatList: true }, first: 1) { nodes { name } }
+    }
+  }
+}' '{query:$query}' |
   curl --fail --silent --show-error --retry 5 --retry-delay 3 \
     --header 'Content-Type: application/json' \
     --data @- \
     "$GRAPHQL_URL" > "$graphql_response"
-jq -e '((.errors // []) | length == 0) and (.data.generalSettings.title | type == "string" and length > 0) and (.data.trendingSettings != null) and (.data.topbarCtas != null)' "$graphql_response" >/dev/null
+jq -e '
+  ((.errors // []) | length == 0)
+  and (.data.generalSettings.title | type == "string" and length > 0)
+  and (.data.trendingSettings != null)
+  and (.data.topbarCtas != null)
+  and (.data.posts != null)
+' "$graphql_response" >/dev/null
 
 newsletter_status="$(curl --silent --show-error --request POST \
   --header 'Content-Type: application/json' \

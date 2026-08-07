@@ -43,5 +43,6 @@ for field in videoImage postHeader postHero isVideo; do
 done
 
 php "$repo_root/tests/hectv-modern-cpt-graphql-exposure.php"
+php "$repo_root/tests/hectv-graphql-dual-schema-contract.php"
 
 echo "Staging GraphQL image contract test passed."

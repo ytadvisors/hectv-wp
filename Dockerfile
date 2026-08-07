@@ -36,6 +36,7 @@ COPY wp-config.php .htaccess /var/www/html/
 COPY deploy/container/php.ini /usr/local/etc/php/conf.d/hectv.ini
 COPY deploy/container/entrypoint.sh /usr/local/bin/hectv-entrypoint
 COPY deploy/container/healthz /var/www/html/healthz
+COPY deploy/container/readyz.php /var/www/html/readyz.php
 
 RUN chmod 0755 /usr/local/bin/hectv-entrypoint \
     && mkdir -p /var/www/html/wp-content/uploads \

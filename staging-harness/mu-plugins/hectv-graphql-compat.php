@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: HEC TV GraphQL Compatibility (staging)
- * Description: STAGING/LOCAL ONLY. Newly authored HEC-owned WPGraphQL field and type
- *              registrations that reproduce the frontend contract from
- *              ytadvisors/hecmedia lib/graphql.js against modern upstream WPGraphQL.
- *              Deterministic fixture resolvers only — no production data, no licensed
- *              ACF bridge, no redistributed WPGraphQL 0.4.0 fork. Never deploy to
- *              production without a separate explicit approval.
+ * Plugin Name: HEC TV GraphQL Compatibility (consumer dual-schema)
+ * Description: HEC-owned WPGraphQL field and type registrations that reproduce the
+ *              frontend contract from ytadvisors/hecmedia lib/graphql.js against modern
+ *              WPGraphQL. Provides dual-schema expand for live Lambda@Edge (v146) and
+ *              modern hecmedia operations. Same profile is used in staging and production
+ *              (HECTV_GRAPHQL_SCHEMA_PROFILE=consumer-v1). No licensed ACF bridge and no
+ *              redistributed WPGraphQL 0.4.0 fork.
  * Version: 0.1.0
  * Author: YT Advisors (owned compatibility code)
  */
@@ -184,9 +184,16 @@ add_action(
  * WPGraphQL serves /graphql via its own router (not only REST), so hook the
  * GraphQL request lifecycle rather than rest_pre_dispatch alone.
  */
+// Block mutations only on the public read-only staging contract. Production
+// dual-schema must not inherit a staging-only write ban.
 add_action(
 	'do_graphql_request',
 	static function ( $query, $operation, $variables, $params ) {
+		$env = (string) ( getenv( 'HECTV_ENVIRONMENT' ) ?: '' );
+		$ro  = (string) ( getenv( 'HECTV_PUBLIC_READ_ONLY' ) ?: '0' );
+		if ( $env !== 'staging' && $ro !== '1' ) {
+			return;
+		}
 		$haystack = is_string( $query ) ? $query : '';
 		if ( is_string( $operation ) && strcasecmp( $operation, 'mutation' ) === 0 ) {
 			$GLOBALS['hectv_gql_block_mutation'] = true;
@@ -340,6 +347,10 @@ function hectv_gql_media( $id ) {
 add_action(
 	'graphql_register_types',
 	static function () {
+		// Fail closed unless the explicit dual-schema profile is active.
+		if ( function_exists( 'hectv_graphql_consumer_contract_enabled' ) && ! hectv_graphql_consumer_contract_enabled() ) {
+			return;
+		}
 		// --- Shared leaf types -------------------------------------------------
 
 		register_graphql_object_type(
@@ -815,35 +826,59 @@ add_action(
 			)
 		);
 
-		// Category connection arg used by production queries (no-op; always flat).
-		register_graphql_field(
+		// Category / post-category connection args used by live Lambda@Edge (v146) and
+		// modern hecmedia queries. The 2026-08-06 production incident failed because
+		// PostToCategoryConnectionWhereArgs.shouldOutputInFlatList was missing while only
+		// RootQueryToCategory* aliases were registered. Register every known WPGraphQL
+		// where-type alias as a Boolean no-op so expand/contract stays dual-schema safe.
+		$flat_list_where_types = array(
 			'RootQueryToCategoryConnectionWhereArgs',
-			'shouldOutputInFlatList',
-			array(
-				'type'        => 'Boolean',
-				'description' => 'Compatibility arg from production schema; ignored in staging (always flat).',
-			)
-		);
-		register_graphql_field(
 			'CategoryToCategoryConnectionWhereArgs',
-			'shouldOutputInFlatList',
+			'RootQueryToEventCategoryConnectionWhereArgs',
+			// Live production frontend (Lambda 146) still sends this exact type:
+			'PostToCategoryConnectionWhereArgs',
+			'CategoryToPostConnectionWhereArgs',
+			'RootQueryToPostConnectionWhereArgs',
+		);
+		foreach ( $flat_list_where_types as $where_type ) {
+			register_graphql_field(
+				$where_type,
+				'shouldOutputInFlatList',
+				array(
+					'type'        => 'Boolean',
+					'description' => 'Legacy HEC frontend contract; accepted and ignored (always flat).',
+				)
+			);
+		}
+
+		// Live Lambda 146 also queries Event.excerpt. Ensure the field remains on Event
+		// even if ContentNode interfaces shift across WPGraphQL versions.
+		register_graphql_field(
+			'Event',
+			'excerpt',
 			array(
-				'type' => 'Boolean',
+				'type'        => 'String',
+				'description' => 'Legacy Event excerpt for dual-schema consumer compatibility.',
+				'args'        => array(
+					'format' => array(
+						'type' => 'PostObjectFieldFormatEnum',
+					),
+				),
+				'resolve'     => static function ( $source, $args ) {
+					$raw = '';
+					if ( is_object( $source ) && isset( $source->excerpt ) ) {
+						$raw = (string) $source->excerpt;
+					} elseif ( is_object( $source ) && isset( $source->ID ) && function_exists( 'get_the_excerpt' ) ) {
+						$raw = (string) get_the_excerpt( (int) $source->ID );
+					}
+					$format = isset( $args['format'] ) ? (string) $args['format'] : 'RAW';
+					if ( strtoupper( $format ) === 'RENDERED' && function_exists( 'apply_filters' ) ) {
+						return apply_filters( 'the_excerpt', $raw );
+					}
+					return $raw;
+				},
 			)
 		);
-		// EventCategory connection where args (if type exists).
-		if ( function_exists( 'register_graphql_field' ) ) {
-			// Attempt registration; silent if connection where type name differs by version.
-			try {
-				register_graphql_field(
-					'RootQueryToEventCategoryConnectionWhereArgs',
-					'shouldOutputInFlatList',
-					array( 'type' => 'Boolean' )
-				);
-			} catch ( Exception $e ) { // phpcs:ignore
-				// no-op
-			}
-		}
 
 		// --- metaQuery / taxQuery compatibility on posts -----------------------
 		// Frontend queries use unquoted GraphQL enums (CATEGORY, EQUAL_TO, SLUG, IN).
