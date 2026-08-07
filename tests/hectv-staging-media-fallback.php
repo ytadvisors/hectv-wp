@@ -91,7 +91,7 @@ expect_same( $original_url, $callback( $original_url, 4 ), 'Attachments without 
 expect_same( false, $image_callback( false, 4, 'thumbnail', false ), 'Missing image source data must remain unchanged.' );
 
 $source = file_get_contents( dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-media-fallback.php' );
-expect_true( strpos( $source, "getenv( 'HECTV_ENVIRONMENT' ) !== 'staging'" ) !== false, 'Production environment gate must remain fail-closed.' );
+expect_true( strpos( $source, "array( 'staging', 'production' )" ) !== false, 'Media origin must be limited to staging and production.' );
 expect_true( strpos( $source, 'is_file( $local_path )' ) !== false, 'Local staging media must take precedence.' );
 expect_true( strpos( $source, 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false, 'Fallback must use the public media bucket.' );
 
