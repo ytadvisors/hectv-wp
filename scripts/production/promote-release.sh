@@ -220,10 +220,15 @@ else
     docker login --username AWS --password-stdin "$REGISTRY_HOST" >/dev/null
   staging_image="${STAGING_REPOSITORY_URI}@${ARTIFACT_DIGEST}"
   production_tagged_image="${PRODUCTION_REPOSITORY_URI}:${destination_tag}"
+  # GHA runners are linux/amd64; HEC production/staging Fargate is ARM64.
+  # Default skopeo selection uses the host arch and fails on arm64-only indexes
+  # ("no image found ... architecture amd64"). Copy the full multi-arch index so
+  # the staging digest is preserved for ARM64 runtime.
   docker run --rm --pull=always \
     --volume "$docker_config_dir/config.json:/auth.json:ro" \
     "$SKOPEO_IMAGE" \
     copy \
+    --all \
     --preserve-digests \
     --authfile /auth.json \
     "docker://$staging_image" \
