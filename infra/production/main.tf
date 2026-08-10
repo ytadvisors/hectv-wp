@@ -198,6 +198,10 @@ resource "aws_security_group_rule" "aurora_from_production" {
 resource "aws_efs_access_point" "production" {
   file_system_id = var.efs_file_system_id
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   posix_user {
     uid = var.efs_posix_uid
     gid = var.efs_posix_gid

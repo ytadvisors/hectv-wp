@@ -57,11 +57,21 @@ variable "production_secret_arn" {
 variable "efs_file_system_id" {
   type    = string
   default = "fs-4243883b"
+
+  validation {
+    condition     = var.efs_file_system_id == "fs-4243883b"
+    error_message = "Production must remain pinned to the retained shared EFS fs-4243883b."
+  }
 }
 
 variable "efs_security_group_id" {
   type    = string
   default = "sg-26c1f14c"
+
+  validation {
+    condition     = var.efs_security_group_id == "sg-26c1f14c"
+    error_message = "Production must remain pinned to the retained EFS mount-target security group sg-26c1f14c."
+  }
 }
 
 variable "efs_posix_uid" {
