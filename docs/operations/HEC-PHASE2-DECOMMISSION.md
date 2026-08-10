@@ -48,9 +48,13 @@ bash scripts/decommission/verify-staging-destroy-plan.sh \
 The verifier accepts managed `delete` actions only, rejects any address absent
 from `infra/staging/main.tf`, and requires the two services, staging ALB/DNS,
 staging EFS access point, ECR repository, and staging-only Aurora/EFS ingress
-rules. It does not prove backups, database/user deletion, Cognito dependencies,
-secret recovery windows, or task-definition cleanup; those remain separate
-approved actions outside Terraform.
+rules. It also rejects protected EFS file-system and mount-target resource
+types and the exact shared EFS, mount-target, and mount-target security-group
+IDs even if their Terraform addresses are renamed. The required set is a
+critical floor, not proof that every staging resource is present in the plan.
+The verifier does not prove backups, database/user deletion, Cognito
+dependencies, secret recovery windows, or task-definition cleanup; those
+remain separate approved actions outside Terraform.
 
 Hash the binary and JSON plans, obtain independent exact-plan review, and record
 the hashes in the execution playbook. Apply only that saved binary plan during

@@ -44,6 +44,41 @@ if [[ -n "$bad_actions" ]]; then
   exit 1
 fi
 
+protected_deletions="$({
+  jq -r '
+    def resource_type: (.type // (.address | split(".")[0]));
+    def resource_id: (.change.before.id? // .change.after.id? // "");
+    .resource_changes[]
+    | select((.mode // "managed") == "managed")
+    | select(.change.actions == ["delete"])
+    | resource_type as $type
+    | resource_id as $id
+    | select(
+        ([
+          "aws_efs_file_system",
+          "aws_efs_mount_target",
+          "aws_rds_cluster",
+          "aws_db_instance",
+          "aws_acm_certificate"
+        ] | index($type)) != null
+        or ([
+          "fs-4243883b",
+          "sg-26c1f14c",
+          "fsmt-994a81e0",
+          "fsmt-a74a81de",
+          "fsmt-a44a81dd"
+        ] | index($id)) != null
+      )
+    | "\(.address) [type=\($type), id=\($id)]"
+  ' "$plan_json"
+} || true)"
+
+if [[ -n "$protected_deletions" ]]; then
+  echo "Destroy plan includes a protected shared/production resource:" >&2
+  printf '%s\n' "$protected_deletions" >&2
+  exit 1
+fi
+
 jq -r '
   .resource_changes[]
   | select((.mode // "managed") == "managed")
@@ -81,10 +116,5 @@ for address in "${required_addresses[@]}"; do
     exit 1
   fi
 done
-
-if grep -Eq '^aws_(efs_file_system|rds_cluster|db_instance|acm_certificate)\.' "$deletions"; then
-  echo "Destroy plan includes a protected shared/production resource type." >&2
-  exit 1
-fi
 
 echo "Staging destroy plan is delete-only and matches the reviewed infra/staging resource boundary."

@@ -27,6 +27,16 @@ grep -Fq 'local.evidence_gate_passed' "$ownership_tf"
 grep -Fq 'IMPORT RETAINED HEC EFS' "$ownership_tf"
 grep -Fq 'data.aws_caller_identity.current.account_id == local.account_id' "$ownership_tf"
 
+grep -Fq 'aws_efs_mount_target' "$verifier"
+for protected_id in \
+  fs-4243883b \
+  sg-26c1f14c \
+  fsmt-994a81e0 \
+  fsmt-a74a81de \
+  fsmt-a44a81dd; do
+  grep -Fq "$protected_id" "$verifier"
+done
+
 if grep -Eq 'terraform[[:space:]]+apply|delete-file-system|delete-mount-target|terminate-environment' "$repo_root/scripts/decommission"/*.sh; then
   echo "Decommission helper scripts must remain plan/verification-only." >&2
   exit 1
@@ -38,6 +48,18 @@ bash "$verifier" \
 if bash "$verifier" \
   "$repo_root/tests/fixtures/decommission/staging-destroy-unexpected-production.json" >/dev/null 2>&1; then
   echo "Destroy-plan verifier accepted a production EFS deletion." >&2
+  exit 1
+fi
+
+if bash "$verifier" \
+  "$repo_root/tests/fixtures/decommission/staging-destroy-unexpected-mount-target.json" >/dev/null 2>&1; then
+  echo "Destroy-plan verifier accepted a shared EFS mount-target deletion." >&2
+  exit 1
+fi
+
+if bash "$verifier" \
+  "$repo_root/tests/fixtures/decommission/staging-destroy-unexpected-shared-sg.json" >/dev/null 2>&1; then
+  echo "Destroy-plan verifier accepted the shared EFS security-group deletion." >&2
   exit 1
 fi
 
