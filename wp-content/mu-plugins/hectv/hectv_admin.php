@@ -133,10 +133,25 @@ class HECTV_Admin {
         wp_enqueue_style( 'dashicons' );
     }
 
+    /**
+     * Ensure the Excerpt metabox is visible after login.
+     *
+     * WordPress stores hidden metabox IDs in user meta as an array. When the
+     * key is missing or empty, get_user_meta(..., true) returns '' — and
+     * array_search() fatals under typed PHP (critical-error page on wp-login).
+     * Seen for contributor gkowarski 2026-08-10.
+     *
+     * @param string   $user_login Login name.
+     * @param \WP_User $user       Authenticated user.
+     * @return true
+     */
     function show_excerpt( $user_login, $user ) {
         $unchecked = get_user_meta( $user->ID, 'metaboxhidden_post', true );
-        $key = array_search( 'postexcerpt', $unchecked );
-        if ( FALSE !== $key ) {
+        if ( ! is_array( $unchecked ) ) {
+            return true;
+        }
+        $key = array_search( 'postexcerpt', $unchecked, true );
+        if ( false !== $key ) {
             array_splice( $unchecked, $key, 1 );
             update_user_meta( $user->ID, 'metaboxhidden_post', $unchecked );
         }
