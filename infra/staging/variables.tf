@@ -69,11 +69,21 @@ variable "staging_admin_secret_arn" {
 variable "efs_file_system_id" {
   type    = string
   default = "fs-4243883b"
+
+  validation {
+    condition     = var.efs_file_system_id == "fs-4243883b"
+    error_message = "Staging may delete only its access point on retained EFS fs-4243883b."
+  }
 }
 
 variable "efs_security_group_id" {
   type    = string
   default = "sg-26c1f14c"
+
+  validation {
+    condition     = var.efs_security_group_id == "sg-26c1f14c"
+    error_message = "Staging may remove only its rule from retained EFS security group sg-26c1f14c."
+  }
 }
 
 variable "aurora_security_group_id" {

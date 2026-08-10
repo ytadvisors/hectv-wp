@@ -1,5 +1,12 @@
 # On-demand HEC WordPress staging
 
+> **Decommission preparation:** Repository-side destroy-plan verification and
+> shared-EFS ownership protection are defined in
+> [`operations/HEC-PHASE2-DECOMMISSION.md`](operations/HEC-PHASE2-DECOMMISSION.md).
+> This notice does not authorize stopping or deleting staging. Until the exact
+> Yomi and HEC approvals are recorded, the lifecycle below remains the recovery
+> reference and no infrastructure mutation is permitted.
+
 Staging uses a separate logical database, `hectv_staging`, on the existing Aurora
 cluster. It never aliases or writes production tables. The ECS staging service is
 normally set to desired count zero, so application compute is billed only while

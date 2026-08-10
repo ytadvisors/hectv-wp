@@ -1,0 +1,7 @@
+# The root fails planning until the exact approved receipt values are supplied.
+# Do not populate these from assumptions or use them while CloudFormation still
+# owns the same physical resources.
+approval_task_id                     = "<positive-approved-task-id>"
+approved_manifest_sha256             = "<64-lowercase-hex>"
+cloudformation_detach_receipt_sha256 = "<64-lowercase-hex>"
+import_confirmation                  = "IMPORT RETAINED HEC EFS"

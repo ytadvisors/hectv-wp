@@ -1,0 +1,13 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {"address":"aws_ecr_repository.wordpress","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_ecs_service.wordpress","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_ecs_service.admin","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_efs_access_point.staging","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_lb.wordpress","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_route53_record.staging","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_security_group_rule.efs_from_staging","mode":"managed","change":{"actions":["delete"]}},
+    {"address":"aws_security_group_rule.aurora_from_staging","mode":"managed","change":{"actions":["delete"]}}
+  ]
+}
