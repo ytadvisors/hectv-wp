@@ -64,18 +64,27 @@ function hectv_staging_media_is_public_url( $url ) {
 		return false;
 	}
 
-	$host = strtolower( (string) parse_url( $url, PHP_URL_HOST ) );
-	$path = (string) parse_url( $url, PHP_URL_PATH );
+	$host          = strtolower( (string) parse_url( $url, PHP_URL_HOST ) );
+	$path          = (string) parse_url( $url, PHP_URL_PATH );
+	$bucket        = 'prd-hectv-wp-media';
+	$region        = 'us-east-2';
+	$virtual_hosts = array(
+		"{$bucket}.s3.{$region}.amazonaws.com",
+		"{$bucket}.s3-{$region}.amazonaws.com",
+		"{$bucket}.s3.amazonaws.com",
+	);
 
-	if (
-		$host === 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ||
-		$host === 'prd-hectv-wp-media.s3.amazonaws.com'
-	) {
+	if ( in_array( $host, $virtual_hosts, true ) ) {
 		return strpos( $path, '/wp-content/uploads/' ) === 0;
 	}
 
-	return $host === 's3-us-east-2.amazonaws.com' &&
-		strpos( $path, '/prd-hectv-wp-media/wp-content/uploads/' ) === 0;
+	$path_hosts = array(
+		"s3-{$region}.amazonaws.com",
+		"s3.{$region}.amazonaws.com",
+	);
+
+	return in_array( $host, $path_hosts, true ) &&
+		strpos( $path, "/{$bucket}/wp-content/uploads/" ) === 0;
 }
 
 /**

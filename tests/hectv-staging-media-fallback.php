@@ -86,6 +86,26 @@ expect_same(
 	'Staging image sources must preserve a valid offload-plugin URL.'
 );
 
+$offload_subdomain_url = 'https://prd-hectv-wp-media.s3-us-east-2.amazonaws.com/wp-content/uploads/2026/08/11055800/The-Worlds-Fair.jpg';
+expect_same(
+	$offload_subdomain_url,
+	$callback( $offload_subdomain_url, 5 ),
+	'Staging must preserve WP Offload Media regional subdomain URLs.'
+);
+expect_same(
+	array( $offload_subdomain_url, 1920, 1080, false ),
+	$image_callback( array( $offload_subdomain_url, 1920, 1080, false ), 5, 'full', false ),
+	'Staging image sources must preserve WP Offload Media regional subdomain URLs.'
+);
+
+$untrusted_bucket_url = 'https://other-bucket.s3-us-east-2.amazonaws.com/wp-content/uploads/2026/08/11055800/The-Worlds-Fair.jpg';
+expect_same( false, hectv_staging_media_is_public_url( $untrusted_bucket_url ), 'Staging must reject S3 URLs outside the approved media bucket.' );
+expect_same(
+	'https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2026/08/The-Worlds-Fair.jpg',
+	$callback( $untrusted_bucket_url, 5 ),
+	'Staging must not preserve an untrusted S3 bucket URL.'
+);
+
 $test_upload_basedir = '/';
 $attachment_files[2] = 'etc/hosts';
 expect_same( $original_url, $callback( $original_url, 2 ), 'Existing staging files must keep their staging URL.' );

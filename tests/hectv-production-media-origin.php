@@ -92,6 +92,26 @@ expect_same(
 	'Production must preserve virtual-hosted URLs for the public media bucket.'
 );
 
+$offload_subdomain_url = 'https://prd-hectv-wp-media.s3-us-east-2.amazonaws.com/wp-content/uploads/2026/08/11055800/The-Worlds-Fair.jpg';
+expect_same(
+	$offload_subdomain_url,
+	$callback( $offload_subdomain_url, 4 ),
+	'Production must preserve WP Offload Media regional subdomain URLs.'
+);
+expect_same(
+	array( $offload_subdomain_url, 1920, 1080, false ),
+	$image_callback( array( $offload_subdomain_url, 1920, 1080, false ), 4, 'full', false ),
+	'Production image sources must preserve WP Offload Media regional subdomain URLs.'
+);
+
+$untrusted_bucket_url = 'https://other-bucket.s3-us-east-2.amazonaws.com/wp-content/uploads/2026/08/11055800/The-Worlds-Fair.jpg';
+expect_same( false, hectv_staging_media_is_public_url( $untrusted_bucket_url ), 'Production must reject S3 URLs outside the approved media bucket.' );
+expect_same(
+	'https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2026/08/The-Worlds-Fair.jpg',
+	$callback( $untrusted_bucket_url, 4 ),
+	'Production must not preserve an untrusted S3 bucket URL.'
+);
+
 $attachment_files[2] = '../etc/passwd';
 expect_same( $origin_url, $callback( $origin_url, 2 ), 'Unsafe relative paths must not be rewritten.' );
 

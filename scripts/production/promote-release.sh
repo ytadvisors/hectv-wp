@@ -73,6 +73,12 @@ graphql_response="$release_dir/graphql-response.json"
 media_graphql_response="$release_dir/media-graphql-response.json"
 media_urls="$release_dir/media-urls.txt"
 newsletter_response="$release_dir/newsletter-response.json"
+media_directory_contract="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/media-directory-contract.jq"
+
+[[ -f "$media_directory_contract" ]] || {
+  echo "Production media directory contract is missing." >&2
+  exit 1
+}
 
 deploy_started=0
 deploy_succeeded=0
@@ -446,14 +452,17 @@ jq -n --arg query '{
     nodes {
       postDetails {
         postHeader {
+          mediaItemUrl
           medium: sourceUrl(size: MEDIUM)
           large: sourceUrl(size: MEDIUM_LARGE)
         }
         videoImage {
+          mediaItemUrl
           medium: sourceUrl(size: MEDIUM)
           large: sourceUrl(size: MEDIUM_LARGE)
         }
         postHero {
+          mediaItemUrl
           medium: sourceUrl(size: MEDIUM)
           large: sourceUrl(size: MEDIUM_LARGE)
         }
@@ -471,12 +480,21 @@ jq -e '
   and (.data.posts.nodes | type == "array" and length > 0)
 ' "$media_graphql_response" >/dev/null
 
+# The exact object URL and every requested derivative must retain the same S3
+# directory. This catches offload-only key prefixes that `_wp_attached_file`
+# does not know about, even if a different object happens to exist at the
+# reconstructed URL.
+jq -e -f "$media_directory_contract" "$media_graphql_response" >/dev/null || {
+  echo "Production GraphQL sourceUrl is missing or disagrees with mediaItemUrl." >&2
+  exit 1
+}
+
 jq -r '
   [
     .data.posts.nodes[]?.postDetails?
     | (.postHeader?, .videoImage?, .postHero?)
     | select(type == "object")
-    | (.medium?, .large?)
+    | (.mediaItemUrl?, .medium?, .large?)
     | select(type == "string" and length > 0)
   ]
   | unique[]
@@ -491,6 +509,10 @@ media_url_count="$(wc -l < "$media_urls" | tr -d ' ')"
 while IFS= read -r media_url; do
   case "$media_url" in
     https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/*) ;;
+    https://prd-hectv-wp-media.s3-us-east-2.amazonaws.com/wp-content/uploads/*) ;;
+    https://prd-hectv-wp-media.s3.amazonaws.com/wp-content/uploads/*) ;;
+    https://s3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/*) ;;
+    https://s3.us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/*) ;;
     *)
       echo "Production GraphQL returned a non-canonical media URL: $media_url" >&2
       exit 1

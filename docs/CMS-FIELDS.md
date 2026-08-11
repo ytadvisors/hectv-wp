@@ -71,10 +71,13 @@ unrelated admin-managed groups into the repo.
 | Post Events | `post_events` | repeater | Legacy |
 | Related Posts | `related_posts` | repeater | Legacy |
 
-The **YouTube ID** and **Vimeo ID** inputs stay visible even before **Is Video**
-is enabled. ACF 5.6.9 does not reliably reveal conditionally hidden fields from
-the git-owned overlay in the block editor. Use these inputs only for video
-posts, and enter the video ID rather than the full URL.
+The runtime overlay keeps the **YouTube ID** and **Vimeo ID** inputs visible even
+before **Is Video** is enabled. The exported JSON retains its legacy conditional
+logic, but ACF 5.6.9 does not reliably reveal conditionally hidden fields from a
+git-owned overlay in the block editor. Use these inputs only for video posts,
+and enter the video ID rather than the full URL. This compatibility override is
+intentionally limited to those two reported ID inputs; other video-only fields
+retain their legacy conditional behavior.
 
 
 ### Editorial process — main post image vs thumbnails
