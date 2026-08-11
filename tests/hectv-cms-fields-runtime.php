@@ -400,6 +400,7 @@ $post_details_clones = array_values(
 expect_same( 1, count( $post_details_clones ), 'Existing Post Details should have one complete local overlay.' );
 $existing_pd = $post_details_clones[0];
 expect_same( 'group_legacy_post_details', $existing_pd['key'], 'Local overlay must reuse the active database group key.' );
+expect_same( 'normal', $existing_pd['position'], 'Post Details uses a Gutenberg-supported metabox context.' );
 
 $existing_names = array();
 $hero_overlay_fields = array();

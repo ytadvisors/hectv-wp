@@ -265,6 +265,11 @@ function hectv_cms_normalize_local_group( array $group ) {
 	}
 
 	if ( isset( $group['title'] ) && $group['title'] === 'Post Details' ) {
+		// Gutenberg's legacy-metabox compatibility layer renders the standard
+		// `normal` and `side` contexts, but it never runs ACF 5.6.9's custom
+		// `acf_after_title` context. Keep the canonical fields while moving this
+		// editor panel into the supported context so it is not dropped entirely.
+		$group['position'] = 'normal';
 		$group = hectv_cms_with_trending_controls( $group );
 	}
 
