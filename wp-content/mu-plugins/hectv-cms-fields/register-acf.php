@@ -134,20 +134,15 @@ function hectv_cms_trending_order_field( $parent_group_key ) {
 		'label'             => 'Trending order',
 		'name'              => HECTV_META_TRENDING_ORDER,
 		'type'              => 'number',
-		'instructions'      => 'Position in the Trending Now list. Use each number once: 1 is first, 2 is second, and so on. Empty positions follow ordered posts.',
+		'instructions'      => 'Used only when Trending is Yes. Position in the Trending Now list: 1 is first, 2 is second, and so on. Empty positions follow ordered posts.',
 		'required'          => 0,
 		'min'               => 1,
 		'step'              => 1,
 		'default_value'     => '',
-		'conditional_logic' => array(
-			array(
-				array(
-					'field'    => HECTV_ACF_IS_TRENDING_KEY,
-					'operator' => '==',
-					'value'    => '1',
-				),
-			),
-		),
+		// Keep this visible in the legacy ACF/Gutenberg compatibility UI. ACF
+		// 5.6.9 does not reliably reveal a locally injected conditional sibling
+		// after its true/false control changes in the block editor.
+		'conditional_logic' => 0,
 		'wrapper'           => array(
 			'width' => '',
 			'class' => '',

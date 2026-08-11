@@ -404,12 +404,16 @@ expect_same( 'normal', $existing_pd['position'], 'Post Details uses a Gutenberg-
 
 $existing_names = array();
 $hero_overlay_fields = array();
+$trending_order_fields = array();
 foreach ( (array) $existing_pd['fields'] as $field ) {
 	if ( ! empty( $field['name'] ) ) {
 		$existing_names[] = $field['name'];
 	}
 	if ( isset( $field['name'] ) && $field['name'] === HECTV_META_POST_HERO ) {
 		$hero_overlay_fields[] = $field;
+	}
+	if ( isset( $field['name'] ) && $field['name'] === HECTV_META_TRENDING_ORDER ) {
+		$trending_order_fields[] = $field;
 	}
 }
 // Require the complete same-key overlay to ship post_hero as its own ACF child with a
@@ -425,6 +429,8 @@ expect_true(
 		&& $hero_overlay_fields[0]['key'] === 'field_hectv_post_hero',
 	'post_hero overlay field uses the owned field key'
 );
+expect_same( 1, count( $trending_order_fields ), 'Post Details overlay registers exactly one trending_order child' );
+expect_same( 0, $trending_order_fields[0]['conditional_logic'], 'Trending order remains visible in the legacy ACF/Gutenberg editor.' );
 // Required children must all be present (legacy + trending + hero). Avoid a brittle
 // hard-coded total that drifts whenever a single field is added.
 foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POST_HERO, HECTV_META_IS_TRENDING, HECTV_META_TRENDING_ORDER ) as $need ) {
