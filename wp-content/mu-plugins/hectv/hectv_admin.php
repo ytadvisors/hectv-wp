@@ -134,12 +134,48 @@ class HECTV_Admin {
     }
 
     /**
-     * Ensure the Excerpt metabox is visible after login.
+     * Metaboxes that are required for the post publishing workflow.
+     *
+     * @return array
+     */
+    function required_post_metaboxes() {
+        $post_details_group = defined( 'HECTV_ACF_POST_DETAILS_KEY' )
+            ? HECTV_ACF_POST_DETAILS_KEY
+            : 'group_5a9bf131f2b91';
+
+        return array( 'postexcerpt', 'acf-' . $post_details_group );
+    }
+
+    /**
+     * Keep required post metaboxes visible even when a stale Screen Options
+     * preference says they are hidden.
+     *
+     * The filter runs on the current request, so an editor who is already
+     * signed in sees Post Details immediately after this code is deployed.
+     *
+     * @param array      $hidden Hidden metabox IDs.
+     * @param \WP_Screen $screen Current admin screen.
+     * @return array
+     */
+    function show_required_post_metaboxes( $hidden, $screen = null ) {
+        if ( $screen && isset( $screen->id ) && 'post' !== $screen->id ) {
+            return $hidden;
+        }
+
+        if ( ! is_array( $hidden ) ) {
+            return array();
+        }
+
+        return array_values( array_diff( $hidden, $this->required_post_metaboxes() ) );
+    }
+
+    /**
+     * Persist required post metaboxes as visible after login.
      *
      * WordPress stores hidden metabox IDs in user meta as an array. When the
      * key is missing or empty, get_user_meta(..., true) returns '' — and
      * array_search() fatals under typed PHP (critical-error page on wp-login).
-     * Seen for contributor gkowarski 2026-08-10.
+     * The same user setting can also hide the ACF Post Details panel entirely.
      *
      * @param string   $user_login Login name.
      * @param \WP_User $user       Authenticated user.
@@ -150,10 +186,9 @@ class HECTV_Admin {
         if ( ! is_array( $unchecked ) ) {
             return true;
         }
-        $key = array_search( 'postexcerpt', $unchecked, true );
-        if ( false !== $key ) {
-            array_splice( $unchecked, $key, 1 );
-            update_user_meta( $user->ID, 'metaboxhidden_post', $unchecked );
+        $visible = $this->show_required_post_metaboxes( $unchecked );
+        if ( $visible !== $unchecked ) {
+            update_user_meta( $user->ID, 'metaboxhidden_post', $visible );
         }
         return true;
     }
@@ -273,6 +308,7 @@ class HECTV_Admin {
         add_action( 'rest_api_init', array($this, 'register_rest_fields' ), 10, 2);
         add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons') );
         add_action( 'wp_login', array($this, 'show_excerpt'), 10, 2 );
+        add_filter( 'hidden_meta_boxes', array($this, 'show_required_post_metaboxes'), 10, 3 );
         register_nav_menu( 'primary', __( 'Navigation Menu', 'hectv' ) );
         add_action("acf/update_value/name=monthly_schedule", array($this, 'add_schedule'), 10, 3);
         add_filter('acf/format_value/type=image', array($this, 'nullify_empty'), 100, 3);
