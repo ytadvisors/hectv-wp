@@ -4,8 +4,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workflow="$repo_root/.github/workflows/production-deploy.yml"
 release="$repo_root/scripts/production/promote-release.sh"
+media_contract="$repo_root/scripts/production/media-directory-contract.jq"
 
-for file in "$workflow" "$release"; do
+for file in "$workflow" "$release" "$media_contract"; do
   [[ -f "$file" ]] || { echo "Missing production release file: $file" >&2; exit 1; }
 done
 
@@ -34,6 +35,11 @@ grep -Fq 'profile == "consumer-v1"' "$release"
 grep -Fq 'shouldOutputInFlatList' "$release"
 grep -Fq 'media-graphql-response.json' "$release"
 grep -Fq 'posts(first: 100)' "$release"
+grep -Fq 'mediaItemUrl' "$release"
+grep -Fq 'sourceUrl is missing or disagrees with mediaItemUrl' "$release"
+grep -Fq 'media-directory-contract.jq' "$release"
+grep -Fq 'prd-hectv-wp-media.s3-us-east-2.amazonaws.com/wp-content/uploads/' "$release"
+grep -Fq 's3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/' "$release"
 grep -Fq 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/' "$release"
 grep -Fq -- "--range 0-0" "$release"
 grep -Fq '[[ "$media_type" == image/* ]]' "$release"
