@@ -71,8 +71,18 @@ unrelated admin-managed groups into the repo.
 | Post Events | `post_events` | repeater | Legacy |
 | Related Posts | `related_posts` | repeater | Legacy |
 
+The **YouTube ID** and **Vimeo ID** inputs stay visible even before **Is Video**
+is enabled. ACF 5.6.9 does not reliably reveal conditionally hidden fields from
+the git-owned overlay in the block editor. Use these inputs only for video
+posts, and enter the video ID rather than the full URL.
+
 
 ### Editorial process — main post image vs thumbnails
+
+Production media URLs supplied by WP Offload Media are preserved as-is. Some
+uploads include a collision-avoidance directory in the S3 object key that is
+not present in WordPress's `_wp_attached_file` value; reconstructing the URL
+from that core value would point the article page at a nonexistent object.
 
 WordPress media edits (crop/rotate) apply to the **attachment file globally**. If you
 crop the image selected under **Post Header** or **Video Thumbnail**, search results

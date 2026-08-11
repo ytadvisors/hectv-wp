@@ -405,6 +405,7 @@ expect_same( 'normal', $existing_pd['position'], 'Post Details uses a Gutenberg-
 $existing_names = array();
 $hero_overlay_fields = array();
 $trending_order_fields = array();
+$video_id_fields = array();
 foreach ( (array) $existing_pd['fields'] as $field ) {
 	if ( ! empty( $field['name'] ) ) {
 		$existing_names[] = $field['name'];
@@ -414,6 +415,9 @@ foreach ( (array) $existing_pd['fields'] as $field ) {
 	}
 	if ( isset( $field['name'] ) && $field['name'] === HECTV_META_TRENDING_ORDER ) {
 		$trending_order_fields[] = $field;
+	}
+	if ( isset( $field['name'] ) && in_array( $field['name'], array( HECTV_META_YOUTUBE_ID, HECTV_META_VIMEO_ID ), true ) ) {
+		$video_id_fields[ $field['name'] ] = $field;
 	}
 }
 // Require the complete same-key overlay to ship post_hero as its own ACF child with a
@@ -431,6 +435,11 @@ expect_true(
 );
 expect_same( 1, count( $trending_order_fields ), 'Post Details overlay registers exactly one trending_order child' );
 expect_same( 0, $trending_order_fields[0]['conditional_logic'], 'Trending order remains visible in the legacy ACF/Gutenberg editor.' );
+foreach ( array( HECTV_META_YOUTUBE_ID, HECTV_META_VIMEO_ID ) as $video_id_name ) {
+	expect_true( isset( $video_id_fields[ $video_id_name ] ), "Post Details overlay registers $video_id_name" );
+	expect_same( 0, $video_id_fields[ $video_id_name ]['conditional_logic'], "$video_id_name remains visible in the legacy ACF/Gutenberg editor." );
+	expect_true( strpos( $video_id_fields[ $video_id_name ]['instructions'], 'not the full URL' ) !== false, "$video_id_name explains the expected ID format." );
+}
 // Required children must all be present (legacy + trending + hero). Avoid a brittle
 // hard-coded total that drifts whenever a single field is added.
 foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POST_HERO, HECTV_META_IS_TRENDING, HECTV_META_TRENDING_ORDER ) as $need ) {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: YT Advisors
  */
 
@@ -48,6 +48,37 @@ function hectv_staging_media_fallback_path( $relative_path ) {
 }
 
 /**
+ * Determine whether a URL already points at the production media bucket.
+ *
+ * WP Offload Media can store an object-key prefix that is not present in
+ * `_wp_attached_file` (for example, a timestamp directory used to avoid name
+ * collisions). Rebuilding that URL from core attachment metadata drops the
+ * prefix and points GraphQL at an object that does not exist. Trust the
+ * plugin-owned URL when it is already scoped to the production bucket.
+ *
+ * @param string $url Candidate attachment URL.
+ * @return bool
+ */
+function hectv_staging_media_is_public_url( $url ) {
+	if ( ! is_string( $url ) || $url === '' ) {
+		return false;
+	}
+
+	$host = strtolower( (string) parse_url( $url, PHP_URL_HOST ) );
+	$path = (string) parse_url( $url, PHP_URL_PATH );
+
+	if (
+		$host === 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ||
+		$host === 'prd-hectv-wp-media.s3.amazonaws.com'
+	) {
+		return strpos( $path, '/wp-content/uploads/' ) === 0;
+	}
+
+	return $host === 's3-us-east-2.amazonaws.com' &&
+		strpos( $path, '/prd-hectv-wp-media/wp-content/uploads/' ) === 0;
+}
+
+/**
  * Return the canonical public-media object for production attachments.
  *
  * Production uploads are synchronized to the public media bucket, so GraphQL
@@ -61,6 +92,10 @@ function hectv_staging_media_fallback_path( $relative_path ) {
  * @return string
  */
 function hectv_staging_media_fallback_url( $url, $attachment_id ) {
+	if ( hectv_staging_media_is_public_url( $url ) ) {
+		return $url;
+	}
+
 	$relative_path = get_post_meta( $attachment_id, '_wp_attached_file', true );
 	$encoded_path  = hectv_staging_media_fallback_path( $relative_path );
 	if ( $encoded_path === null ) {

@@ -230,6 +230,42 @@ function hectv_cms_with_trending_controls( array $group ) {
 }
 
 /**
+ * Keep the YouTube and Vimeo inputs visible in the block editor.
+ *
+ * ACF 5.6.9 does not reliably reveal conditionally hidden fields from a
+ * git-registered local overlay after the Is Video control changes in
+ * Gutenberg. Editors can therefore see the rest of Post Details but never
+ * reach either video ID input. Keep these two inputs visible and explain when
+ * they apply; the stored meta keys and frontend contract remain unchanged.
+ *
+ * @param array<string, mixed> $group Field group.
+ * @return array<string, mixed>
+ */
+function hectv_cms_keep_video_id_fields_visible( array $group ) {
+	if ( ! isset( $group['fields'] ) || ! is_array( $group['fields'] ) ) {
+		return $group;
+	}
+
+	$instructions = array(
+		HECTV_META_YOUTUBE_ID => 'For video posts only. Enter the YouTube video ID (the value after v= or youtu.be/), not the full URL.',
+		HECTV_META_VIMEO_ID   => 'For video posts only. Enter the numeric Vimeo video ID, not the full URL.',
+	);
+
+	foreach ( $group['fields'] as &$field ) {
+		$name = isset( $field['name'] ) ? (string) $field['name'] : '';
+		if ( ! isset( $instructions[ $name ] ) ) {
+			continue;
+		}
+
+		$field['conditional_logic'] = 0;
+		$field['instructions']      = $instructions[ $name ];
+	}
+	unset( $field );
+
+	return $group;
+}
+
+/**
  * Normalize an export group for acf_add_local_field_group.
  *
  * @param array<string, mixed> $group Export group.
@@ -266,6 +302,7 @@ function hectv_cms_normalize_local_group( array $group ) {
 		// editor panel into the supported context so it is not dropped entirely.
 		$group['position'] = 'normal';
 		$group = hectv_cms_with_trending_controls( $group );
+		$group = hectv_cms_keep_video_id_fields_visible( $group );
 	}
 
 	return $group;

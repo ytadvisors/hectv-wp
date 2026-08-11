@@ -73,6 +73,19 @@ expect_same(
 	'ACF image previews should preserve their requested thumbnail filename on the fallback host.'
 );
 
+$offloaded_url = 'https://s3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/2026/08/11055800/The-Worlds-Fair.jpg';
+$attachment_files[5] = '2026/08/The-Worlds-Fair.jpg';
+expect_same(
+	$offloaded_url,
+	$callback( $offloaded_url, 5 ),
+	'Staging must preserve production-media URLs whose offload object key contains an extra prefix.'
+);
+expect_same(
+	array( $offloaded_url, 1920, 1080, false ),
+	$image_callback( array( $offloaded_url, 1920, 1080, false ), 5, 'full', false ),
+	'Staging image sources must preserve a valid offload-plugin URL.'
+);
+
 $test_upload_basedir = '/';
 $attachment_files[2] = 'etc/hosts';
 expect_same( $original_url, $callback( $original_url, 2 ), 'Existing staging files must keep their staging URL.' );
