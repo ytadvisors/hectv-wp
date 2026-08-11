@@ -344,6 +344,76 @@ function hectv_cms_group_has_field( $group_key, $field_name ) {
 }
 
 /**
+ * Track field-group keys registered from the git-canonical export.
+ *
+ * ACF 5.6.9 appends local groups only when their key is absent from the
+ * database result. When a disabled or stale database group has the same key,
+ * ACF keeps the database record and silently ignores the local definition.
+ * Keeping the exact registered keys lets the later field-group filter replace
+ * only HEC-owned groups without affecting local groups owned by other plugins.
+ *
+ * @param string|null $key Newly registered canonical group key.
+ * @return array<int, string>
+ */
+function hectv_cms_registered_acf_group_keys( $key = null ) {
+	static $keys = array();
+
+	if ( is_string( $key ) && $key !== '' ) {
+		$keys[ $key ] = true;
+	}
+
+	return array_keys( $keys );
+}
+
+/**
+ * Make git-canonical local groups authoritative over same-key DB records.
+ *
+ * This runs after ACF's own priority-20 local-group filter. It replaces an
+ * existing same-key row (including an `acf-disabled` row) with the complete
+ * active local definition, and appends a canonical local group when the DB row
+ * is missing. Local groups not registered by this plugin are left untouched.
+ *
+ * @param array<int, array<string, mixed>> $field_groups ACF field groups.
+ * @return array<int, array<string, mixed>>
+ */
+function hectv_cms_prefer_registered_local_groups( $field_groups ) {
+	if ( ! is_array( $field_groups ) || ! function_exists( 'acf_get_local_field_group' ) ) {
+		return $field_groups;
+	}
+
+	$canonical = array();
+	foreach ( hectv_cms_registered_acf_group_keys() as $key ) {
+		$local = acf_get_local_field_group( $key );
+		if ( is_array( $local ) && ! empty( $local['key'] ) ) {
+			$canonical[ (string) $local['key'] ] = $local;
+		}
+	}
+
+	if ( empty( $canonical ) ) {
+		return $field_groups;
+	}
+
+	$out = array();
+	foreach ( $field_groups as $group ) {
+		$key = is_array( $group ) && ! empty( $group['key'] ) ? (string) $group['key'] : '';
+		if ( $key !== '' && isset( $canonical[ $key ] ) ) {
+			$out[] = $canonical[ $key ];
+			unset( $canonical[ $key ] );
+			continue;
+		}
+		$out[] = $group;
+	}
+
+	foreach ( $canonical as $group ) {
+		$out[] = $group;
+	}
+
+	return $out;
+}
+
+add_filter( 'acf/get_field_groups', 'hectv_cms_prefer_registered_local_groups', 30 );
+
+/**
  * Register complete git-canonical groups and ensure Trending.
  *
  * ACF local groups with the same key as a database group are overlays, not
@@ -376,6 +446,7 @@ function hectv_cms_register_acf_groups() {
 
 		$local = hectv_cms_normalize_local_group( $group );
 		acf_add_local_field_group( $local );
+		hectv_cms_registered_acf_group_keys( (string) $local['key'] );
 
 		// Track the authoritative overlay so later attaches see it.
 		$index['by_key'][ (string) $local['key'] ] = $local;

@@ -63,6 +63,16 @@ function acf_add_local_field_group( $group ) {
 	$acf_groups[] = $group;
 }
 
+function acf_get_local_field_group( $key ) {
+	global $acf_groups;
+	foreach ( array_reverse( $acf_groups ) as $group ) {
+		if ( isset( $group['key'] ) && $group['key'] === $key ) {
+			return $group;
+		}
+	}
+	return false;
+}
+
 function acf_get_fields() {
 	return array();
 }
@@ -418,6 +428,32 @@ foreach ( array( 'is_video', 'poll_for_updates', 'related_posts', HECTV_META_POS
 }
 expect_same( count( $existing_names ), count( array_unique( $existing_names ) ), 'overlay field names are unique' );
 expect_same( array(), $acf_fields, 'Complete Post Details overlay must not add a lone local child.' );
+
+// ACF 5.6.9 keeps a same-key database row ahead of a local group. A disabled
+// DB copy must be replaced by the complete active canonical definition so the
+// Post Details metabox is actually registered on post edit screens.
+$group_overlay_filter = $filters['acf/get_field_groups'][30][0];
+$filtered_groups      = $group_overlay_filter(
+	array(
+		array(
+			'key'      => 'group_legacy_post_details',
+			'title'    => 'Post Details',
+			'active'   => false,
+			'location' => array(),
+		),
+		array(
+			'key'    => 'group_unrelated_plugin',
+			'title'  => 'Unrelated plugin group',
+			'active' => true,
+		),
+	)
+);
+expect_same( 'group_legacy_post_details', $filtered_groups[0]['key'], 'Same-key canonical group keeps its production identity.' );
+expect_same( true, $filtered_groups[0]['active'], 'Canonical Post Details replaces a disabled same-key DB row.' );
+expect_same( 'post_type', $filtered_groups[0]['location'][0][0]['param'], 'Canonical Post Details restores the post edit location.' );
+expect_same( 'post', $filtered_groups[0]['location'][0][0]['value'], 'Canonical Post Details targets posts.' );
+expect_true( count( $filtered_groups[0]['fields'] ) > 0, 'Canonical Post Details replacement includes its fields.' );
+expect_same( 'group_unrelated_plugin', $filtered_groups[1]['key'], 'Unrelated plugin groups remain unchanged.' );
 
 // Every export group is a complete local overlay. Same-title database groups
 // reuse their active group keys so the editor never shows duplicate sections.
