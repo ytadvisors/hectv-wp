@@ -67,6 +67,9 @@ function acf_get_local_field_group( $key ) {
 	global $acf_groups;
 	foreach ( array_reverse( $acf_groups ) as $group ) {
 		if ( isset( $group['key'] ) && $group['key'] === $key ) {
+			// ACF 5.6.9 extracts `fields` into its separate local-field store
+			// before retaining the local group record.
+			unset( $group['fields'] );
 			return $group;
 		}
 	}
@@ -452,7 +455,7 @@ expect_same( 'group_legacy_post_details', $filtered_groups[0]['key'], 'Same-key 
 expect_same( true, $filtered_groups[0]['active'], 'Canonical Post Details replaces a disabled same-key DB row.' );
 expect_same( 'post_type', $filtered_groups[0]['location'][0][0]['param'], 'Canonical Post Details restores the post edit location.' );
 expect_same( 'post', $filtered_groups[0]['location'][0][0]['value'], 'Canonical Post Details targets posts.' );
-expect_true( count( $filtered_groups[0]['fields'] ) > 0, 'Canonical Post Details replacement includes its fields.' );
+expect_same( false, array_key_exists( 'fields', $filtered_groups[0] ), 'Filtered local group mirrors ACF 5.6.9 field extraction.' );
 expect_same( 'group_unrelated_plugin', $filtered_groups[1]['key'], 'Unrelated plugin groups remain unchanged.' );
 
 // Every export group is a complete local overlay. Same-title database groups
