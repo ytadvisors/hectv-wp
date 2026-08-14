@@ -78,8 +78,8 @@ assert_true( strpos( $src, 'acf_add_local_field_group( $local )' ) !== false, 'r
 
 $editor = file_get_contents( $pkg . '/editor.php' );
 assert_true( strpos( $editor, 'HECTV_HOME_PAGE_ID' ) !== false, 'editor recovery identifies the production Home page' );
-assert_true( strpos( $editor, 'use_block_editor_for_post' ) !== false, 'editor recovery uses the per-post WordPress filter' );
-assert_true( strpos( $editor, 'use_block_editor_for_post_type' ) === false, 'editor recovery does not disable the block editor for every page' );
+assert_true( strpos( $editor, 'use_block_editor_for_post' ) === false, 'editor recovery leaves the Home block editor enabled' );
+assert_true( strpos( $editor, 'admin_enqueue_scripts' ) !== false, 'editor recovery is scoped to the Home edit screen assets' );
 assert_true( strpos( $editor, "'wp-hooks'" ) !== false, 'editor recovery orders modern WordPress hooks before legacy ACF' );
 assert_true( strpos( $editor, 'legacyHooks.storage' ) !== false, 'editor recovery preserves ACF 5.6.9 hook callbacks' );
 assert_true( strpos( $editor, 'window.wp.hooks = coreHooks' ) !== false, 'editor recovery restores the modern WordPress hook registry' );
