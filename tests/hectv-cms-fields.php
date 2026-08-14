@@ -21,7 +21,7 @@ $loader = $root . '/wp-content/mu-plugins/hectv-cms-fields.php';
 assert_true( file_exists( $loader ), 'loader exists' );
 
 $pkg = $root . '/wp-content/mu-plugins/hectv-cms-fields';
-foreach ( array( 'register-acf.php', 'site-settings.php', 'menus.php', 'graphql.php', 'acf-field-groups.json' ) as $f ) {
+foreach ( array( 'register-acf.php', 'editor.php', 'site-settings.php', 'menus.php', 'graphql.php', 'acf-field-groups.json' ) as $f ) {
 	assert_true( file_exists( "$pkg/$f" ), "package file $f" );
 }
 
@@ -75,6 +75,11 @@ assert_true( strpos( $src, 'group_5a9bf131f2b91' ) !== false, 'references produc
 assert_true( strpos( $src, 'Register every exported group as one complete same-key local group' ) !== false, 'registers complete same-key overlays for every exported group' );
 assert_true( strpos( $src, 'Skip other groups when production' ) === false, 'does not leave database groups authoritative over git' );
 assert_true( strpos( $src, 'acf_add_local_field_group( $local )' ) !== false, 'registers full local Post Details fields' );
+
+$editor = file_get_contents( $pkg . '/editor.php' );
+assert_true( strpos( $editor, 'HECTV_HOME_PAGE_ID' ) !== false, 'editor recovery identifies the production Home page' );
+assert_true( strpos( $editor, 'use_block_editor_for_post' ) !== false, 'editor recovery uses the per-post WordPress filter' );
+assert_true( strpos( $editor, 'use_block_editor_for_post_type' ) === false, 'editor recovery does not disable the block editor for every page' );
 
 $gql = file_get_contents( $pkg . '/graphql.php' );
 assert_true( strpos( $gql, 'trendingSettings' ) !== false, 'GraphQL trendingSettings' );

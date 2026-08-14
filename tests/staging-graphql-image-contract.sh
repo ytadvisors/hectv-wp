@@ -44,5 +44,7 @@ done
 
 php "$repo_root/tests/hectv-modern-cpt-graphql-exposure.php"
 php "$repo_root/tests/hectv-graphql-dual-schema-contract.php"
+php "$repo_root/tests/hectv-homepage-graphql.php"
+php "$repo_root/tests/hectv-home-editor.php"
 
 echo "Staging GraphQL image contract test passed."

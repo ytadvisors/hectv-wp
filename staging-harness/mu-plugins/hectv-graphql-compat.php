@@ -311,6 +311,63 @@ function hectv_gql_meta( $post, $key, $default = null ) {
 }
 
 /**
+ * Read an ACF repeater from its canonical WordPress post-meta representation.
+ *
+ * ACF stores the parent field as a row count and each child as
+ * `<field>_<index>_<subfield>`. Return null only when the canonical parent meta
+ * does not exist, allowing explicitly empty repeaters to remain empty instead
+ * of falling through to legacy staging fixtures.
+ *
+ * @param mixed             $post       Post source.
+ * @param string            $field_name Repeater field name.
+ * @param array<int,string> $sub_fields Repeater child field names.
+ * @return array<int,array<string,mixed>>|null
+ */
+function hectv_gql_acf_repeater_rows( $post, $field_name, array $sub_fields ) {
+	$id = hectv_gql_id( $post );
+	if ( ! $id ) {
+		return null;
+	}
+
+	$raw_count = get_post_meta( $id, $field_name, true );
+	$has_meta  = function_exists( 'metadata_exists' )
+		? metadata_exists( 'post', $id, $field_name )
+		: ( $raw_count !== '' && $raw_count !== null );
+
+	if ( is_array( $raw_count ) ) {
+		return array_values( $raw_count );
+	}
+
+	if ( $has_meta && is_numeric( $raw_count ) ) {
+		$count = max( 0, (int) $raw_count );
+		$rows  = array();
+		for ( $index = 0; $index < $count; $index++ ) {
+			$row = array();
+			foreach ( $sub_fields as $sub_field ) {
+				$row[ $sub_field ] = get_post_meta(
+					$id,
+					$field_name . '_' . $index . '_' . $sub_field,
+					true
+				);
+			}
+			$rows[] = $row;
+		}
+		return $rows;
+	}
+
+	// Support non-standard imports that retained a formatted ACF array instead
+	// of the normal row-count storage.
+	if ( function_exists( 'get_field' ) ) {
+		$formatted = get_field( $field_name, $id );
+		if ( is_array( $formatted ) ) {
+			return array_values( $formatted );
+		}
+	}
+
+	return $has_meta ? array() : null;
+}
+
+/**
  * Helper: coerce common truthy meta into bool|null.
  *
  * @param mixed $val Raw meta.
@@ -610,27 +667,58 @@ add_action(
 			if ( ! $id ) {
 				return array(
 					'newRowLayout'       => array(),
-					'defaultDisplayType' => 'grid',
-					'defaultRowLayout'   => 'standard',
+					'defaultDisplayType' => 'Post',
+					'defaultRowLayout'   => 'Single Column',
 				);
 			}
-			$raw  = hectv_gql_meta( $id, 'feed_design_rows', '' );
-			$rows = array();
-			if ( is_string( $raw ) && $raw !== '' ) {
-				$decoded = json_decode( $raw, true );
-				if ( is_array( $decoded ) ) {
-					foreach ( $decoded as $row ) {
-						$rows[] = array(
-							'rowLayout'   => isset( $row['rowLayout'] ) ? (string) $row['rowLayout'] : 'standard',
-							'displayType' => isset( $row['displayType'] ) ? (string) $row['displayType'] : 'grid',
-						);
-					}
+
+			$source_rows = hectv_gql_acf_repeater_rows(
+				$id,
+				'new_row_layout',
+				array( 'row_layout', 'display_type' )
+			);
+
+			// The isolated staging seed predates the canonical ACF export. Keep its
+			// JSON fixture only when no canonical repeater meta exists.
+			if ( $source_rows === null ) {
+				$legacy = hectv_gql_meta( $id, 'feed_design_rows', '' );
+				$source_rows = is_string( $legacy ) && $legacy !== ''
+					? json_decode( $legacy, true )
+					: array();
+				if ( ! is_array( $source_rows ) ) {
+					$source_rows = array();
 				}
 			}
+
+			$rows = array();
+			foreach ( $source_rows as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$row_layout = 'Single Column';
+				if ( isset( $row['row_layout'] ) ) {
+					$row_layout = $row['row_layout'];
+				} elseif ( isset( $row['rowLayout'] ) ) {
+					$row_layout = $row['rowLayout'];
+				}
+
+				$display = 'Post';
+				if ( isset( $row['display_type'] ) ) {
+					$display = $row['display_type'];
+				} elseif ( isset( $row['displayType'] ) ) {
+					$display = $row['displayType'];
+				}
+
+				$rows[]     = array(
+					'rowLayout'   => (string) $row_layout,
+					'displayType' => (string) $display,
+				);
+			}
+
 			return array(
 				'newRowLayout'       => $rows,
-				'defaultDisplayType' => (string) hectv_gql_meta( $id, 'default_display_type', 'grid' ),
-				'defaultRowLayout'   => (string) hectv_gql_meta( $id, 'default_row_layout', 'standard' ),
+				'defaultDisplayType' => (string) hectv_gql_meta( $id, 'default_display_type', 'Post' ),
+				'defaultRowLayout'   => (string) hectv_gql_meta( $id, 'default_row_layout', 'Single Column' ),
 			);
 		};
 
@@ -649,34 +737,39 @@ add_action(
 			array(
 				'type'    => 'HecRequiredPosts',
 				'resolve' => static function ( $source ) {
-					$ids = hectv_gql_meta( $source, 'required_posts', array() );
-					if ( is_string( $ids ) ) {
-						$ids = array_filter( array_map( 'intval', explode( ',', $ids ) ) );
-					}
-					if ( ! is_array( $ids ) ) {
-						$ids = array();
-					}
-					$list = array();
-					foreach ( $ids as $pid ) {
-						$model = hectv_gql_model_post( $pid );
-						if ( $model ) {
-							$list[] = array( 'post' => $model );
+					$rows = hectv_gql_acf_repeater_rows( $source, 'post_list', array( 'post' ) );
+					$ids  = array();
+
+					if ( $rows === null ) {
+						// Compatibility for the isolated staging seed only. Production ACF
+						// stores Required Posts in the canonical post_list repeater.
+						$legacy = hectv_gql_meta( $source, 'required_posts', array() );
+						if ( is_string( $legacy ) ) {
+							$legacy = array_filter( array_map( 'intval', explode( ',', $legacy ) ) );
+						}
+						$ids = is_array( $legacy ) ? $legacy : array();
+					} else {
+						foreach ( $rows as $row ) {
+							$candidate = $row;
+							if ( is_array( $row ) ) {
+								if ( array_key_exists( 'post', $row ) ) {
+									$candidate = $row['post'];
+								} elseif ( array_key_exists( 'field_5b02e345268bd', $row ) ) {
+									$candidate = $row['field_5b02e345268bd'];
+								}
+							}
+							$post_id = hectv_gql_id( $candidate );
+							if ( $post_id ) {
+								$ids[] = $post_id;
+							}
 						}
 					}
-					// Fall back to latest posts so home layout is never empty in fixtures.
-					if ( ! $list ) {
-						$latest = get_posts(
-							array(
-								'post_type'      => 'post',
-								'posts_per_page' => 3,
-								'post_status'    => 'publish',
-							)
-						);
-						foreach ( $latest as $p ) {
-							$model = hectv_gql_model_post( $p->ID );
-							if ( $model ) {
-								$list[] = array( 'post' => $model );
-							}
+
+					$list = array();
+					foreach ( $ids as $pid ) {
+						$model = hectv_gql_model_post( hectv_gql_id( $pid ) );
+						if ( $model ) {
+							$list[] = array( 'post' => $model );
 						}
 					}
 					return array( 'postList' => $list );
