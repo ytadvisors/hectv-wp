@@ -4,9 +4,10 @@ HEC staging is local Docker only. AWS contains the production WordPress runtime;
 there is no AWS staging cluster, service, load balancer, database, secret,
 CloudFront distribution, or ECR repository to start or recreate.
 
-The historical `infra/staging/` and `scripts/staging/` files are retained only as
-decommission evidence until their final repository cleanup. They are not an
-operational staging path and must not be applied or invoked.
+The historical `infra/staging/` definitions are retained only as decommission
+evidence until their final repository cleanup. The old AWS staging start, stop,
+database-refresh, and shared helper scripts have been removed. The retained
+Terraform is not an operational staging path and must not be applied.
 
 ## Safety boundary
 

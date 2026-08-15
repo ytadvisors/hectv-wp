@@ -6,6 +6,7 @@ set -euo pipefail
 : "${EXPECTED_CURRENT_IMAGE_DIGEST:?Set the exact production image digest observed immediately before dispatch.}"
 : "${REQUEST_TASK_ID:?Set REQUEST_TASK_ID to the positive HEC production authorization receipt.}"
 : "${PRODUCTION_CONFIRMATION:?Set PRODUCTION_CONFIRMATION to the exact production confirmation phrase.}"
+: "${BUILDX_BUILDER:?Set BUILDX_BUILDER to the workflow-created Buildx builder name.}"
 
 : "${AWS_REGION:=us-east-2}"
 : "${AWS_ACCOUNT_ID:=850335719356}"
@@ -26,7 +27,7 @@ readonly CONFIRMATION_PHRASE="DEPLOY HEC BACKEND PRODUCTION"
 readonly REGISTRY_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 readonly PRODUCTION_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PRODUCTION_ECR_REPOSITORY}"
 
-for command in aws curl docker jq mktemp; do
+for command in aws curl docker grep jq mktemp; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Required command is not installed: $command" >&2
     exit 1
@@ -53,9 +54,6 @@ fi
 }
 
 release_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/hectv-production-release.XXXXXX")"
-docker_config_dir="$release_dir/docker-config"
-mkdir -p "$docker_config_dir"
-export DOCKER_CONFIG="$docker_config_dir"
 service_before="$release_dir/service-before.json"
 task_before="$release_dir/task-before.json"
 config_register_file="$release_dir/task-config-register.json"
@@ -67,6 +65,7 @@ media_urls="$release_dir/media-urls.txt"
 newsletter_response="$release_dir/newsletter-response.json"
 release_metadata="$release_dir/release-metadata.json"
 production_manifest="$release_dir/production-manifest.json"
+builder_inspect="$release_dir/buildx-inspect.txt"
 media_directory_contract="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/media-directory-contract.jq"
 
 [[ -f "$media_directory_contract" ]] || {
@@ -211,10 +210,15 @@ aws ecr get-login-password --region "$AWS_REGION" |
 if [[ -n "$destination_digest" && "$destination_digest" != "None" ]]; then
   ARTIFACT_DIGEST="$destination_digest"
 else
-  # Local Docker is the HEC staging surface. The protected production job
-  # performs the sole AWS image build from the exact merged commit, then pushes
-  # one immutable ARM64 release tag directly to the existing production ECR.
+  # Pin the cross-platform build to setup-buildx-action's docker-container
+  # builder so ARM64 emulation and OCI attestations cannot fall back silently.
+  docker buildx inspect "$BUILDX_BUILDER" --bootstrap > "$builder_inspect"
+  grep -Eq '^Driver:[[:space:]]+docker-container[[:space:]]*$' "$builder_inspect" || {
+    echo "Production release requires the workflow-created docker-container Buildx builder." >&2
+    exit 1
+  }
   docker buildx build \
+    --builder "$BUILDX_BUILDER" \
     --platform linux/arm64 \
     --build-arg "APP_REVISION=$RELEASE_SHA" \
     --annotation "index:org.opencontainers.image.revision=$RELEASE_SHA" \

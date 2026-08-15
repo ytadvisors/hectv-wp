@@ -99,6 +99,7 @@ jobs:
           platforms: arm64
 
       - name: Create isolated BuildKit builder
+        id: production_builder
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Assume the least-privilege production role
@@ -109,6 +110,8 @@ jobs:
           aws-region: us-east-2
 
       - name: Build the merged source, deploy with circuit breaker, and verify
+        env:
+          BUILDX_BUILDER: ${{ steps.production_builder.outputs.name }}
         run: bash scripts/production/promote-release.sh
 
       - name: Publish release summary

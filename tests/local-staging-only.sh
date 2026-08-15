@@ -25,6 +25,13 @@ grep -Fq '"31155"' "$seed"
 grep -Fq 'post_list_0_post' "$seed"
 grep -Fq 'HEC staging is local Docker only.' "$lifecycle"
 
+for retired_script in common.sh start.sh stop.sh refresh-db.sh; do
+  if [[ -e "$repo_root/scripts/staging/$retired_script" ]]; then
+    echo "Retired AWS staging script is still executable source: scripts/staging/$retired_script" >&2
+    exit 1
+  fi
+done
+
 if grep -Eqi 'aws |amazonaws\.com|staging-wp\.hectv\.org|hectv-wp-staging@' "$compose" "$dockerfile" "$seed"; then
   echo "Local staging must not reference an AWS runtime." >&2
   exit 1

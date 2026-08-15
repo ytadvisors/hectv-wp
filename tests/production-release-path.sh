@@ -23,6 +23,8 @@ grep -Fq 'role/hectv-wp-production-deploy' "$workflow"
 grep -Eq 'aws-actions/configure-aws-credentials@[0-9a-f]{40}' "$workflow"
 grep -Eq 'docker/setup-qemu-action@[0-9a-f]{40}' "$workflow"
 grep -Eq 'docker/setup-buildx-action@[0-9a-f]{40}' "$workflow"
+grep -Fq 'id: production_builder' "$workflow"
+grep -Fq 'BUILDX_BUILDER: ${{ steps.production_builder.outputs.name }}' "$workflow"
 grep -Eq 'image: docker\.io/tonistiigi/binfmt@sha256:[0-9a-f]{64}' "$workflow"
 grep -Eq 'actions/upload-artifact@[0-9a-f]{40}' "$workflow"
 grep -Fq 'bash tests/local-staging-only.sh' "$workflow"
@@ -38,6 +40,9 @@ grep -Fq '[.enable,.rollback]' "$release"
 grep -Fq 'restoring the recorded baseline task definition' "$release"
 grep -Fq 'HECTV_RECAPTCHA_ALLOWED_HOSTS' "$release"
 grep -Fq 'docker buildx build' "$release"
+grep -Fq 'docker buildx inspect "$BUILDX_BUILDER" --bootstrap' "$release"
+grep -Fq "grep -Eq '^Driver:[[:space:]]+docker-container[[:space:]]*\$'" "$release"
+grep -Fq -- '--builder "$BUILDX_BUILDER"' "$release"
 grep -Fq -- '--platform linux/arm64' "$release"
 grep -Fq -- '--build-arg "APP_REVISION=$RELEASE_SHA"' "$release"
 grep -Fq -- '--annotation "index:org.opencontainers.image.revision=$RELEASE_SHA"' "$release"
@@ -64,7 +69,6 @@ grep -Fq 's3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/' "$r
 grep -Fq 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/' "$release"
 grep -Fq -- "--range 0-0" "$release"
 grep -Fq '[[ "$media_type" == image/* ]]' "$release"
-grep -Fq 'export DOCKER_CONFIG="$docker_config_dir"' "$release"
 grep -Fq "' \"\$task_release_source\" > \"\$register_file\"" "$release"
 grep -Fq 'Final production task definition contains changes beyond the reviewed image digest.' "$release"
 grep -Fq 'Refusing a production config migration containing changes beyond the two reviewed reCAPTCHA references.' "$release"
@@ -90,6 +94,11 @@ fi
 
 if grep -Eq 'TASK_DEFINITION_TEMPLATE|manifest-only|batch-get-image|docker pull |docker tag |docker push ' "$release"; then
   echo "Production release must build merged source and derive from the live task definition." >&2
+  exit 1
+fi
+
+if grep -Fq 'export DOCKER_CONFIG=' "$release"; then
+  echo "Production release must preserve setup-buildx-action's builder state." >&2
   exit 1
 fi
 

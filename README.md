@@ -49,7 +49,7 @@ Editors ──► WordPress admin (ACF / menus / site settings)
 - `wp-content/mu-plugins/hectv-staging-query-compat.php` — GraphQL query compatibility for modern WPGraphQL
 - `wp-content/mu-plugins/hectv-public-read-only.php` / staging content controls — staging safety rails
 - `staging-harness/` — local Docker harness + seed + contract tests
-- `infra/staging` & `scripts/staging` — historical AWS staging definitions retained as decommission evidence; do not apply or invoke
+- `infra/staging` — historical AWS staging definitions retained as decommission evidence; do not apply
 - `infra/production` & `scripts/production` — production infrastructure and guarded release/health tooling
 
 See `docs/` for the full contract and runbooks.
