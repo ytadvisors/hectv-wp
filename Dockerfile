@@ -1,7 +1,4 @@
-# The current immutable production image contains the four licensed/legacy
-# plugins that are not redistributed in this repository. Reuse that exact
-# production artifact as a read-only build source so releases do not depend on
-# any AWS staging repository or service.
+# Licensed plugins absent from git are copied from this digest-pinned production image.
 FROM 850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-production@sha256:f98c0f2a44c43bfd28cee60a20a56e6796c42d2f77ab04ddb5078c9156f68054 AS legacy-plugins
 
 # Match the modern WPGraphQL version exercised by the staging harness. The
