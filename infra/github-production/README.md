@@ -6,18 +6,18 @@ The production workflow assumes a dedicated OIDC role named
 requires Yomi's review, prevents self-review and administrator bypass, and
 allows deployments only from `main`.
 
-The inline permissions policy can inspect staging and production, pull the
-already-proven staging image by digest, upload its layers and manifest to the
-immutable production ECR repository, register production task definitions
-derived from the authorized live definition, and update exactly one ECS
-service. It cannot create services, change DNS, read production runtime secrets,
-or modify IAM.
+The inline permissions policy can inspect the production service, pull the
+digest-pinned legacy-plugin source from the existing production ECR repository,
+and push one exact-SHA release image back to that immutable repository. It can
+then register production task definitions derived from the authorized live
+definition and update exactly one ECS service. It cannot create services,
+change DNS, read production runtime secrets, or modify IAM.
 
-Cross-repository promotion runs the official Skopeo container pinned by digest
-with `--preserve-digests`. A normal Docker pull/tag/push is intentionally
-forbidden because Docker can reserialize an otherwise identical manifest and
-therefore change the ECR digest. The workflow verifies the destination tag still
-resolves to the exact staging digest before it can register or deploy a task
+HEC staging is the repository's local Docker harness; there is no AWS staging
+runtime or staging ECR dependency. The protected production job checks out the
+exact merged `main` commit, builds a single ARM64 OCI image with BuildKit, records
+its source revision as an index annotation, and verifies that annotation,
+architecture, immutable tag, and digest before it can register or deploy a task
 definition.
 
 An AWS administrator bootstraps this role once after the release-path pull

@@ -2,7 +2,6 @@
 set -euo pipefail
 
 : "${RELEASE_SHA:?Set RELEASE_SHA to the exact merged main commit.}"
-: "${ARTIFACT_DIGEST:?Set ARTIFACT_DIGEST to the exact staging ECR digest.}"
 : "${EXPECTED_CURRENT_TASK_DEFINITION:?Set the full production task-definition ARN observed immediately before dispatch.}"
 : "${EXPECTED_CURRENT_IMAGE_DIGEST:?Set the exact production image digest observed immediately before dispatch.}"
 : "${REQUEST_TASK_ID:?Set REQUEST_TASK_ID to the positive HEC production authorization receipt.}"
@@ -12,10 +11,6 @@ set -euo pipefail
 : "${AWS_ACCOUNT_ID:=850335719356}"
 : "${ECS_CLUSTER:=hectv-wp-production}"
 : "${ECS_SERVICE:=hectv-wp-production}"
-: "${STAGING_CLUSTER:=hectv-wp}"
-: "${STAGING_PUBLIC_SERVICE:=hectv-wp-staging}"
-: "${STAGING_ADMIN_SERVICE:=hectv-wp-staging-admin}"
-: "${STAGING_ECR_REPOSITORY:=hectv-wp-staging}"
 : "${PRODUCTION_ECR_REPOSITORY:=hectv-wp-production}"
 : "${PRODUCTION_RUNTIME_SECRET_ARN:=arn:aws:secretsmanager:us-east-2:850335719356:secret:hectv-wp/production-runtime-Eny4Q8}"
 : "${ORIGIN_HEALTH_URL:=https://prod-wp-ecs.hectv.org/healthz}"
@@ -29,9 +24,7 @@ set -euo pipefail
 readonly EXPECTED_WORKFLOW="/.github/workflows/production-deploy.yml@"
 readonly CONFIRMATION_PHRASE="DEPLOY HEC BACKEND PRODUCTION"
 readonly REGISTRY_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-readonly STAGING_REPOSITORY_URI="${REGISTRY_HOST}/${STAGING_ECR_REPOSITORY}"
 readonly PRODUCTION_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PRODUCTION_ECR_REPOSITORY}"
-readonly SKOPEO_IMAGE="quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
 
 for command in aws curl docker jq mktemp; do
   command -v "$command" >/dev/null 2>&1 || {
@@ -51,7 +44,6 @@ if [[ "${GITHUB_ACTIONS:-}" != "true" ]] ||
   exit 1
 fi
 [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "RELEASE_SHA is not an exact commit SHA." >&2; exit 1; }
-[[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "ARTIFACT_DIGEST is invalid." >&2; exit 1; }
 [[ "$EXPECTED_CURRENT_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "EXPECTED_CURRENT_IMAGE_DIGEST is invalid." >&2; exit 1; }
 [[ "$REQUEST_TASK_ID" =~ ^[1-9][0-9]*$ ]] || { echo "REQUEST_TASK_ID must be positive." >&2; exit 1; }
 [[ "$PRODUCTION_CONFIRMATION" == "$CONFIRMATION_PHRASE" ]] || { echo "Production confirmation phrase does not match." >&2; exit 1; }
@@ -73,6 +65,8 @@ graphql_response="$release_dir/graphql-response.json"
 media_graphql_response="$release_dir/media-graphql-response.json"
 media_urls="$release_dir/media-urls.txt"
 newsletter_response="$release_dir/newsletter-response.json"
+release_metadata="$release_dir/release-metadata.json"
+production_manifest="$release_dir/production-manifest.json"
 media_directory_contract="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/media-directory-contract.jq"
 
 [[ -f "$media_directory_contract" ]] || {
@@ -82,6 +76,7 @@ media_directory_contract="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/media-di
 
 deploy_started=0
 deploy_succeeded=0
+ARTIFACT_DIGEST=""
 config_task_definition=""
 new_task_definition=""
 rollback_task_definition="$EXPECTED_CURRENT_TASK_DEFINITION"
@@ -196,57 +191,64 @@ current_image_digest="${current_image##*@}"
   exit 1
 }
 
-for service in "$STAGING_PUBLIC_SERVICE" "$STAGING_ADMIN_SERVICE"; do
-  staging_state="$(aws ecs describe-services --region "$AWS_REGION" --cluster "$STAGING_CLUSTER" --services "$service" --query 'services[0].[desiredCount,runningCount,pendingCount,taskDefinition,deployments[?status==`PRIMARY`].rolloutState|[0]]' --output text)"
-  read -r staging_desired staging_running staging_pending staging_task_definition staging_rollout <<<"$staging_state"
-  [[ "$staging_desired" -gt 0 && "$staging_running" -eq "$staging_desired" && "$staging_pending" -eq 0 && "$staging_rollout" == "COMPLETED" ]] || {
-    echo "Staging service $service is not stable." >&2
-    exit 1
-  }
-  staging_image="$(aws ecs describe-task-definition --region "$AWS_REGION" --task-definition "$staging_task_definition" --query 'taskDefinition.containerDefinitions[0].image' --output text)"
-  [[ "${staging_image##*@}" == "$ARTIFACT_DIGEST" ]] || {
-    echo "Staging service $service is not running the authorized digest." >&2
-    exit 1
-  }
-done
+destination_tag="release-${RELEASE_SHA}"
+destination_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$PRODUCTION_ECR_REPOSITORY" --image-ids "imageTag=$destination_tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+production_tagged_image="${PRODUCTION_REPOSITORY_URI}:${destination_tag}"
 
-tagged_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$STAGING_ECR_REPOSITORY" --image-ids "imageTag=$RELEASE_SHA" --query 'imageDetails[0].imageDigest' --output text)"
-[[ "$tagged_digest" == "$ARTIFACT_DIGEST" ]] || {
-  echo "The staging release tag does not resolve to the authorized digest." >&2
+repository_mutability="$(aws ecr describe-repositories \
+  --region "$AWS_REGION" \
+  --repository-names "$PRODUCTION_ECR_REPOSITORY" \
+  --query 'repositories[0].imageTagMutability' \
+  --output text)"
+[[ "$repository_mutability" == "IMMUTABLE" ]] || {
+  echo "Production ECR release tags must be immutable." >&2
   exit 1
 }
 
-destination_tag="release-${RELEASE_SHA}"
-destination_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$PRODUCTION_ECR_REPOSITORY" --image-ids "imageTag=$destination_tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+aws ecr get-login-password --region "$AWS_REGION" |
+  docker login --username AWS --password-stdin "$REGISTRY_HOST" >/dev/null
+
 if [[ -n "$destination_digest" && "$destination_digest" != "None" ]]; then
-  [[ "$destination_digest" == "$ARTIFACT_DIGEST" ]] || {
-    echo "Immutable production tag already exists with a different digest." >&2
-    exit 1
-  }
+  ARTIFACT_DIGEST="$destination_digest"
 else
-  aws ecr get-login-password --region "$AWS_REGION" |
-    docker login --username AWS --password-stdin "$REGISTRY_HOST" >/dev/null
-  staging_image="${STAGING_REPOSITORY_URI}@${ARTIFACT_DIGEST}"
-  production_tagged_image="${PRODUCTION_REPOSITORY_URI}:${destination_tag}"
-  # GHA runners are linux/amd64; HEC production/staging Fargate is ARM64.
-  # Default skopeo selection uses the host arch and fails on arm64-only indexes
-  # ("no image found ... architecture amd64"). Copy the full multi-arch index so
-  # the staging digest is preserved for ARM64 runtime.
-  docker run --rm --pull=always \
-    --volume "$docker_config_dir/config.json:/auth.json:ro" \
-    "$SKOPEO_IMAGE" \
-    copy \
-    --all \
-    --preserve-digests \
-    --authfile /auth.json \
-    "docker://$staging_image" \
-    "docker://$production_tagged_image"
+  # Local Docker is the HEC staging surface. The protected production job
+  # performs the sole AWS image build from the exact merged commit, then pushes
+  # one immutable ARM64 release tag directly to the existing production ECR.
+  docker buildx build \
+    --platform linux/arm64 \
+    --build-arg "APP_REVISION=$RELEASE_SHA" \
+    --annotation "index:org.opencontainers.image.revision=$RELEASE_SHA" \
+    --provenance=mode=max \
+    --sbom=true \
+    --metadata-file "$release_metadata" \
+    --tag "$production_tagged_image" \
+    --push \
+    .
+
+  ARTIFACT_DIGEST="$(jq -r '."containerimage.digest" // empty' "$release_metadata")"
   destination_digest="$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$PRODUCTION_ECR_REPOSITORY" --image-ids "imageTag=$destination_tag" --query 'imageDetails[0].imageDigest' --output text)"
-  [[ "$destination_digest" == "$ARTIFACT_DIGEST" ]] || {
-    echo "Promoted production image digest does not match staging." >&2
-    exit 1
-  }
 fi
+
+[[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+  echo "Production build did not return a valid immutable digest." >&2
+  exit 1
+}
+[[ "$destination_digest" == "$ARTIFACT_DIGEST" ]] || {
+  echo "Production release tag does not resolve to the built digest." >&2
+  exit 1
+}
+
+docker buildx imagetools inspect \
+  "${PRODUCTION_REPOSITORY_URI}@${ARTIFACT_DIGEST}" \
+  --format '{{json .Manifest}}' > "$production_manifest"
+jq -e --arg release_sha "$RELEASE_SHA" '
+  .mediaType == "application/vnd.oci.image.index.v1+json"
+  and .annotations["org.opencontainers.image.revision"] == $release_sha
+  and ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64")] | length) == 1
+' "$production_manifest" >/dev/null || {
+  echo "Production image is not the exact annotated ARM64 release." >&2
+  exit 1
+}
 
 jq -e '
   (.taskDefinition.family | startswith("hectv-wp-production")) and

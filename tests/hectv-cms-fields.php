@@ -146,8 +146,8 @@ assert_true( strpos( $seed, 'is_trending' ) !== false, 'seed sets is_trending' )
 assert_true( strpos( $seed, 'Header Actions' ) !== false, 'seed creates Header Actions menu' );
 assert_true( strpos( $seed, 'hectv_trending_max_videos' ) !== false, 'seed sets max videos' );
 
-$compose = file_get_contents( $root . '/staging-harness/docker-compose.yml' );
-assert_true( strpos( $compose, 'hectv-cms-fields' ) !== false, 'compose mounts cms fields package' );
+$local_dockerfile = file_get_contents( $root . '/staging-harness/Dockerfile' );
+assert_true( strpos( $local_dockerfile, 'COPY wp-content/mu-plugins/hectv-cms-fields' ) !== false, 'local image includes cms fields package' );
 
 $compat_hero = file_get_contents( $root . '/staging-harness/mu-plugins/hectv-graphql-compat.php' );
 assert_true( strpos( $compat_hero, "'postHero'" ) !== false, 'staging compat registers postHero field' );

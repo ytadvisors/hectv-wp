@@ -23,8 +23,8 @@ Built and modernized by **[YT Advisors](https://ytadvisors.com)** for the HEC cl
 | **WordPress (this repo)** | CMS of record — posts, custom post types, ACF field groups, menus, site settings |
 | **WPGraphQL + owned compatibility** | GraphQL API contract used by the headless frontend |
 | **Next.js frontend** (`hecmedia`, separate repo) | Public site UX; queries this CMS over GraphQL |
-| **AWS staging** | On-demand ECS staging (`staging-wp.hectv.org`) with an isolated `hectv_staging` database |
-| **AWS production path** | Elastic Beanstalk origin; parallel **ECS/Fargate lift-and-shift** (PHP/WP upgrade deliberately separate) |
+| **Local staging** | Fixture-only Docker Compose harness bound to `127.0.0.1`; no AWS staging resources |
+| **AWS production** | ECS/Fargate WordPress origin behind the production ALB and CloudFront |
 
 This is **not** a greenfield marketing site. It is a production CMS under active modernization: safer staging, a durable GraphQL contract, git-canonical field definitions, and a hosting cutover that does not bundle a risky PHP/WordPress upgrade into the same release.
 
@@ -49,8 +49,8 @@ Editors ──► WordPress admin (ACF / menus / site settings)
 - `wp-content/mu-plugins/hectv-staging-query-compat.php` — GraphQL query compatibility for modern WPGraphQL
 - `wp-content/mu-plugins/hectv-public-read-only.php` / staging content controls — staging safety rails
 - `staging-harness/` — local Docker harness + seed + contract tests
-- `infra/staging` & `infra/production` — Terraform for ECS paths
-- `scripts/staging` & `scripts/production` — lifecycle / cutover / health probes
+- `infra/staging` & `scripts/staging` — historical AWS staging definitions retained as decommission evidence; do not apply or invoke
+- `infra/production` & `scripts/production` — production infrastructure and guarded release/health tooling
 
 See `docs/` for the full contract and runbooks.
 
@@ -64,8 +64,8 @@ See `docs/` for the full contract and runbooks.
 2. **CMS fields in git, not only in the live DB**  
    Production ACF groups are versioned as export + PHP registration (`docs/CMS-FIELDS.md`) so field definitions survive environments and reviews.
 
-3. **Isolated, on-demand staging**  
-   Separate logical DB (`hectv_staging`), ECS desired-count-zero when idle, payment keys forced to test mode, public-read-only rails. Lifecycle: `docs/STAGING-LIFECYCLE.md`.
+3. **Local, cost-free staging**
+   Docker Compose runs fixture-only WordPress and MySQL on loopback, with no production credentials or AWS staging resources. Lifecycle: `docs/STAGING-LIFECYCLE.md`.
 
 4. **Production hosting migration without a stack bomb**  
    Cutover 1: same app bundle + digest-pinned PHP 7.1 runtime onto ECS/Fargate, new origin hostname, EB left intact, EFS identity/probe gates, Secrets Manager runtime. PHP 8.2 / core modernization is a **later**, separately validated track. See `docs/PRODUCTION-ECS-MIGRATION.md`.
@@ -104,25 +104,26 @@ Requires Docker, `jq`, and `curl`. Do **not** point this harness at production c
 ```bash
 cd staging-harness
 cp .env.example .env   # fill local-only values
-docker compose up -d
+docker compose up -d --build
 # seed + contract checks — see staging-harness/RUNBOOK.md
 ./seed.sh
 ./scripts/contract-test.sh
 ```
 
-Full staging lifecycle against AWS (refresh from snapshot, start/stop ECS service, health checks) lives under `scripts/staging/` and is documented in `docs/STAGING-LIFECYCLE.md`. Use the approved AWS profile and secrets mechanism; never commit real values.
+The local-only staging policy and teardown commands are documented in `docs/STAGING-LIFECYCLE.md`. Never point the harness at production credentials or production data.
 
 ---
 
 ## Production releases
 
 Production releases use `.github/workflows/production-deploy.yml` and the
-protected GitHub `production` environment. The workflow promotes the exact
-digest already running on both staging services, verifies the live production
-baseline before its first write, deploys through the existing ECS circuit
-breaker, and automatically restores the recorded task definition if any
-post-update verification fails. See `infra/github-production/README.md` for
-the least-privilege OIDC role contract.
+protected GitHub `production` environment. After local Docker acceptance, the
+workflow builds the exact merged `main` commit directly into the immutable
+production ECR repository, verifies its release annotation and ARM64 manifest,
+checks the live production baseline before its first service update, deploys
+through the existing ECS circuit breaker, and automatically restores the
+recorded task definition if any post-update verification fails. See
+`infra/github-production/README.md` for the least-privilege OIDC role contract.
 
 ---
 
@@ -146,8 +147,8 @@ the least-privilege OIDC role contract.
 | Repo / surface | Relationship |
 |----------------|--------------|
 | `ytadvisors/hecmedia` | Next.js public site; GraphQL consumer of this CMS |
-| Production origin | Historically Elastic Beanstalk; ECS parallel origin for cutover |
-| Staging origin | `https://staging-wp.hectv.org` (when service is scaled up) |
+| Production origin | ECS/Fargate production service behind the production ALB |
+| Staging | Local Docker Compose at `http://127.0.0.1:8092` |
 
 ---
 
@@ -166,4 +167,4 @@ This repository contains **client work product**. Temporary public access does n
 **YT Advisors** — engineering partner for HEC Media / HEC TV.  
 Primary contact: [ytadvisors.com](https://ytadvisors.com)
 
-Default branch: `develop`. Changes ship via branch → PR → review → merge.
+Default branch: `main`. Changes ship via branch → PR → review → merge.

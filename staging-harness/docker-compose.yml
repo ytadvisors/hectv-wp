@@ -1,12 +1,10 @@
-# Isolated worker-mba WordPress staging harness for HEC WPGraphQL modernization.
-# Task #83360. No production AWS, credentials, dumps, or licensed ACF bridge.
-#
-# Binds only to 127.0.0.1. Sync to worker-mba and run from ~/hectv-wp-staging
-# (or replace ~/hecmedia-dev-wp after rsync).
+# Isolated local WordPress staging harness for HEC acceptance testing.
+# No production AWS, credentials, dumps, or production data.
+# Binds only to 127.0.0.1 and uses fixture-only Docker volumes.
 
 services:
   db:
-    image: mysql:5.7
+    image: mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
     platform: linux/amd64
     container_name: hectv-wp-staging-db
     restart: unless-stopped
@@ -39,7 +37,10 @@ services:
       start_period: 60s
 
   wordpress:
-    image: wordpress:6.8-php8.2-apache
+    build:
+      context: ..
+      dockerfile: staging-harness/Dockerfile
+    image: hectv-wp-local-staging:dev
     container_name: hectv-wp-staging-wp
     restart: unless-stopped
     depends_on:
@@ -52,18 +53,18 @@ services:
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
       WORDPRESS_DEBUG: 1
       HECTV_ENVIRONMENT: local
+      HECTV_PUBLIC_READ_ONLY: 1
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME', 'http://localhost:8092');
         define('WP_SITEURL', 'http://localhost:8092');
+        define('WP_DEBUG_DISPLAY', false);
+        @ini_set('display_errors', 0);
         define('GRAPHQL_DEBUG', true);
         define('HECTV_CMS_SEED_MENUS', true);
         putenv('HECTV_ENVIRONMENT=local');
+        putenv('HECTV_PUBLIC_READ_ONLY=1');
     volumes:
       - staging_wp_data:/var/www/html
-      - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
-      # Git-canonical CMS fields (Post Details, site settings, menus, GraphQL).
-      - ../wp-content/mu-plugins/hectv-cms-fields.php:/var/www/html/wp-content/mu-plugins/hectv-cms-fields.php:ro
-      - ../wp-content/mu-plugins/hectv-cms-fields:/var/www/html/wp-content/mu-plugins/hectv-cms-fields:ro
     ports:
       - "127.0.0.1:8092:80"
     healthcheck:
@@ -74,7 +75,7 @@ services:
       start_period: 30s
 
   wpcli:
-    image: wordpress:cli-php8.2
+    image: wordpress:cli-php8.2@sha256:837d55d02196b5f4c92d236317c6d089ab1471348b31d1708888d444a0390979
     user: "33:33"
     depends_on:
       db:
@@ -86,9 +87,6 @@ services:
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
     volumes:
       - staging_wp_data:/var/www/html
-      - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
-      - ../wp-content/mu-plugins/hectv-cms-fields.php:/var/www/html/wp-content/mu-plugins/hectv-cms-fields.php:ro
-      - ../wp-content/mu-plugins/hectv-cms-fields:/var/www/html/wp-content/mu-plugins/hectv-cms-fields:ro
       - ./seed.sh:/seed.sh:ro
     entrypoint: ["wp"]
     command: ["--info"]
