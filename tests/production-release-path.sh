@@ -33,6 +33,7 @@ grep -Fq 'BUILDX_BUILDER: ${{ steps.production_builder.outputs.name }}' "$workfl
 grep -Eq 'image: docker\.io/tonistiigi/binfmt@sha256:[0-9a-f]{64}' "$workflow"
 grep -Eq 'actions/upload-artifact@[0-9a-f]{40}' "$workflow"
 grep -Fq 'bash tests/local-staging-only.sh' "$workflow"
+grep -Fq 'php tests/hectv-production-runtime-dependencies.php' "$workflow"
 grep -Fq 'php tests/hectv-home-editor.php' "$workflow"
 grep -Fq 'php tests/hectv-homepage-graphql.php' "$workflow"
 grep -Fq 'bash tests/staging-graphql-image-contract.sh' "$workflow"

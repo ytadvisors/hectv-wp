@@ -94,6 +94,7 @@ jobs:
           bash tests/no-sensitive-artifacts.sh
           bash tests/production-efs-probe.sh
           bash tests/local-staging-only.sh
+          php tests/hectv-production-runtime-dependencies.php
           php tests/hectv-home-editor.php
           php tests/hectv-homepage-graphql.php
           bash tests/staging-graphql-image-contract.sh
