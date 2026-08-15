@@ -4,11 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Exact merged main commit already proven in staging.
-        required: true
-        type: string
-      artifact_digest:
-        description: Exact staging ECR digest to promote (sha256:...).
+        description: Exact merged main commit already proven in local Docker.
         required: true
         type: string
       expected_current_task_definition:
@@ -45,7 +41,6 @@ jobs:
           DISPATCH_ACTOR: ${{ github.actor }}
           RELEASE_SHA: ${{ inputs.release_sha }}
           WORKFLOW_SHA: ${{ github.sha }}
-          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
           CURRENT_TASK_DEFINITION: ${{ inputs.expected_current_task_definition }}
           CURRENT_IMAGE_DIGEST: ${{ inputs.expected_current_image_digest }}
           REQUEST_TASK_ID: ${{ inputs.request_task_id }}
@@ -58,7 +53,6 @@ jobs:
           esac
           test "$RELEASE_SHA" = "$WORKFLOW_SHA"
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$CURRENT_TASK_DEFINITION" =~ ^arn:aws:ecs:us-east-2:850335719356:task-definition/hectv-wp-production[^:]*:[1-9][0-9]*$ ]]
           [[ "$CURRENT_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$REQUEST_TASK_ID" =~ ^[1-9][0-9]*$ ]]
@@ -73,7 +67,6 @@ jobs:
       url: https://prod-wp.hectv.org
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
-      ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
       EXPECTED_CURRENT_TASK_DEFINITION: ${{ inputs.expected_current_task_definition }}
       EXPECTED_CURRENT_IMAGE_DIGEST: ${{ inputs.expected_current_image_digest }}
       REQUEST_TASK_ID: ${{ inputs.request_task_id }}
@@ -86,14 +79,37 @@ jobs:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 0
 
+      - name: Install pinned PHP test runtime
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          coverage: none
+
       - name: Verify release ancestry and production safety tests
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
           git merge-base --is-ancestor "$RELEASE_SHA" origin/main
+          test "$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')" = "8.2"
           bash tests/no-sensitive-artifacts.sh
           bash tests/production-efs-probe.sh
+          bash tests/local-staging-only.sh
+          php tests/hectv-home-editor.php
+          php tests/hectv-homepage-graphql.php
+          bash tests/staging-graphql-image-contract.sh
           bash tests/production-release-path.sh
+
+      - name: Enable native production ARM64 image builds
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+        with:
+          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64
+
+      - name: Create isolated BuildKit builder
+        id: production_builder
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        with:
+          driver: docker-container
 
       - name: Assume the least-privilege production role
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
@@ -102,7 +118,9 @@ jobs:
           role-duration-seconds: 7200
           aws-region: us-east-2
 
-      - name: Promote the proven image, deploy with circuit breaker, and verify
+      - name: Build the merged source, deploy with circuit breaker, and verify
+        env:
+          BUILDX_BUILDER: ${{ steps.production_builder.outputs.name }}
         run: bash scripts/production/promote-release.sh
 
       - name: Publish release summary

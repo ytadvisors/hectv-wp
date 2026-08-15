@@ -1,12 +1,10 @@
-# The reviewed EB-derived staging image contains the licensed/legacy GraphQL
-# plugins used by the existing HEC frontend. Keep this source immutable: the
-# final runtime remains the PHP 8.2 image below.
-FROM 850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-staging@sha256:0d41405fcd2d1316b2965ec90494b35cc5a219aa3eb9ff576f042318f25c510c AS legacy-plugins
+# Licensed plugins absent from git are copied from this digest-pinned production image.
+FROM 850335719356.dkr.ecr.us-east-2.amazonaws.com/hectv-wp-production@sha256:f98c0f2a44c43bfd28cee60a20a56e6796c42d2f77ab04ddb5078c9156f68054 AS legacy-plugins
 
 # Match the modern WPGraphQL version exercised by the staging harness. The
 # reviewed legacy image above contains WPGraphQL 0.4.0, which throws internal
 # resolver errors on PHP 8.2 for taxonomy, category, and nested-menu queries.
-FROM debian:bookworm-slim AS wpgraphql
+FROM debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 AS wpgraphql
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*

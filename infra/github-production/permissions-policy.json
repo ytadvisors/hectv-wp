@@ -8,22 +8,15 @@
       "Resource": "*"
     },
     {
-      "Sid": "PullOnlyTheReviewedStagingImage",
-      "Effect": "Allow",
-      "Action": [
-        "ecr:BatchGetImage",
-        "ecr:DescribeImages",
-        "ecr:GetDownloadUrlForLayer"
-      ],
-      "Resource": "arn:aws:ecr:us-east-2:850335719356:repository/hectv-wp-staging"
-    },
-    {
-      "Sid": "PushTheReviewedLayersToProduction",
+      "Sid": "BuildOnlyInTheProductionRepository",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
         "ecr:CompleteLayerUpload",
         "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:GetDownloadUrlForLayer",
         "ecr:InitiateLayerUpload",
         "ecr:PutImage",
         "ecr:UploadLayerPart"

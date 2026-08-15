@@ -9,7 +9,16 @@ cd "$(dirname "$0")"
 WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.18.0}"
 WP_API_MENUS_VERSION="${WP_API_MENUS_VERSION:-}"
 
-wpcli() { docker compose run --rm wpcli "$@"; }
+if docker compose version >/dev/null 2>&1; then
+  compose=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  compose=(docker-compose)
+else
+  echo "ERROR: Docker Compose is required." >&2
+  exit 1
+fi
+
+wpcli() { "${compose[@]}" run --rm wpcli "$@"; }
 
 echo "== waiting for wordpress health =="
 for i in $(seq 1 40); do
@@ -39,7 +48,9 @@ wpcli option update home 'http://localhost:8092'
 wpcli option update siteurl 'http://localhost:8092'
 wpcli option update blogname 'HEC WPGraphQL Staging'
 
-echo "== plugins: WPGraphQL ${WPGRAPHQL_VERSION}, wp-api-menus =="
+echo "== plugins: ACF + repeater, WPGraphQL ${WPGRAPHQL_VERSION}, wp-api-menus =="
+wpcli plugin activate advanced-custom-fields
+wpcli plugin activate acf-repeater
 wpcli plugin install "wp-graphql" --version="${WPGRAPHQL_VERSION}" --force --activate
 if [ -n "${WP_API_MENUS_VERSION}" ]; then
   wpcli plugin install "wp-api-menus" --version="${WP_API_MENUS_VERSION}" --force --activate || \
@@ -171,22 +182,41 @@ wpcli post meta update "$post1" related_posts "$post2"
 
 echo "== pages: home, about-us, magazines, events =="
 ensure_page() {
-  local slug="$1" title="$2" content="$3"
+  local slug="$1" title="$2" content="$3" import_id="${4:-}"
   local id
   id=$(wpcli post list --post_type=page --name="$slug" --field=ID 2>/dev/null || true)
   if [ -z "${id:-}" ]; then
-    id=$(wpcli post create \
-      --post_type=page \
-      --post_name="$slug" \
-      --post_title="$title" \
-      --post_status=publish \
-      --post_content="$content" \
-      --porcelain)
+    if [ -n "$import_id" ]; then
+      id=$(wpcli post create \
+        --post_type=page \
+        --post_name="$slug" \
+        --post_title="$title" \
+        --post_status=publish \
+        --post_content="$content" \
+        --import_id="$import_id" \
+        --porcelain)
+    else
+      id=$(wpcli post create \
+        --post_type=page \
+        --post_name="$slug" \
+        --post_title="$title" \
+        --post_status=publish \
+        --post_content="$content" \
+        --porcelain)
+    fi
   fi
   echo "$id"
 }
 
-home_id=$(ensure_page "home" "Home" "Fixture home page.")
+home_id=$(ensure_page "home" "Home" "Fixture home page." "31155")
+wpcli option update show_on_front "page"
+wpcli option update page_on_front "$home_id"
+wpcli post meta update "$home_id" post_list "2"
+wpcli post meta update "$home_id" _post_list "field_5b02e323268bc"
+wpcli post meta update "$home_id" post_list_0_post "$post1"
+wpcli post meta update "$home_id" _post_list_0_post "field_5b02e345268bd"
+wpcli post meta update "$home_id" post_list_1_post "$post2"
+wpcli post meta update "$home_id" _post_list_1_post "field_5b02e345268bd"
 wpcli post meta update "$home_id" required_posts "${post1},${post2}"
 wpcli post meta update "$home_id" default_display_type "grid"
 wpcli post meta update "$home_id" default_row_layout "standard"
@@ -218,10 +248,9 @@ wpcli post meta update "$events_page" default_display_type "list"
 wpcli post meta update "$events_page" default_row_layout "standard"
 
 echo "== magazines CPT =="
-for slug in staging-mag-1; do
-  id=$(wpcli post list --post_type=magazine --name="$slug" --field=ID 2>/dev/null || true)
-  [ -n "${id:-}" ] && wpcli post delete "$id" --force || true
-done
+slug="staging-mag-1"
+id=$(wpcli post list --post_type=magazine --name="$slug" --field=ID 2>/dev/null || true)
+[ -n "${id:-}" ] && wpcli post delete "$id" --force || true
 mag1=$(wpcli post create \
   --post_type=magazine \
   --post_name="staging-mag-1" \
@@ -232,10 +261,9 @@ mag1=$(wpcli post create \
 wpcli post meta update "$mag1" magazine_posts "$post1,$post2"
 
 echo "== events CPT =="
-for slug in staging-event-1; do
-  id=$(wpcli post list --post_type=event --name="$slug" --field=ID 2>/dev/null || true)
-  [ -n "${id:-}" ] && wpcli post delete "$id" --force || true
-done
+slug="staging-event-1"
+id=$(wpcli post list --post_type=event --name="$slug" --field=ID 2>/dev/null || true)
+[ -n "${id:-}" ] && wpcli post delete "$id" --force || true
 # Far-future dates so "upcoming" meta queries match.
 start=$(date -u -v+7d +"%Y-%m-%d 10:00:00" 2>/dev/null || date -u -d "+7 days" +"%Y-%m-%d 10:00:00")
 end=$(date -u -v+7d +"%Y-%m-%d 12:00:00" 2>/dev/null || date -u -d "+7 days" +"%Y-%m-%d 12:00:00")
@@ -249,8 +277,8 @@ ev1=$(wpcli post create \
   --porcelain)
 wpcli post term set "$ev1" event_category arts || true
 wpcli post meta update "$ev1" event_dates "[{\"startTime\":\"$start\",\"endTime\":\"$end\"}]"
-wpcli post meta update "$ev1" 'event_dates_$_end_time' "$end"
-wpcli post meta update "$ev1" 'event_dates_$_start_time' "$start"
+wpcli post meta update "$ev1" "event_dates_\$_end_time" "$end"
+wpcli post meta update "$ev1" "event_dates_\$_start_time" "$start"
 wpcli post meta update "$ev1" event_dates_count "1"
 wpcli post meta update "$ev1" venue "Staging Hall"
 wpcli post meta update "$ev1" web_address "https://example.com/event"
@@ -259,10 +287,8 @@ wpcli post meta update "$ev1" event_posts "$post1"
 
 echo "== schedule CPT =="
 month_slug=$(date +"%B-%Y" | tr '[:upper:]' '[:lower:]')
-for slug in "$month_slug"; do
-  id=$(wpcli post list --post_type=schedule --name="$slug" --field=ID 2>/dev/null || true)
-  [ -n "${id:-}" ] && wpcli post delete "$id" --force || true
-done
+id=$(wpcli post list --post_type=schedule --name="$month_slug" --field=ID 2>/dev/null || true)
+[ -n "${id:-}" ] && wpcli post delete "$id" --force || true
 sched=$(wpcli post create \
   --post_type=schedule \
   --post_name="$month_slug" \
@@ -273,11 +299,9 @@ wpcli post meta update "$sched" schedule_programs \
   "[{\"programTitle\":\"Morning Show\",\"programStartTime\":\"08:00\",\"programEndTime\":\"09:00\",\"programStartDate\":\"$(date +%Y-%m-%d)\"}]"
 
 echo "== video CPT (live banner window) =="
-for slug in staging-live-video; do
-  id=$(wpcli post list --post_type=video --name="$slug" --field=ID 2>/dev/null || true)
-  [ -n "${id:-}" ] && wpcli post delete "$id" --force || true
-done
-now=$(date +"%Y-%m-%d %H:%M:%S")
+slug="staging-live-video"
+id=$(wpcli post list --post_type=video --name="$slug" --field=ID 2>/dev/null || true)
+[ -n "${id:-}" ] && wpcli post delete "$id" --force || true
 later=$(date -u -v+2H +"%Y-%m-%d %H:%M:%S" 2>/dev/null || date -u -d "+2 hours" +"%Y-%m-%d %H:%M:%S")
 earlier=$(date -u -v-1H +"%Y-%m-%d %H:%M:%S" 2>/dev/null || date -u -d "-1 hour" +"%Y-%m-%d %H:%M:%S")
 vid=$(wpcli post create \
