@@ -19,14 +19,6 @@ def media_images:
 (
   [
     media_images
-    | select((.mediaItemUrl? | nonempty_string) | not)
-  ]
-  | length == 0
-)
-and
-(
-  [
-    media_images
     | select(((.medium? | nonempty_string) or (.large? | nonempty_string)) | not)
   ]
   | length == 0
@@ -36,6 +28,7 @@ and
   [
     media_images
     | . as $image
+    | select($image.mediaItemUrl? | nonempty_string)
     | ($image.medium?, $image.large?)
     | select(nonempty_string)
     | select(media_dir != ($image.mediaItemUrl | media_dir))

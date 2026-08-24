@@ -491,7 +491,7 @@ jq -e '
 # does not know about, even if a different object happens to exist at the
 # reconstructed URL.
 jq -e -f "$media_directory_contract" "$media_graphql_response" >/dev/null || {
-  echo "Production GraphQL sourceUrl is missing or disagrees with mediaItemUrl." >&2
+  echo "Production GraphQL sourceUrl is missing or disagrees with mediaItemUrl when present." >&2
   exit 1
 }
 
