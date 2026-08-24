@@ -48,7 +48,7 @@ then
   exit 1
 fi
 
-if jq -e -f "$contract" >/dev/null <<'JSON'
+jq -e -f "$contract" >/dev/null <<'JSON'
 {
   "data": {
     "posts": {
@@ -65,8 +65,26 @@ if jq -e -f "$contract" >/dev/null <<'JSON'
   }
 }
 JSON
+
+if jq -e -f "$contract" >/dev/null <<'JSON'
+{
+  "data": {
+    "posts": {
+      "nodes": [{
+        "postDetails": {
+          "postHeader": {
+            "mediaItemUrl": null,
+            "medium": null,
+            "large": null
+          }
+        }
+      }]
+    }
+  }
+}
+JSON
 then
-  echo "Media directory contract accepted an image without mediaItemUrl." >&2
+  echo "Media directory contract accepted an image without a sourceUrl derivative." >&2
   exit 1
 fi
 

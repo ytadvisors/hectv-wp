@@ -98,6 +98,7 @@ jobs:
           php tests/hectv-home-editor.php
           php tests/hectv-homepage-graphql.php
           bash tests/staging-graphql-image-contract.sh
+          bash tests/production-media-directory-contract.sh
           bash tests/production-release-path.sh
 
       - name: Enable native production ARM64 image builds
