@@ -97,6 +97,7 @@ jobs:
           php tests/hectv-production-runtime-dependencies.php
           php tests/hectv-home-editor.php
           php tests/hectv-homepage-graphql.php
+          php tests/hectv-youtube-editor-identity.php
           bash tests/staging-graphql-image-contract.sh
           bash tests/production-media-directory-contract.sh
           bash tests/production-release-path.sh
