@@ -8,6 +8,7 @@ cd "$(dirname "$0")"
 # 2.18.0 is current wordpress.org stable (matches execution-plan baseline note).
 WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.18.0}"
 WP_API_MENUS_VERSION="${WP_API_MENUS_VERSION:-}"
+WORDPRESS_CONTAINER="${HECTV_WORDPRESS_CONTAINER:-hectv-wp-staging-wp}"
 
 if docker compose version >/dev/null 2>&1; then
   compose=(docker compose)
@@ -22,11 +23,11 @@ wpcli() { "${compose[@]}" run --rm wpcli "$@"; }
 
 echo "== waiting for wordpress health =="
 for i in $(seq 1 40); do
-  status=$(docker inspect -f '{{.State.Health.Status}}' hectv-wp-staging-wp 2>/dev/null || echo "starting")
+  status=$(docker inspect -f '{{.State.Health.Status}}' "$WORDPRESS_CONTAINER" 2>/dev/null || echo "starting")
   [ "$status" = "healthy" ] && break
   sleep 5
 done
-status=$(docker inspect -f '{{.State.Health.Status}}' hectv-wp-staging-wp 2>/dev/null || echo "missing")
+status=$(docker inspect -f '{{.State.Health.Status}}' "$WORDPRESS_CONTAINER" 2>/dev/null || echo "missing")
 if [ "$status" != "healthy" ]; then
   echo "ERROR: wordpress container not healthy (status=$status)" >&2
   exit 1
@@ -100,6 +101,22 @@ wpcli term create category "Programs" --slug=programs || true
 wpcli term create category "Events" --slug=events || true
 wpcli term create category "Arts" --slug=arts || true
 wpcli term create category "Spotlight" --slug=spotlight || true
+
+# Preserve a real parent/child fixture for the frontend's direct parent-filtered
+# subgenre query. WPGraphQL 2.x can return an empty nested children connection
+# even while the underlying taxonomy hierarchy is correct.
+arts_category_id=$(wpcli term list category --slug=arts --field=term_id | head -n 1)
+for child_spec in "dance:Dance" "music:Music" "theater:Theater"; do
+  child_slug=${child_spec%%:*}
+  child_name=${child_spec#*:}
+  child_category_id=$(wpcli term list category --slug="$child_slug" --field=term_id | head -n 1)
+  if [ -n "${child_category_id:-}" ]; then
+    wpcli term update category "$child_category_id" --name="$child_name" --parent="$arts_category_id"
+  else
+    wpcli term create category "$child_name" --slug="$child_slug" --parent="$arts_category_id"
+  fi
+done
+
 wpcli term create event_category "Arts" --slug=arts || true
 wpcli term create event_category "Community" --slug=community || true
 
@@ -144,6 +161,7 @@ video_post=$(wpcli post create \
 wpcli post term set "$video_post" category programs || true
 wpcli post meta update "$video_post" is_video "1"
 wpcli post meta update "$video_post" is_trending "1"
+wpcli post meta update "$video_post" trending_order "0"
 wpcli post meta update "$video_post" youtube_id "dQw4w9WgXcQ"
 
 spot=$(wpcli post create \

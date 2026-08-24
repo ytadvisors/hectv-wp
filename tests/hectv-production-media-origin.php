@@ -50,6 +50,11 @@ require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-staging-media-fallbac
 
 expect_true( isset( $filters['wp_get_attachment_url'][20][0] ), 'Attachment URL filter should register in production.' );
 expect_true( isset( $filters['wp_get_attachment_image_src'][120][0] ), 'Image source filter should register in production.' );
+expect_true( isset( $filters['content_edit_pre'][20][0] ), 'Editor content must use the public media origin.' );
+expect_true( isset( $filters['content_save_pre'][20][0] ), 'Edited content must persist the public media origin.' );
+expect_true( isset( $filters['the_content'][20][0] ), 'Public rendered content must use the public media origin.' );
+expect_true( isset( $filters['rest_prepare_post'][20][0] ), 'Post REST responses must repair legacy editor image URLs.' );
+expect_true( isset( $filters['rest_prepare_page'][20][0] ), 'Page REST responses must repair legacy editor image URLs.' );
 
 $callback       = $filters['wp_get_attachment_url'][20][0]['callback'];
 $image_callback = $filters['wp_get_attachment_image_src'][120][0]['callback'];
@@ -118,5 +123,55 @@ expect_same( $origin_url, $callback( $origin_url, 2 ), 'Unsafe relative paths mu
 $attachment_files[3] = '';
 expect_same( $origin_url, $callback( $origin_url, 3 ), 'Attachments without a file path must remain unchanged.' );
 expect_same( false, $image_callback( false, 3, 'thumbnail', false ), 'Missing image source data must remain unchanged.' );
+
+$legacy_content = '<figure><img src="https://prod-wp.hectv.org/wp-content/uploads/2026/03/The-Who.jpg" srcset="http://prod-wp-ecs.hectv.org/wp-content/uploads/2026/03/The-Who-300x169.jpg 300w"><a href="https://example.org/wp-content/uploads/keep.jpg">Keep</a></figure>';
+$rewritten_content = hectv_public_media_rewrite_content( $legacy_content );
+expect_true(
+	strpos( $rewritten_content, 'https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2026/03/The-Who.jpg' ) !== false,
+	'Legacy image src must use the public media bucket in the editor.'
+);
+expect_true(
+	strpos( $rewritten_content, 'https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2026/03/The-Who-300x169.jpg 300w' ) !== false,
+	'Legacy srcset candidates must use the public media bucket in the editor.'
+);
+expect_true(
+	strpos( $rewritten_content, 'https://example.org/wp-content/uploads/keep.jpg' ) !== false,
+	'Unapproved origins must remain unchanged.'
+);
+
+class Hectv_Test_REST_Response {
+	private $data;
+
+	public function __construct( $data ) {
+		$this->data = $data;
+	}
+
+	public function get_data() {
+		return $this->data;
+	}
+
+	public function set_data( $data ) {
+		$this->data = $data;
+	}
+}
+
+$rest_response = new Hectv_Test_REST_Response(
+	array(
+		'content' => array(
+			'raw'      => $legacy_content,
+			'rendered' => $legacy_content,
+		),
+	)
+);
+hectv_public_media_rewrite_rest_content( $rest_response );
+$rest_content = $rest_response->get_data();
+expect_true(
+	strpos( $rest_content['content']['raw'], 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false,
+	'Gutenberg content.raw must receive canonical image URLs.'
+);
+expect_true(
+	strpos( $rest_content['content']['rendered'], 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false,
+	'REST rendered content must receive canonical image URLs.'
+);
 
 echo "HEC production media origin contracts passed.\n";

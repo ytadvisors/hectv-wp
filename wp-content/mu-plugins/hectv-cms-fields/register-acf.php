@@ -134,9 +134,12 @@ function hectv_cms_trending_order_field( $parent_group_key ) {
 		'label'             => 'Trending order',
 		'name'              => HECTV_META_TRENDING_ORDER,
 		'type'              => 'number',
-		'instructions'      => 'Used only when Trending is Yes. Position in the Trending Now list: 1 is first, 2 is second, and so on. Empty positions follow ordered posts.',
+		'instructions'      => 'Used only when Trending is Yes. Position in the Trending Now list: 1 is first, 2 is second, and so on. Use 0 or leave empty for an unordered position.',
 		'required'          => 0,
-		'min'               => 1,
+		// Zero is the legacy/unordered sentinel. Rejecting it causes ACF's
+		// Gutenberg meta-box request to fail as a whole, silently discarding
+		// otherwise valid image and video ID edits on existing posts.
+		'min'               => 0,
 		'step'              => 1,
 		'default_value'     => '',
 		// Keep this visible in the legacy ACF/Gutenberg compatibility UI. ACF
