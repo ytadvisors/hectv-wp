@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.1.1
+ * Version: 1.2.0
  * Author: YT Advisors
  */
 
@@ -165,5 +165,65 @@ function hectv_staging_media_fallback_image_src( $image, $attachment_id, $size, 
 	return $image;
 }
 
+/**
+ * Rewrite legacy WordPress upload origins embedded in post content.
+ *
+ * Historical blocks keep their original `src` and `srcset` strings instead of
+ * resolving them through the attachment URL filters above. Those ECS/origin
+ * URLs can 404 even though the synchronized object exists in the public media
+ * bucket, which makes images disappear in the block editor. Keep this rewrite
+ * host-and-path scoped so links outside the approved uploads origins pass
+ * through unchanged.
+ *
+ * @param mixed $content Post content.
+ * @return mixed
+ */
+function hectv_public_media_rewrite_content( $content ) {
+	if ( ! is_string( $content ) || $content === '' ) {
+		return $content;
+	}
+
+	return preg_replace(
+		'#https?://(?:staging-wp|prod-wp|prod-wp-ecs)\.hectv\.org/wp-content/uploads/#i',
+		rtrim( HECTV_STAGING_MEDIA_FALLBACK_BASE_URL, '/' ) . '/',
+		$content
+	);
+}
+
+/**
+ * Ensure Gutenberg receives canonical media URLs for existing raw content.
+ *
+ * The editor consumes `content.raw` from the REST response. Rewriting only
+ * `the_content` fixes public rendering but leaves the editing canvas broken.
+ * `content_save_pre` then persists the canonical URLs on the next real edit.
+ *
+ * @param mixed $response REST response object.
+ * @return mixed
+ */
+function hectv_public_media_rewrite_rest_content( $response ) {
+	if ( ! is_object( $response ) || ! method_exists( $response, 'get_data' ) || ! method_exists( $response, 'set_data' ) ) {
+		return $response;
+	}
+
+	$data = $response->get_data();
+	if ( ! is_array( $data ) || empty( $data['content'] ) || ! is_array( $data['content'] ) ) {
+		return $response;
+	}
+
+	foreach ( array( 'raw', 'rendered' ) as $content_key ) {
+		if ( isset( $data['content'][ $content_key ] ) ) {
+			$data['content'][ $content_key ] = hectv_public_media_rewrite_content( $data['content'][ $content_key ] );
+		}
+	}
+
+	$response->set_data( $data );
+	return $response;
+}
+
 add_filter( 'wp_get_attachment_url', 'hectv_staging_media_fallback_url', 20, 2 );
 add_filter( 'wp_get_attachment_image_src', 'hectv_staging_media_fallback_image_src', 120, 4 );
+add_filter( 'content_edit_pre', 'hectv_public_media_rewrite_content', 20, 1 );
+add_filter( 'content_save_pre', 'hectv_public_media_rewrite_content', 20, 1 );
+add_filter( 'the_content', 'hectv_public_media_rewrite_content', 20, 1 );
+add_filter( 'rest_prepare_post', 'hectv_public_media_rewrite_rest_content', 20, 3 );
+add_filter( 'rest_prepare_page', 'hectv_public_media_rewrite_rest_content', 20, 3 );

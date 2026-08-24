@@ -435,6 +435,8 @@ expect_true(
 );
 expect_same( 1, count( $trending_order_fields ), 'Post Details overlay registers exactly one trending_order child' );
 expect_same( 0, $trending_order_fields[0]['conditional_logic'], 'Trending order remains visible in the legacy ACF/Gutenberg editor.' );
+expect_same( 0, $trending_order_fields[0]['min'], 'Legacy zero/unordered Trending values must not invalidate the entire ACF meta-box save.' );
+expect_true( strpos( $trending_order_fields[0]['instructions'], '0 or leave empty' ) !== false, 'Trending order documents its zero/unordered sentinel.' );
 foreach ( array( HECTV_META_YOUTUBE_ID, HECTV_META_VIMEO_ID ) as $video_id_name ) {
 	expect_true( isset( $video_id_fields[ $video_id_name ] ), "Post Details overlay registers $video_id_name" );
 	expect_same( 0, $video_id_fields[ $video_id_name ]['conditional_logic'], "$video_id_name remains visible in the legacy ACF/Gutenberg editor." );

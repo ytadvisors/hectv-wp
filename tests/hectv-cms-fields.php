@@ -143,6 +143,7 @@ assert_true( strpos( $compat, "'HecContact'" ) === false, 'staging compat does n
 
 $seed = file_get_contents( $root . '/staging-harness/seed.sh' );
 assert_true( strpos( $seed, 'is_trending' ) !== false, 'seed sets is_trending' );
+assert_true( strpos( $seed, 'arts_category_id' ) !== false && strpos( $seed, '--parent="$arts_category_id"' ) !== false, 'seed preserves Arts subgenre hierarchy' );
 assert_true( strpos( $seed, 'Header Actions' ) !== false, 'seed creates Header Actions menu' );
 assert_true( strpos( $seed, 'hectv_trending_max_videos' ) !== false, 'seed sets max videos' );
 
