@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: YT Advisors
  */
 
@@ -166,6 +166,108 @@ function hectv_staging_media_fallback_image_src( $image, $attachment_id, $size, 
 }
 
 /**
+ * Read an attachment ID from a rendered WordPress image tag.
+ *
+ * Gutenberg emits `data-id`, while older core image blocks expose only the
+ * `wp-image-{id}` class. Only numeric IDs are accepted.
+ *
+ * @param string $tag Rendered img tag.
+ * @return int
+ */
+function hectv_public_media_attachment_id_from_tag( $tag ) {
+	if ( preg_match( '/\sdata-id\s*=\s*(["\'])([1-9][0-9]*)\1/i', $tag, $matches ) ) {
+		return (int) $matches[2];
+	}
+
+	if ( preg_match( '/\sclass\s*=\s*(["\'])[^"\']*\bwp-image-([1-9][0-9]*)\b[^"\']*\1/i', $tag, $matches ) ) {
+		return (int) $matches[2];
+	}
+
+	return 0;
+}
+
+/**
+ * Set or add a quoted HTML attribute on a single tag.
+ *
+ * @param string $tag   HTML tag.
+ * @param string $name  Attribute name.
+ * @param string $value Escaped attribute value.
+ * @return string
+ */
+function hectv_public_media_set_tag_attribute( $tag, $name, $value ) {
+	$pattern = '/(\s' . preg_quote( $name, '/' ) . '\s*=\s*)(["\']).*?\2/i';
+	if ( preg_match( $pattern, $tag ) ) {
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $value ) {
+				return $matches[1] . $matches[2] . $value . $matches[2];
+			},
+			$tag,
+			1
+		);
+	}
+
+	$closing_length = substr( $tag, -2 ) === '/>' ? 2 : 1;
+	return substr( $tag, 0, -$closing_length ) . ' ' . $name . '="' . $value . '"' . substr( $tag, -$closing_length );
+}
+
+/**
+ * Remove a quoted HTML attribute from a single tag.
+ *
+ * @param string $tag  HTML tag.
+ * @param string $name Attribute name.
+ * @return string
+ */
+function hectv_public_media_remove_tag_attribute( $tag, $name ) {
+	return preg_replace( '/\s' . preg_quote( $name, '/' ) . '\s*=\s*(["\']).*?\1/i', '', $tag, 1 );
+}
+
+/**
+ * Resolve a rendered image tag from current attachment metadata.
+ *
+ * Stored Gutenberg markup can retain a pre-offload filename even after WP
+ * Offload Media assigns a collision-safe object key. The current attachment
+ * APIs know the healthy URL, responsive candidates, and dimensions, so use
+ * them whenever the tag has a valid WordPress attachment ID.
+ *
+ * @param string $tag Rendered img tag.
+ * @return string
+ */
+function hectv_public_media_rewrite_attachment_image_tag( $tag ) {
+	$attachment_id = hectv_public_media_attachment_id_from_tag( $tag );
+	if ( $attachment_id === 0 || ! function_exists( 'wp_get_attachment_image_src' ) ) {
+		return $tag;
+	}
+
+	$image = wp_get_attachment_image_src( $attachment_id, 'large' );
+	if ( ! is_array( $image ) || empty( $image[0] ) || ! is_string( $image[0] ) ) {
+		return $tag;
+	}
+
+	$tag = hectv_public_media_set_tag_attribute( $tag, 'src', esc_url( $image[0] ) );
+	if ( ! empty( $image[1] ) ) {
+		$tag = hectv_public_media_set_tag_attribute( $tag, 'width', (string) (int) $image[1] );
+	}
+	if ( ! empty( $image[2] ) ) {
+		$tag = hectv_public_media_set_tag_attribute( $tag, 'height', (string) (int) $image[2] );
+	}
+
+	$srcset = function_exists( 'wp_get_attachment_image_srcset' ) ? wp_get_attachment_image_srcset( $attachment_id, 'large' ) : false;
+	if ( is_string( $srcset ) && $srcset !== '' ) {
+		$tag   = hectv_public_media_set_tag_attribute( $tag, 'srcset', esc_attr( $srcset ) );
+		$sizes = function_exists( 'wp_get_attachment_image_sizes' ) ? wp_get_attachment_image_sizes( $attachment_id, 'large' ) : false;
+		if ( is_string( $sizes ) && $sizes !== '' ) {
+			$tag = hectv_public_media_set_tag_attribute( $tag, 'sizes', esc_attr( $sizes ) );
+		}
+	} else {
+		$tag = hectv_public_media_remove_tag_attribute( $tag, 'srcset' );
+		$tag = hectv_public_media_remove_tag_attribute( $tag, 'sizes' );
+	}
+
+	return $tag;
+}
+
+/**
  * Rewrite legacy WordPress upload origins embedded in post content.
  *
  * Historical blocks keep their original `src` and `srcset` strings instead of
@@ -183,9 +285,17 @@ function hectv_public_media_rewrite_content( $content ) {
 		return $content;
 	}
 
-	return preg_replace(
+	$content = preg_replace(
 		'#https?://(?:staging-wp|prod-wp|prod-wp-ecs)\.hectv\.org/wp-content/uploads/#i',
 		rtrim( HECTV_STAGING_MEDIA_FALLBACK_BASE_URL, '/' ) . '/',
+		$content
+	);
+
+	return preg_replace_callback(
+		'/<img\b[^>]*>/i',
+		function ( $matches ) {
+			return hectv_public_media_rewrite_attachment_image_tag( $matches[0] );
+		},
 		$content
 	);
 }
