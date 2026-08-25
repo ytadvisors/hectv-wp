@@ -9,6 +9,9 @@ putenv( 'HECTV_ENVIRONMENT=production' );
 
 $filters             = array();
 $attachment_files    = array();
+$attachment_images   = array();
+$attachment_srcsets  = array();
+$attachment_sizes    = array();
 $test_upload_basedir = '/';
 
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
@@ -30,6 +33,29 @@ function get_post_meta( $post_id, $key, $single = true ) {
 function wp_get_upload_dir() {
 	global $test_upload_basedir;
 	return array( 'basedir' => $test_upload_basedir );
+}
+
+function wp_get_attachment_image_src( $attachment_id, $size ) {
+	global $attachment_images;
+	return isset( $attachment_images[ $attachment_id ] ) ? $attachment_images[ $attachment_id ] : false;
+}
+
+function wp_get_attachment_image_srcset( $attachment_id, $size ) {
+	global $attachment_srcsets;
+	return isset( $attachment_srcsets[ $attachment_id ] ) ? $attachment_srcsets[ $attachment_id ] : false;
+}
+
+function wp_get_attachment_image_sizes( $attachment_id, $size ) {
+	global $attachment_sizes;
+	return isset( $attachment_sizes[ $attachment_id ] ) ? $attachment_sizes[ $attachment_id ] : false;
+}
+
+function esc_url( $url ) {
+	return htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' );
+}
+
+function esc_attr( $value ) {
+	return htmlspecialchars( $value, ENT_QUOTES, 'UTF-8' );
 }
 
 function expect_same( $expected, $actual, $message ) {
@@ -137,6 +163,41 @@ expect_true(
 expect_true(
 	strpos( $rewritten_content, 'https://example.org/wp-content/uploads/keep.jpg' ) !== false,
 	'Unapproved origins must remain unchanged.'
+);
+
+$attachment_images[68596]  = array( 'https://s3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/2024/08/21091638/Dig-Production-1-scaled-e1787597477349-1024x577.jpg', 1024, 577, true );
+$attachment_srcsets[68596] = 'https://s3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/2024/08/21091638/Dig-Production-1-scaled-e1787597477349-300x169.jpg 300w, https://s3-us-east-2.amazonaws.com/prd-hectv-wp-media/wp-content/uploads/2024/08/21091638/Dig-Production-1-scaled-e1787597477349-1024x577.jpg 1024w';
+$attachment_sizes[68596]   = '(max-width: 1024px) 100vw, 1024px';
+$stale_attachment_content  = '<figure><img decoding="async" data-id="68596" src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2024/08/Dig-Production-1-1024x768.jpg" class="wp-image-68596"></figure>';
+$repaired_attachment       = hectv_public_media_rewrite_content( $stale_attachment_content );
+
+expect_true(
+	strpos( $repaired_attachment, $attachment_images[68596][0] ) !== false,
+	'Rendered attachment src must use the current healthy media derivative.'
+);
+expect_true(
+	strpos( $repaired_attachment, 'width="1024"' ) !== false && strpos( $repaired_attachment, 'height="577"' ) !== false,
+	'Rendered attachment dimensions must match current media metadata.'
+);
+expect_true(
+	strpos( $repaired_attachment, esc_attr( $attachment_srcsets[68596] ) ) !== false,
+	'Rendered attachment srcset must use current responsive media metadata.'
+);
+expect_true(
+	strpos( $repaired_attachment, esc_attr( $attachment_sizes[68596] ) ) !== false,
+	'Rendered attachment sizes must accompany the responsive source set.'
+);
+expect_same(
+	$repaired_attachment,
+	hectv_public_media_rewrite_content( $repaired_attachment ),
+	'Attachment-aware content repair must be idempotent.'
+);
+
+$external_image = '<img src="https://images.example.org/external.jpg" alt="External">';
+expect_same(
+	$external_image,
+	hectv_public_media_rewrite_content( $external_image ),
+	'External images without a WordPress attachment ID must remain unchanged.'
 );
 
 class Hectv_Test_REST_Response {
