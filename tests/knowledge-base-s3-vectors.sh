@@ -40,9 +40,25 @@ if grep -Eq 'AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|id-token: write' "$workflow
   exit 1
 fi
 
-# GitHub-hosted Ubuntu runners do not guarantee ripgrep, so keep this guard
-# dependency-free alongside the other POSIX tooling used by this contract.
-if grep -R --exclude-dir=.terraform -n -E 'delete-(knowledge-base|data-source|collection)|aws_opensearchserverless_collection' "$module" "$ingest" "$compare"; then
+# Scan source files one at a time so both GNU and BusyBox grep work, while a
+# scanner/read error is distinguishable from grep's expected "no match" exit.
+forbidden_found=0
+while IFS= read -r file; do
+  if grep -n -E 'delete-(knowledge-base|data-source|collection)|aws_opensearchserverless_collection' "$file"; then
+    forbidden_found=1
+  else
+    grep_status=$?
+    if [[ "$grep_status" -ne 1 ]]; then
+      echo "Knowledge-base deletion guard could not scan: $file" >&2
+      exit 1
+    fi
+  fi
+done < <(
+  find "$module" -type f ! -path "$module/.terraform/*" -print
+  printf '%s\n' "$ingest" "$compare"
+)
+
+if [[ "$forbidden_found" -ne 0 ]]; then
   echo "The replacement rollout must not contain legacy deletion operations." >&2
   exit 1
 fi
