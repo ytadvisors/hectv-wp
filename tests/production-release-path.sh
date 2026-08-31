@@ -9,8 +9,9 @@ release="$repo_root/scripts/production/promote-release.sh"
 media_contract="$repo_root/scripts/production/media-directory-contract.jq"
 dockerfile="$repo_root/Dockerfile"
 iam_policy="$repo_root/infra/github-production/permissions-policy.json"
+task_invalidation_policy="$repo_root/infra/production/task-cloudfront-invalidation-policy.json"
 
-for file in "$workflow" "$release" "$media_contract" "$dockerfile" "$iam_policy"; do
+for file in "$workflow" "$release" "$media_contract" "$dockerfile" "$iam_policy" "$task_invalidation_policy"; do
   [[ -f "$file" ]] || { echo "Missing production release file: $file" >&2; exit 1; }
 done
 
@@ -36,6 +37,7 @@ grep -Fq 'bash tests/local-staging-only.sh' "$workflow"
 grep -Fq 'php tests/hectv-production-runtime-dependencies.php' "$workflow"
 grep -Fq 'php tests/hectv-home-editor.php' "$workflow"
 grep -Fq 'php tests/hectv-homepage-graphql.php' "$workflow"
+grep -Fq 'php tests/hectv-cloudfront-invalidation.php' "$workflow"
 grep -Fq 'php tests/hectv-youtube-editor-identity.php' "$workflow"
 grep -Fq 'bash tests/staging-graphql-image-contract.sh' "$workflow"
 grep -Fq 'bash tests/production-media-directory-contract.sh' "$workflow"
@@ -47,6 +49,8 @@ grep -Fq 'deploymentCircuitBreaker' "$release"
 grep -Fq '[.enable,.rollback]' "$release"
 grep -Fq 'restoring the recorded baseline task definition' "$release"
 grep -Fq 'HECTV_RECAPTCHA_ALLOWED_HOSTS' "$release"
+grep -Fq 'HECTV_CLOUDFRONT_DISTRIBUTION_ID' "$release"
+grep -Fq 'Refusing an unexpected HEC Media CloudFront distribution.' "$release"
 grep -Fq 'BUILDX_BUILDER:?Set BUILDX_BUILDER' "$release"
 grep -Fq 'docker buildx build' "$release"
 grep -Fq 'docker buildx inspect "$BUILDX_BUILDER" --bootstrap' "$release"
@@ -80,7 +84,7 @@ grep -Fq -- "--range 0-0" "$release"
 grep -Fq '[[ "$media_type" == image/* ]]' "$release"
 grep -Fq "' \"\$task_release_source\" > \"\$register_file\"" "$release"
 grep -Fq 'Final production task definition contains changes beyond the reviewed image digest.' "$release"
-grep -Fq 'Refusing a production config migration containing changes beyond the two reviewed reCAPTCHA references.' "$release"
+grep -Fq 'Refusing a production config migration containing changes beyond the reviewed reCAPTCHA and CloudFront settings.' "$release"
 
 grep -Eq '^FROM 850335719356\.dkr\.ecr\.us-east-2\.amazonaws\.com/hectv-wp-production@sha256:[0-9a-f]{64} AS legacy-plugins$' "$dockerfile"
 grep -Eq '^FROM debian:bookworm-slim@sha256:[0-9a-f]{64} AS wpgraphql$' "$dockerfile"
@@ -95,6 +99,15 @@ jq -e '
   and ($actions | index("ecr:PutImage")) != null
   and ($actions | index("ecr:DescribeRepositories")) != null
 ' "$iam_policy" >/dev/null
+
+jq -e '
+  .Statement == [{
+    Sid: "InvalidateOnlyTheHecMediaDistribution",
+    Effect: "Allow",
+    Action: "cloudfront:CreateInvalidation",
+    Resource: "arn:aws:cloudfront::850335719356:distribution/E2QXRSF2W55RTS"
+  }]
+' "$task_invalidation_policy" >/dev/null
 
 if grep -Eqi 'hectv-wp-staging|STAGING_(CLUSTER|SERVICE|ECR)|skopeo' "$workflow" "$release" "$dockerfile" "$iam_policy"; then
   echo "Production release path must not depend on AWS staging." >&2

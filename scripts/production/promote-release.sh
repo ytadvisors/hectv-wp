@@ -14,6 +14,7 @@ set -euo pipefail
 : "${ECS_SERVICE:=hectv-wp-production}"
 : "${PRODUCTION_ECR_REPOSITORY:=hectv-wp-production}"
 : "${PRODUCTION_RUNTIME_SECRET_ARN:=arn:aws:secretsmanager:us-east-2:850335719356:secret:hectv-wp/production-runtime-Eny4Q8}"
+: "${CLOUDFRONT_DISTRIBUTION_ID:=E2QXRSF2W55RTS}"
 : "${ORIGIN_HEALTH_URL:=https://prod-wp-ecs.hectv.org/healthz}"
 : "${PUBLIC_HEALTH_URL:=https://prod-wp.hectv.org/healthz}"
 : "${ORIGIN_READYZ_URL:=https://prod-wp-ecs.hectv.org/readyz.php}"
@@ -50,6 +51,10 @@ fi
 [[ "$PRODUCTION_CONFIRMATION" == "$CONFIRMATION_PHRASE" ]] || { echo "Production confirmation phrase does not match." >&2; exit 1; }
 [[ "$ECS_CLUSTER" == "hectv-wp-production" && "$ECS_SERVICE" == "hectv-wp-production" ]] || {
   echo "Refusing a non-production HEC target." >&2
+  exit 1
+}
+[[ "$CLOUDFRONT_DISTRIBUTION_ID" == "E2QXRSF2W55RTS" ]] || {
+  echo "Refusing an unexpected HEC Media CloudFront distribution." >&2
   exit 1
 }
 
@@ -270,31 +275,59 @@ jq -e '
 recaptcha_secret_ref="${PRODUCTION_RUNTIME_SECRET_ARN}:HECTV_RECAPTCHA_SECRET_KEY::"
 recaptcha_hosts_ref="${PRODUCTION_RUNTIME_SECRET_ARN}:HECTV_RECAPTCHA_ALLOWED_HOSTS::"
 recaptcha_entry_count="$(jq -r '[.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY" or .name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] | length' "$task_before")"
+cloudfront_entry_count="$(jq -r '[.taskDefinition.containerDefinitions[0].environment[] | select(.name == "HECTV_CLOUDFRONT_DISTRIBUTION_ID")] | length' "$task_before")"
 
-if [[ "$recaptcha_entry_count" -eq 0 ]]; then
-  jq --arg secret_ref "$recaptcha_secret_ref" --arg hosts_ref "$recaptcha_hosts_ref" '
+if [[ "$recaptcha_entry_count" -ne 0 ]] && ! jq -e \
+  --arg secret_ref "$recaptcha_secret_ref" \
+  --arg hosts_ref "$recaptcha_hosts_ref" '
+    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY")] == [{name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref}]) and
+    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}])
+  ' "$task_before" >/dev/null; then
+  echo "Production has a partial or drifted reCAPTCHA task-definition contract." >&2
+  exit 1
+fi
+
+if [[ "$cloudfront_entry_count" -ne 0 ]] && ! jq -e \
+  --arg distribution_id "$CLOUDFRONT_DISTRIBUTION_ID" '
+    [.taskDefinition.containerDefinitions[0].environment[] | select(.name == "HECTV_CLOUDFRONT_DISTRIBUTION_ID")] == [{name:"HECTV_CLOUDFRONT_DISTRIBUTION_ID",value:$distribution_id}]
+  ' "$task_before" >/dev/null; then
+  echo "Production has a drifted CloudFront invalidation runtime contract." >&2
+  exit 1
+fi
+
+if [[ "$recaptcha_entry_count" -eq 0 || "$cloudfront_entry_count" -eq 0 ]]; then
+  jq \
+    --arg secret_ref "$recaptcha_secret_ref" \
+    --arg hosts_ref "$recaptcha_hosts_ref" \
+    --arg distribution_id "$CLOUDFRONT_DISTRIBUTION_ID" '
     .taskDefinition
     | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt)
-    | .containerDefinitions[0].secrets += [
+    | .containerDefinitions[0].secrets = ((.containerDefinitions[0].secrets | map(select(.name != "HECTV_RECAPTCHA_SECRET_KEY" and .name != "HECTV_RECAPTCHA_ALLOWED_HOSTS"))) + [
         {name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref},
         {name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}
-      ]
+      ])
+    | .containerDefinitions[0].environment = ((.containerDefinitions[0].environment | map(select(.name != "HECTV_CLOUDFRONT_DISTRIBUTION_ID"))) + [
+        {name:"HECTV_CLOUDFRONT_DISTRIBUTION_ID",value:$distribution_id}
+      ])
   ' "$task_before" > "$config_register_file"
 
   jq -n -e \
     --slurpfile before "$task_before" \
     --slurpfile after "$config_register_file" \
     --arg secret_ref "$recaptcha_secret_ref" \
-    --arg hosts_ref "$recaptcha_hosts_ref" '
+    --arg hosts_ref "$recaptcha_hosts_ref" \
+    --arg distribution_id "$CLOUDFRONT_DISTRIBUTION_ID" '
       def without_metadata:
         del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt);
-      def without_recaptcha:
-        .containerDefinitions[0].secrets |= map(select(.name != "HECTV_RECAPTCHA_SECRET_KEY" and .name != "HECTV_RECAPTCHA_ALLOWED_HOSTS"));
-      (($before[0].taskDefinition | without_metadata | without_recaptcha) == ($after[0] | without_recaptcha)) and
+      def without_owned_config:
+        .containerDefinitions[0].secrets |= map(select(.name != "HECTV_RECAPTCHA_SECRET_KEY" and .name != "HECTV_RECAPTCHA_ALLOWED_HOSTS"))
+        | .containerDefinitions[0].environment |= map(select(.name != "HECTV_CLOUDFRONT_DISTRIBUTION_ID"));
+      (($before[0].taskDefinition | without_metadata | without_owned_config) == ($after[0] | without_owned_config)) and
       (([$after[0].containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY")] | unique) == [{name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref}]) and
-      (([$after[0].containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] | unique) == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}])
+      (([$after[0].containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] | unique) == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}]) and
+      (([$after[0].containerDefinitions[0].environment[] | select(.name == "HECTV_CLOUDFRONT_DISTRIBUTION_ID")] | unique) == [{name:"HECTV_CLOUDFRONT_DISTRIBUTION_ID",value:$distribution_id}])
     ' >/dev/null || {
-      echo "Refusing a production config migration containing changes beyond the two reviewed reCAPTCHA references." >&2
+      echo "Refusing a production config migration containing changes beyond the reviewed reCAPTCHA and CloudFront settings." >&2
       exit 1
     }
 
@@ -318,7 +351,7 @@ if [[ "$recaptcha_entry_count" -eq 0 ]]; then
   wait_for_service_stable
   config_live_task="$(aws ecs describe-services --region "$AWS_REGION" --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].taskDefinition' --output text)"
   [[ "$config_live_task" == "$config_task_definition" ]] || {
-    echo "Production did not converge on the reCAPTCHA config task definition." >&2
+    echo "Production did not converge on the reviewed config task definition." >&2
     exit 1
   }
   config_live_image="$(aws ecs describe-task-definition --region "$AWS_REGION" --task-definition "$config_task_definition" --query 'taskDefinition.containerDefinitions[0].image' --output text)"
@@ -335,13 +368,15 @@ if [[ "$recaptcha_entry_count" -eq 0 ]]; then
     --output json > "$task_release_source"
 elif jq -e \
   --arg secret_ref "$recaptcha_secret_ref" \
-  --arg hosts_ref "$recaptcha_hosts_ref" '
+  --arg hosts_ref "$recaptcha_hosts_ref" \
+  --arg distribution_id "$CLOUDFRONT_DISTRIBUTION_ID" '
     ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_SECRET_KEY")] == [{name:"HECTV_RECAPTCHA_SECRET_KEY",valueFrom:$secret_ref}]) and
-    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}])
+    ([.taskDefinition.containerDefinitions[0].secrets[] | select(.name == "HECTV_RECAPTCHA_ALLOWED_HOSTS")] == [{name:"HECTV_RECAPTCHA_ALLOWED_HOSTS",valueFrom:$hosts_ref}]) and
+    ([.taskDefinition.containerDefinitions[0].environment[] | select(.name == "HECTV_CLOUDFRONT_DISTRIBUTION_ID")] == [{name:"HECTV_CLOUDFRONT_DISTRIBUTION_ID",value:$distribution_id}])
   ' "$task_before" >/dev/null; then
   jq '.' "$task_before" > "$task_release_source"
 else
-  echo "Production has a partial or drifted reCAPTCHA task-definition contract." >&2
+  echo "Production has a partial or drifted runtime configuration contract." >&2
   exit 1
 fi
 

@@ -109,6 +109,12 @@ resource "aws_iam_role_policy" "task_efs" {
   })
 }
 
+resource "aws_iam_role_policy" "task_cloudfront_invalidation" {
+  name   = "invalidate-hecmedia-cloudfront"
+  role   = aws_iam_role.task.id
+  policy = file("${path.module}/task-cloudfront-invalidation-policy.json")
+}
+
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb"
   description = "Public HTTPS for the parallel HEC production origin"
@@ -313,6 +319,7 @@ resource "aws_ecs_task_definition" "wordpress" {
       { name = "HECTV_CANONICAL_HOST", value = var.production_hostname },
       { name = "HECTV_DISABLE_OUTBOUND", value = var.validation_mode ? "1" : "0" },
       { name = "HECTV_DISABLE_PAYMENTS", value = var.validation_mode ? "1" : "0" },
+      { name = "HECTV_CLOUDFRONT_DISTRIBUTION_ID", value = "E2QXRSF2W55RTS" },
       { name = "HECTV_ENVIRONMENT", value = "production" },
       { name = "HTTP_HOST", value = var.production_hostname },
       { name = "WP_DEBUG", value = "0" },

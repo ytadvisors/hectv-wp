@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvalidateOnlyTheHecMediaDistribution",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": "arn:aws:cloudfront::850335719356:distribution/E2QXRSF2W55RTS"
+    }
+  ]
+}
