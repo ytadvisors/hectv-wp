@@ -85,10 +85,12 @@ require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cloudfront-invalidati
 expect_true( isset( $actions['transition_post_status'][99][0] ), 'Published-post transition hook must register.' );
 expect_true( isset( $actions['shutdown'][99][0] ), 'One shutdown flusher must register.' );
 expect_true( isset( $actions['wp_update_nav_menu'][99][0] ), 'Menu changes must purge the shared site shell.' );
+expect_true( isset( $actions['wp_delete_nav_menu'][99][0] ), 'Deleted menus must purge the shared site shell.' );
 expect_true( isset( $actions['edited_term'][99][0] ), 'Taxonomy edits must purge public archives.' );
 expect_true( isset( $actions['acf/save_post'][99][0] ), 'Global ACF settings must purge the shared site shell.' );
 expect_true( isset( $actions['update_option_hectv_trending_title'][99][0] ), 'HEC Site Settings updates must purge the shared site shell.' );
 expect_true( isset( $actions['add_option_hectv_educators_url'][99][0] ), 'First-time HEC Site Settings saves must purge the shared site shell.' );
+expect_true( isset( $actions['delete_option_hectv_educators_url'][99][0] ), 'Deleted HEC Site Settings must purge the shared site shell.' );
 
 putenv( 'HECTV_ENVIRONMENT=staging' );
 putenv( 'HECTV_CLOUDFRONT_DISTRIBUTION_ID=E2QXRSF2W55RTS' );

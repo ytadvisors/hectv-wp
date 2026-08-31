@@ -117,6 +117,7 @@ function hectv_cloudfront_register_public_option_hooks() {
 	foreach ( $option_names as $option_name ) {
 		add_action( 'add_option_' . $option_name, 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
 		add_action( 'update_option_' . $option_name, 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
+		add_action( 'delete_option_' . $option_name, 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
 	}
 }
 
@@ -234,6 +235,7 @@ function hectv_cloudfront_flush_invalidation() {
 
 add_action( 'transition_post_status', 'hectv_cloudfront_queue_post_invalidation', 99, 3 );
 add_action( 'wp_update_nav_menu', 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
+add_action( 'wp_delete_nav_menu', 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
 add_action( 'created_term', 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
 add_action( 'edited_term', 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
 add_action( 'delete_term', 'hectv_cloudfront_queue_global_invalidation', 99, 0 );
