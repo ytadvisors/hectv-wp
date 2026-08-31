@@ -40,7 +40,9 @@ if grep -Eq 'AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|id-token: write' "$workflow
   exit 1
 fi
 
-if rg -n 'delete-(knowledge-base|data-source|collection)|aws_opensearchserverless_collection' "$module" "$ingest" "$compare"; then
+# GitHub-hosted Ubuntu runners do not guarantee ripgrep, so keep this guard
+# dependency-free alongside the other POSIX tooling used by this contract.
+if grep -R --exclude-dir=.terraform -n -E 'delete-(knowledge-base|data-source|collection)|aws_opensearchserverless_collection' "$module" "$ingest" "$compare"; then
   echo "The replacement rollout must not contain legacy deletion operations." >&2
   exit 1
 fi
