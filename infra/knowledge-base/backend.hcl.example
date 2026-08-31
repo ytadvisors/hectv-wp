@@ -1,0 +1,5 @@
+bucket         = "hectv-terraform-state-850335719356"
+key            = "hectv-wp/knowledge-base/terraform.tfstate"
+region         = "us-east-2"
+encrypt        = true
+dynamodb_table = "hectv-terraform-locks"

@@ -1,0 +1,6 @@
+aws_profile         = "hecadmin"
+aws_region          = "us-east-1"
+vector_bucket_name  = "hecmedia-srt-vectors"
+vector_index_name   = "srt-transcripts"
+source_bucket_name  = "srtlibrary-hecmedia"
+source_prefix       = "vimeo_captions/"
