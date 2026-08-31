@@ -33,7 +33,7 @@ function hectv_cloudfront_invalidation_enabled() {
 	$distribution_id = hectv_cloudfront_distribution_id();
 
 	return 'production' === $environment
-		&& 1 === preg_match( '/^E[A-Z0-9]{10,20}$/', $distribution_id );
+		&& 'E2QXRSF2W55RTS' === $distribution_id;
 }
 
 /**

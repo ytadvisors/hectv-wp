@@ -82,11 +82,24 @@ class Hectv_CloudFront_Fake_Client {
 
 require dirname( __DIR__ ) . '/wp-content/mu-plugins/hectv-cloudfront-invalidation.php';
 
+$sdk_autoloader = dirname( __DIR__ ) . '/wp-content/plugins/amazon-s3-and-cloudfront/vendor/Aws3/aws-autoloader.php';
+$provider_class = 'DeliciousBrains\\WP_Offload_Media\\Aws3\\Aws\\Credentials\\CredentialProvider';
+expect_true( is_readable( $sdk_autoloader ), 'The vendored AWS SDK autoloader must ship in the production image.' );
+require_once $sdk_autoloader;
+expect_true(
+	is_callable( array( $provider_class, 'ecsCredentials' ) ),
+	'The vendored AWS SDK must expose the ECS task-role credential provider used in production.'
+);
+$ecs_provider = call_user_func( array( $provider_class, 'ecsCredentials' ), array( 'timeout' => 1.0 ) );
+expect_true( is_callable( $ecs_provider ), 'The production ECS task-role provider must be constructible without resolving credentials.' );
+
 expect_true( isset( $actions['transition_post_status'][99][0] ), 'Published-post transition hook must register.' );
 expect_true( isset( $actions['shutdown'][99][0] ), 'One shutdown flusher must register.' );
 expect_true( isset( $actions['wp_update_nav_menu'][99][0] ), 'Menu changes must purge the shared site shell.' );
 expect_true( isset( $actions['wp_delete_nav_menu'][99][0] ), 'Deleted menus must purge the shared site shell.' );
+expect_true( isset( $actions['created_term'][99][0] ), 'Created taxonomy terms must purge public archives.' );
 expect_true( isset( $actions['edited_term'][99][0] ), 'Taxonomy edits must purge public archives.' );
+expect_true( isset( $actions['delete_term'][99][0] ), 'Deleted taxonomy terms must purge public archives.' );
 expect_true( isset( $actions['acf/save_post'][99][0] ), 'Global ACF settings must purge the shared site shell.' );
 expect_true( isset( $actions['update_option_hectv_trending_title'][99][0] ), 'HEC Site Settings updates must purge the shared site shell.' );
 expect_true( isset( $actions['add_option_hectv_educators_url'][99][0] ), 'First-time HEC Site Settings saves must purge the shared site shell.' );
@@ -146,7 +159,7 @@ hectv_cloudfront_queue_global_invalidation();
 expect_same( false, hectv_cloudfront_flush_invalidation(), 'CloudFront errors must be contained instead of breaking editor saves.' );
 expect_same( array(), $GLOBALS['hectv_cloudfront_invalidation_paths'], 'A failed request must still drain the in-memory queue.' );
 
-putenv( 'HECTV_CLOUDFRONT_DISTRIBUTION_ID=wrong' );
+putenv( 'HECTV_CLOUDFRONT_DISTRIBUTION_ID=E1111111111111' );
 hectv_cloudfront_queue_global_invalidation();
 expect_same( array(), $GLOBALS['hectv_cloudfront_invalidation_paths'], 'An unexpected distribution ID must fail closed.' );
 
