@@ -21,6 +21,10 @@ grep -Fq 'account_id         = "850335719356"' "$main"
 grep -Fq 'embedding_model_id = "amazon.titan-embed-text-v1"' "$main"
 grep -Fq 'dimension          = 1536' "$main"
 grep -Fq 'distance_metric    = "euclidean"' "$main"
+if grep -Fq 'embedding_model_configuration' "$main"; then
+  echo "Titan Embeddings G1 must not use configurable dimensions." >&2
+  exit 1
+fi
 grep -Fq '"AMAZON_BEDROCK_TEXT"' "$main"
 grep -Fq '"AMAZON_BEDROCK_METADATA"' "$main"
 grep -Fq 'max_tokens         = 300' "$main"
