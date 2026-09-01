@@ -235,6 +235,65 @@ expect_same(
 	$prepared_current_block,
 	'Valid Gutenberg image blocks must remain byte-for-byte unchanged in the editor.'
 );
+
+$persisted_rendered_block = '<!-- wp:image {"id":68596,"sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2024/08/Dig-Production-1-1024x768.jpg" alt="" class="wp-image-68596" width="1024" height="577" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2024/08/Dig-Production-1-300x169.jpg 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2024/08/Dig-Production-1-1024x577.jpg 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/><figcaption class="wp-element-caption">Keep every word</figcaption></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$current_image_block,
+	hectv_public_media_prepare_editor_content( $persisted_rendered_block ),
+	'Editor content must remove the complete rendered-attribute quartet persisted by plugin version 1.3.'
+);
+
+$persisted_legacy_resize = '<!-- wp:image {"id":64676,"sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px" width="1024" height="169" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-300x50.png 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$expected_legacy_resize = '<!-- wp:image {"id":64676,"sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$expected_legacy_resize,
+	hectv_public_media_prepare_editor_content( $persisted_legacy_resize ),
+	'Legacy inline dimensions must be removed when the block comment does not serialize a current resize.'
+);
+
+$current_resized_block = '<!-- wp:image {"id":64676,"width":"840px","height":"138px","sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px" width="1024" height="169" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-300x50.png 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$expected_current_resize = '<!-- wp:image {"id":64676,"width":"840px","height":"138px","sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px"/></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$expected_current_resize,
+	hectv_public_media_prepare_editor_content( $current_resized_block ),
+	'Current block-comment dimensions must preserve the serializer-owned inline resize while rendered attributes are removed.'
+);
+
+$current_width_only_block = '<!-- wp:image {"id":64676,"width":"840px","sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px;object-fit:cover" width="1024" height="169" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-300x50.png 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$expected_width_only_block = '<!-- wp:image {"id":64676,"width":"840px","sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;object-fit:cover"/></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$expected_width_only_block,
+	hectv_public_media_prepare_editor_content( $current_width_only_block ),
+	'One serializer-owned dimension and unrelated inline styles must remain while only the stale dimension is removed.'
+);
+
+$partial_image_attributes = '<!-- wp:image {"id":68596,"sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large"><img src="https://example.org/image.jpg" class="wp-image-68596" width="640" height="360"/></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$partial_image_attributes,
+	hectv_public_media_prepare_editor_content( $partial_image_attributes ),
+	'Partial author-provided dimensions without the plugin responsive signature must remain unchanged.'
+);
+expect_same(
+	$expected_legacy_resize,
+	hectv_public_media_prepare_editor_content( hectv_public_media_prepare_editor_content( $persisted_legacy_resize ) ),
+	'Persisted rendered-attribute cleanup must be idempotent.'
+);
 expect_true(
 	strpos( hectv_public_media_rewrite_content( $current_image_block ), 'width="1024"' ) !== false,
 	'Rendered content must retain attachment-aware dimensions.'
