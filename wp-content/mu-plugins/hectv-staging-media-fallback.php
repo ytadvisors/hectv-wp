@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: YT Advisors
  */
 
@@ -223,6 +223,35 @@ function hectv_public_media_remove_tag_attribute( $tag, $name ) {
 }
 
 /**
+ * Add one CSS class to a tag without disturbing its existing classes.
+ *
+ * @param string $tag        HTML tag.
+ * @param string $class_name Class name controlled by this plugin.
+ * @return string
+ */
+function hectv_public_media_add_tag_class( $tag, $class_name ) {
+	$pattern = '/(\sclass\s*=\s*)(["\'])(.*?)\2/i';
+	if ( preg_match( $pattern, $tag ) ) {
+		return preg_replace_callback(
+			$pattern,
+			function ( $matches ) use ( $class_name ) {
+				$classes = preg_split( '/\s+/', trim( $matches[3] ) );
+				if ( in_array( $class_name, $classes, true ) ) {
+					return $matches[0];
+				}
+
+				$classes[] = $class_name;
+				return $matches[1] . $matches[2] . implode( ' ', array_filter( $classes ) ) . $matches[2];
+			},
+			$tag,
+			1
+		);
+	}
+
+	return hectv_public_media_set_tag_attribute( $tag, 'class', $class_name );
+}
+
+/**
  * Resolve a rendered image tag from current attachment metadata.
  *
  * Stored Gutenberg markup can retain a pre-offload filename even after WP
@@ -268,7 +297,7 @@ function hectv_public_media_rewrite_attachment_image_tag( $tag ) {
 }
 
 /**
- * Rewrite legacy WordPress upload origins embedded in post content.
+ * Rewrite legacy WordPress upload origins without changing block structure.
  *
  * Historical blocks keep their original `src` and `srcset` strings instead of
  * resolving them through the attachment URL filters above. Those ECS/origin
@@ -280,16 +309,96 @@ function hectv_public_media_rewrite_attachment_image_tag( $tag ) {
  * @param mixed $content Post content.
  * @return mixed
  */
-function hectv_public_media_rewrite_content( $content ) {
+function hectv_public_media_rewrite_legacy_origins( $content ) {
 	if ( ! is_string( $content ) || $content === '' ) {
 		return $content;
 	}
 
-	$content = preg_replace(
+	return preg_replace(
 		'#https?://(?:staging-wp|prod-wp|prod-wp-ecs)\.hectv\.org/wp-content/uploads/#i',
 		rtrim( HECTV_STAGING_MEDIA_FALLBACK_BASE_URL, '/' ) . '/',
 		$content
 	);
+}
+
+/**
+ * Restore the two classes required by the current core/image serializer.
+ *
+ * HEC has image blocks saved by an older editor that declared an attachment
+ * ID in the block comment but omitted `wp-image-{id}` from the image and
+ * `wp-element-caption` from its caption. Current Gutenberg treats those blocks
+ * as invalid even though their text, links, and images still render publicly.
+ * Limit the compatibility repair to a core/image block with a positive ID and
+ * leave every other block and tag byte-for-byte unchanged.
+ *
+ * @param mixed $content Post content.
+ * @return mixed
+ */
+function hectv_public_media_normalize_legacy_image_blocks( $content ) {
+	if ( ! is_string( $content ) || $content === '' ) {
+		return $content;
+	}
+
+	return preg_replace_callback(
+		'#(<!--\s+wp:image(?:\s+(\{.*?\}))?\s+-->)(.*?)(<!--\s+/wp:image\s+-->)#is',
+		function ( $matches ) {
+			$attributes    = isset( $matches[2] ) ? json_decode( $matches[2], true ) : null;
+			$attachment_id = is_array( $attributes ) && isset( $attributes['id'] ) ? $attributes['id'] : null;
+			if ( ! is_int( $attachment_id ) || $attachment_id <= 0 ) {
+				return $matches[0];
+			}
+
+			$inner_html = preg_replace_callback(
+				'/<img\b[^>]*>/i',
+				function ( $image_matches ) use ( $attachment_id ) {
+					return hectv_public_media_add_tag_class( $image_matches[0], 'wp-image-' . $attachment_id );
+				},
+				$matches[3],
+				1
+			);
+
+			$inner_html = preg_replace_callback(
+				'/<figcaption\b[^>]*>/i',
+				function ( $caption_matches ) {
+					return hectv_public_media_add_tag_class( $caption_matches[0], 'wp-element-caption' );
+				},
+				$inner_html,
+				1
+			);
+
+			return $matches[1] . $inner_html . $matches[4];
+		},
+		$content
+	);
+}
+
+/**
+ * Prepare raw block markup for Gutenberg without injecting rendered attributes.
+ *
+ * Responsive width, height, srcset, and sizes attributes are valid in rendered
+ * HTML but are not emitted by the core/image save function. Adding them to
+ * `content.raw` makes Gutenberg reject an otherwise valid block. The editor
+ * path therefore rewrites only approved origins and the two legacy classes.
+ *
+ * @param mixed $content Post content.
+ * @return mixed
+ */
+function hectv_public_media_prepare_editor_content( $content ) {
+	$content = hectv_public_media_rewrite_legacy_origins( $content );
+	return hectv_public_media_normalize_legacy_image_blocks( $content );
+}
+
+/**
+ * Rewrite rendered content using current attachment metadata.
+ *
+ * @param mixed $content Post content.
+ * @return mixed
+ */
+function hectv_public_media_rewrite_content( $content ) {
+	$content = hectv_public_media_rewrite_legacy_origins( $content );
+	if ( ! is_string( $content ) || $content === '' ) {
+		return $content;
+	}
 
 	return preg_replace_callback(
 		'/<img\b[^>]*>/i',
@@ -320,10 +429,11 @@ function hectv_public_media_rewrite_rest_content( $response ) {
 		return $response;
 	}
 
-	foreach ( array( 'raw', 'rendered' ) as $content_key ) {
-		if ( isset( $data['content'][ $content_key ] ) ) {
-			$data['content'][ $content_key ] = hectv_public_media_rewrite_content( $data['content'][ $content_key ] );
-		}
+	if ( isset( $data['content']['raw'] ) ) {
+		$data['content']['raw'] = hectv_public_media_prepare_editor_content( $data['content']['raw'] );
+	}
+	if ( isset( $data['content']['rendered'] ) ) {
+		$data['content']['rendered'] = hectv_public_media_rewrite_content( $data['content']['rendered'] );
 	}
 
 	$response->set_data( $data );
@@ -332,8 +442,8 @@ function hectv_public_media_rewrite_rest_content( $response ) {
 
 add_filter( 'wp_get_attachment_url', 'hectv_staging_media_fallback_url', 20, 2 );
 add_filter( 'wp_get_attachment_image_src', 'hectv_staging_media_fallback_image_src', 120, 4 );
-add_filter( 'content_edit_pre', 'hectv_public_media_rewrite_content', 20, 1 );
-add_filter( 'content_save_pre', 'hectv_public_media_rewrite_content', 20, 1 );
+add_filter( 'content_edit_pre', 'hectv_public_media_prepare_editor_content', 20, 1 );
+add_filter( 'content_save_pre', 'hectv_public_media_prepare_editor_content', 20, 1 );
 add_filter( 'the_content', 'hectv_public_media_rewrite_content', 20, 1 );
 add_filter( 'rest_prepare_post', 'hectv_public_media_rewrite_rest_content', 20, 3 );
 add_filter( 'rest_prepare_page', 'hectv_public_media_rewrite_rest_content', 20, 3 );

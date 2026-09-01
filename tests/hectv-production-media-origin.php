@@ -200,6 +200,46 @@ expect_same(
 	'External images without a WordPress attachment ID must remain unchanged.'
 );
 
+$legacy_image_block = '<!-- wp:image {"id":64780,"sizeSlug":"large","linkDestination":"custom"} -->' . "\n"
+	. '<figure class="wp-block-image size-large"><a href="https://www.youtube.com/@spotlightstl"><img src="https://prod-wp.hectv.org/wp-content/uploads/2025/07/Spotlight-STL-Banner-1024x169.png" alt="" /></a><figcaption>Public caption text</figcaption></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$prepared_legacy_block = hectv_public_media_prepare_editor_content( $legacy_image_block );
+expect_true(
+	strpos( $prepared_legacy_block, 'class="wp-image-64780"' ) !== false,
+	'Legacy core/image markup must receive the attachment class expected by Gutenberg.'
+);
+expect_true(
+	strpos( $prepared_legacy_block, '<figcaption class="wp-element-caption">Public caption text</figcaption>' ) !== false,
+	'Legacy image captions must receive the class expected by Gutenberg.'
+);
+expect_true(
+	strpos( $prepared_legacy_block, 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false,
+	'Editor content must continue to receive the canonical public media origin.'
+);
+expect_true(
+	strpos( $prepared_legacy_block, ' width=' ) === false && strpos( $prepared_legacy_block, ' srcset=' ) === false && strpos( $prepared_legacy_block, ' sizes=' ) === false,
+	'Editor content must not receive rendered-only responsive attributes.'
+);
+expect_same(
+	$prepared_legacy_block,
+	hectv_public_media_prepare_editor_content( $prepared_legacy_block ),
+	'Legacy Gutenberg normalization must be idempotent.'
+);
+
+$current_image_block = '<!-- wp:image {"id":68596,"sizeSlug":"large"} -->' . "\n"
+	. '<figure class="wp-block-image size-large"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2024/08/Dig-Production-1-1024x768.jpg" alt="" class="wp-image-68596"/><figcaption class="wp-element-caption">Keep every word</figcaption></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$prepared_current_block = hectv_public_media_prepare_editor_content( $current_image_block );
+expect_same(
+	$current_image_block,
+	$prepared_current_block,
+	'Valid Gutenberg image blocks must remain byte-for-byte unchanged in the editor.'
+);
+expect_true(
+	strpos( hectv_public_media_rewrite_content( $current_image_block ), 'width="1024"' ) !== false,
+	'Rendered content must retain attachment-aware dimensions.'
+);
+
 class Hectv_Test_REST_Response {
 	private $data;
 
@@ -219,20 +259,21 @@ class Hectv_Test_REST_Response {
 $rest_response = new Hectv_Test_REST_Response(
 	array(
 		'content' => array(
-			'raw'      => $legacy_content,
-			'rendered' => $legacy_content,
+			'raw'      => $current_image_block,
+			'rendered' => $current_image_block,
 		),
 	)
 );
 hectv_public_media_rewrite_rest_content( $rest_response );
 $rest_content = $rest_response->get_data();
-expect_true(
-	strpos( $rest_content['content']['raw'], 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false,
-	'Gutenberg content.raw must receive canonical image URLs.'
+expect_same(
+	$current_image_block,
+	$rest_content['content']['raw'],
+	'Gutenberg content.raw must not receive rendered-only attachment attributes.'
 );
 expect_true(
-	strpos( $rest_content['content']['rendered'], 'prd-hectv-wp-media.s3.us-east-2.amazonaws.com' ) !== false,
-	'REST rendered content must receive canonical image URLs.'
+	strpos( $rest_content['content']['rendered'], 'width="1024"' ) !== false && strpos( $rest_content['content']['rendered'], 'srcset=' ) !== false,
+	'REST rendered content must receive current attachment dimensions and responsive sources.'
 );
 
 echo "HEC production media origin contracts passed.\n";
