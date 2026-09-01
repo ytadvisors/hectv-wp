@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.4.2
+ * Version: 1.4.3
  * Author: YT Advisors
  */
 
@@ -234,6 +234,27 @@ function hectv_public_media_tag_has_attribute( $tag, $name ) {
 }
 
 /**
+ * Read one CSS property from a tag's inline style.
+ *
+ * @param string $tag      HTML tag.
+ * @param string $property CSS property name.
+ * @return string|null
+ */
+function hectv_public_media_tag_inline_property_value( $tag, $property ) {
+	if ( ! preg_match( '/\sstyle\s*=\s*(["\'])(.*?)\1/i', $tag, $matches ) ) {
+		return null;
+	}
+
+	foreach ( explode( ';', $matches[2] ) as $declaration ) {
+		if ( preg_match( '/^\s*' . preg_quote( $property, '/' ) . '\s*:\s*(.*?)\s*$/i', $declaration, $property_matches ) ) {
+			return $property_matches[1];
+		}
+	}
+
+	return null;
+}
+
+/**
  * Test whether an inline style contains one CSS property.
  *
  * @param string $tag      HTML tag.
@@ -241,11 +262,7 @@ function hectv_public_media_tag_has_attribute( $tag, $name ) {
  * @return bool
  */
 function hectv_public_media_tag_has_inline_property( $tag, $property ) {
-	if ( ! preg_match( '/\sstyle\s*=\s*(["\'])(.*?)\1/i', $tag, $matches ) ) {
-		return false;
-	}
-
-	return preg_match( '/(?:^|;)\s*' . preg_quote( $property, '/' ) . '\s*:/i', $matches[2] ) === 1;
+	return hectv_public_media_tag_inline_property_value( $tag, $property ) !== null;
 }
 
 /**
@@ -449,9 +466,12 @@ function hectv_public_media_normalize_legacy_image_blocks( $content ) {
  * inside a core/image block. An earlier cleanup pass can leave the old inline
  * dimensions behind after removing the quartet, so also remove that orphaned
  * pair when an is-resized figure has no serializer-owned dimensions in its
- * block comment. A legitimate current resize is represented by block-comment
- * width/height attributes and an inline style; preserve that style. Retain
- * every unrelated inline declaration.
+ * block comment. WordPress 6.8 expects resize attributes to be CSS strings,
+ * but older blocks can store matching positive numbers instead. Convert only
+ * that exact numeric-comment/inline-style signature to px strings, preserving
+ * the intended visual size. A legitimate current resize is represented by
+ * block-comment width/height attributes and an inline style; preserve that
+ * style. Retain every unrelated inline declaration.
  *
  * @param mixed $content Post content.
  * @return mixed
@@ -472,17 +492,26 @@ function hectv_public_media_remove_persisted_rendered_image_attributes( $content
 
 			$has_serialized_width  = isset( $attributes['width'] ) && $attributes['width'] !== '';
 			$has_serialized_height = isset( $attributes['height'] ) && $attributes['height'] !== '';
+			$legacy_width          = isset( $attributes['width'] ) && is_int( $attributes['width'] ) && $attributes['width'] > 0 ? $attributes['width'] : null;
+			$legacy_height         = isset( $attributes['height'] ) && is_int( $attributes['height'] ) && $attributes['height'] > 0 ? $attributes['height'] : null;
 			$has_resized_figure     = preg_match(
 				'/<figure\b[^>]*\sclass\s*=\s*(["\'])[^"\']*\bis-resized\b[^"\']*\1/i',
 				$matches[3]
 			) === 1;
+			$normalize_numeric_dimensions = false;
 			$inner_html            = preg_replace_callback(
 				'/<img\b[^>]*>/i',
-				function ( $image_matches ) use ( $attachment_id, $has_serialized_width, $has_serialized_height, $has_resized_figure ) {
+				function ( $image_matches ) use ( $attachment_id, $has_serialized_width, $has_serialized_height, $has_resized_figure, $legacy_width, $legacy_height, &$normalize_numeric_dimensions ) {
 					$tag = $image_matches[0];
 					if ( hectv_public_media_attachment_id_from_tag( $tag ) !== $attachment_id ) {
 						return $tag;
 					}
+
+					$normalize_numeric_dimensions = $has_resized_figure &&
+						$legacy_width !== null &&
+						$legacy_height !== null &&
+						strcasecmp( (string) hectv_public_media_tag_inline_property_value( $tag, 'width' ), $legacy_width . 'px' ) === 0 &&
+						strcasecmp( (string) hectv_public_media_tag_inline_property_value( $tag, 'height' ), $legacy_height . 'px' ) === 0;
 
 					$has_complete_rendered_quartet = true;
 					foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
@@ -512,7 +541,25 @@ function hectv_public_media_remove_persisted_rendered_image_attributes( $content
 				1
 			);
 
-			return $matches[1] . $inner_html . $matches[4];
+			$opening_comment = $matches[1];
+			if ( $normalize_numeric_dimensions ) {
+				$normalized_json = $matches[2];
+				foreach ( array( 'width' => $legacy_width, 'height' => $legacy_height ) as $attribute_name => $value ) {
+					$normalized_json = preg_replace(
+						'/("' . preg_quote( $attribute_name, '/' ) . '"\s*:\s*)' . preg_quote( (string) $value, '/' ) . '(?=\s*[,}])/',
+						'$1"' . $value . 'px"',
+						$normalized_json,
+						1
+					);
+				}
+
+				$json_offset = strpos( $opening_comment, $matches[2] );
+				if ( $json_offset !== false ) {
+					$opening_comment = substr( $opening_comment, 0, $json_offset ) . $normalized_json . substr( $opening_comment, $json_offset + strlen( $matches[2] ) );
+				}
+			}
+
+			return $opening_comment . $inner_html . $matches[4];
 		},
 		$content
 	);
