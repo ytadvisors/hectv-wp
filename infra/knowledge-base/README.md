@@ -12,6 +12,11 @@ The replacement preserves the retrieval inputs that affect relevance:
 - chunking: fixed `300` tokens with `20%` overlap
 - data deletion policy: `RETAIN`
 
+Titan Embeddings G1 has a fixed 1,536-dimension output and rejects Bedrock's
+optional configurable-dimensions block. The knowledge base therefore specifies
+only the reviewed model ARN; the S3 Vectors index enforces the 1,536-dimension
+`float32` contract.
+
 The S3 Vectors index marks `AMAZON_BEDROCK_TEXT` and
 `AMAZON_BEDROCK_METADATA` as non-filterable, as required by the Bedrock
 integration. The service role can invoke only the reviewed embedding model,
