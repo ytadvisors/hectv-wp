@@ -283,6 +283,44 @@ expect_same(
 	'A partial inline-dimension signature must remain unchanged.'
 );
 
+$numeric_legacy_resize = '<!-- wp:image {"id":64676,"width":840,"height":138,"sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$expected_numeric_legacy_resize = '<!-- wp:image {"id":64676,"width":"840px","height":"138px","sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$expected_numeric_legacy_resize,
+	hectv_public_media_prepare_editor_content( $numeric_legacy_resize ),
+	'Legacy numeric resize attributes must become current px strings when the matching inline style proves the intended size.'
+);
+expect_same(
+	$expected_numeric_legacy_resize,
+	hectv_public_media_prepare_editor_content( hectv_public_media_prepare_editor_content( $numeric_legacy_resize ) ),
+	'Legacy numeric resize normalization must be idempotent.'
+);
+
+$mismatched_numeric_resize = str_replace( 'height:138px', 'height:139px', $numeric_legacy_resize );
+expect_same(
+	$mismatched_numeric_resize,
+	hectv_public_media_prepare_editor_content( $mismatched_numeric_resize ),
+	'Numeric resize attributes must remain unchanged when the inline size does not match.'
+);
+
+$unmarked_numeric_resize = str_replace( ' is-resized', '', $numeric_legacy_resize );
+expect_same(
+	$unmarked_numeric_resize,
+	hectv_public_media_prepare_editor_content( $unmarked_numeric_resize ),
+	'Numeric resize attributes without the legacy is-resized signature must remain unchanged.'
+);
+
+$partial_numeric_resize = str_replace( ',"height":138', '', $numeric_legacy_resize );
+expect_same(
+	$partial_numeric_resize,
+	hectv_public_media_prepare_editor_content( $partial_numeric_resize ),
+	'Partial numeric resize attributes must remain unchanged.'
+);
+
 $current_resized_block = '<!-- wp:image {"id":64676,"width":"840px","height":"138px","sizeSlug":"large"} -->' . "\n"
 	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px" width="1024" height="169" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-300x50.png 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/></figure>' . "\n"
 	. '<!-- /wp:image -->';
