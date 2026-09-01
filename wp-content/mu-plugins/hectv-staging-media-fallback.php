@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: YT Advisors
  */
 
@@ -223,6 +223,58 @@ function hectv_public_media_remove_tag_attribute( $tag, $name ) {
 }
 
 /**
+ * Test whether a single tag contains a quoted HTML attribute.
+ *
+ * @param string $tag  HTML tag.
+ * @param string $name Attribute name.
+ * @return bool
+ */
+function hectv_public_media_tag_has_attribute( $tag, $name ) {
+	return preg_match( '/\s' . preg_quote( $name, '/' ) . '\s*=\s*(["\']).*?\1/i', $tag ) === 1;
+}
+
+/**
+ * Remove width/height declarations from an inline style attribute.
+ *
+ * Other declarations keep their original bytes. If width and height were the
+ * only declarations, remove the now-empty style attribute as well.
+ *
+ * @param string $tag           HTML tag.
+ * @param bool   $remove_width  Whether to remove the width declaration.
+ * @param bool   $remove_height Whether to remove the height declaration.
+ * @return string
+ */
+function hectv_public_media_remove_inline_dimensions( $tag, $remove_width = true, $remove_height = true ) {
+	if ( ! $remove_width && ! $remove_height ) {
+		return $tag;
+	}
+
+	return preg_replace_callback(
+		'/(\sstyle\s*=\s*)(["\'])(.*?)\2/i',
+		function ( $matches ) use ( $remove_width, $remove_height ) {
+			$kept_declarations = array();
+			foreach ( explode( ';', $matches[3] ) as $declaration ) {
+				$is_width  = preg_match( '/^\s*width\s*:/i', $declaration ) === 1;
+				$is_height = preg_match( '/^\s*height\s*:/i', $declaration ) === 1;
+				if ( ( $remove_width && $is_width ) || ( $remove_height && $is_height ) ) {
+					continue;
+				}
+				$kept_declarations[] = $declaration;
+			}
+			$style = implode( ';', $kept_declarations );
+
+			if ( trim( $style, " \t\n\r\0\x0B;" ) === '' ) {
+				return '';
+			}
+
+			return $matches[1] . $matches[2] . $style . $matches[2];
+		},
+		$tag,
+		1
+	);
+}
+
+/**
  * Add one CSS class to a tag without disturbing its existing classes.
  *
  * @param string $tag        HTML tag.
@@ -373,6 +425,69 @@ function hectv_public_media_normalize_legacy_image_blocks( $content ) {
 }
 
 /**
+ * Remove rendered-only attachment attributes persisted by plugin version 1.3.
+ *
+ * Version 1.3 applied the rendered attachment repair to editor raw content and
+ * to content_save_pre. Pages saved during that window can therefore contain a
+ * width/height/srcset/sizes quartet that core/image never serializes. Strip
+ * only that complete plugin signature, only from the matching attachment image
+ * inside a core/image block. A legitimate current resize is represented by
+ * block-comment width/height attributes and an inline style; preserve that
+ * style. For legacy markup with no serialized dimensions, also remove stale
+ * inline width/height declarations while retaining every unrelated style.
+ *
+ * @param mixed $content Post content.
+ * @return mixed
+ */
+function hectv_public_media_remove_persisted_rendered_image_attributes( $content ) {
+	if ( ! is_string( $content ) || $content === '' ) {
+		return $content;
+	}
+
+	return preg_replace_callback(
+		'#(<!--\s+wp:image(?:\s+(\{.*?\}))?\s+-->)(.*?)(<!--\s+/wp:image\s+-->)#is',
+		function ( $matches ) {
+			$attributes    = isset( $matches[2] ) ? json_decode( $matches[2], true ) : null;
+			$attachment_id = is_array( $attributes ) && isset( $attributes['id'] ) ? $attributes['id'] : null;
+			if ( ! is_int( $attachment_id ) || $attachment_id <= 0 ) {
+				return $matches[0];
+			}
+
+			$has_serialized_width  = isset( $attributes['width'] ) && $attributes['width'] !== '';
+			$has_serialized_height = isset( $attributes['height'] ) && $attributes['height'] !== '';
+			$inner_html            = preg_replace_callback(
+				'/<img\b[^>]*>/i',
+				function ( $image_matches ) use ( $attachment_id, $has_serialized_width, $has_serialized_height ) {
+					$tag = $image_matches[0];
+					if ( hectv_public_media_attachment_id_from_tag( $tag ) !== $attachment_id ) {
+						return $tag;
+					}
+
+					foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
+						if ( ! hectv_public_media_tag_has_attribute( $tag, $attribute_name ) ) {
+							return $tag;
+						}
+					}
+
+					foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
+						$tag = hectv_public_media_remove_tag_attribute( $tag, $attribute_name );
+					}
+
+					$tag = hectv_public_media_remove_inline_dimensions( $tag, ! $has_serialized_width, ! $has_serialized_height );
+
+					return $tag;
+				},
+				$matches[3],
+				1
+			);
+
+			return $matches[1] . $inner_html . $matches[4];
+		},
+		$content
+	);
+}
+
+/**
  * Prepare raw block markup for Gutenberg without injecting rendered attributes.
  *
  * Responsive width, height, srcset, and sizes attributes are valid in rendered
@@ -385,6 +500,7 @@ function hectv_public_media_normalize_legacy_image_blocks( $content ) {
  */
 function hectv_public_media_prepare_editor_content( $content ) {
 	$content = hectv_public_media_rewrite_legacy_origins( $content );
+	$content = hectv_public_media_remove_persisted_rendered_image_attributes( $content );
 	return hectv_public_media_normalize_legacy_image_blocks( $content );
 }
 
