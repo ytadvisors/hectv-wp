@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HEC Public Media Origin
  * Description: Returns synchronized production media URLs while preserving local-only staging uploads.
- * Version: 1.4.1
+ * Version: 1.4.2
  * Author: YT Advisors
  */
 
@@ -234,6 +234,21 @@ function hectv_public_media_tag_has_attribute( $tag, $name ) {
 }
 
 /**
+ * Test whether an inline style contains one CSS property.
+ *
+ * @param string $tag      HTML tag.
+ * @param string $property CSS property name.
+ * @return bool
+ */
+function hectv_public_media_tag_has_inline_property( $tag, $property ) {
+	if ( ! preg_match( '/\sstyle\s*=\s*(["\'])(.*?)\1/i', $tag, $matches ) ) {
+		return false;
+	}
+
+	return preg_match( '/(?:^|;)\s*' . preg_quote( $property, '/' ) . '\s*:/i', $matches[2] ) === 1;
+}
+
+/**
  * Remove width/height declarations from an inline style attribute.
  *
  * Other declarations keep their original bytes. If width and height were the
@@ -431,10 +446,12 @@ function hectv_public_media_normalize_legacy_image_blocks( $content ) {
  * to content_save_pre. Pages saved during that window can therefore contain a
  * width/height/srcset/sizes quartet that core/image never serializes. Strip
  * only that complete plugin signature, only from the matching attachment image
- * inside a core/image block. A legitimate current resize is represented by
- * block-comment width/height attributes and an inline style; preserve that
- * style. For legacy markup with no serialized dimensions, also remove stale
- * inline width/height declarations while retaining every unrelated style.
+ * inside a core/image block. An earlier cleanup pass can leave the old inline
+ * dimensions behind after removing the quartet, so also remove that orphaned
+ * pair when an is-resized figure has no serializer-owned dimensions in its
+ * block comment. A legitimate current resize is represented by block-comment
+ * width/height attributes and an inline style; preserve that style. Retain
+ * every unrelated inline declaration.
  *
  * @param mixed $content Post content.
  * @return mixed
@@ -455,27 +472,41 @@ function hectv_public_media_remove_persisted_rendered_image_attributes( $content
 
 			$has_serialized_width  = isset( $attributes['width'] ) && $attributes['width'] !== '';
 			$has_serialized_height = isset( $attributes['height'] ) && $attributes['height'] !== '';
+			$has_resized_figure     = preg_match(
+				'/<figure\b[^>]*\sclass\s*=\s*(["\'])[^"\']*\bis-resized\b[^"\']*\1/i',
+				$matches[3]
+			) === 1;
 			$inner_html            = preg_replace_callback(
 				'/<img\b[^>]*>/i',
-				function ( $image_matches ) use ( $attachment_id, $has_serialized_width, $has_serialized_height ) {
+				function ( $image_matches ) use ( $attachment_id, $has_serialized_width, $has_serialized_height, $has_resized_figure ) {
 					$tag = $image_matches[0];
 					if ( hectv_public_media_attachment_id_from_tag( $tag ) !== $attachment_id ) {
 						return $tag;
 					}
 
+					$has_complete_rendered_quartet = true;
 					foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
 						if ( ! hectv_public_media_tag_has_attribute( $tag, $attribute_name ) ) {
-							return $tag;
+							$has_complete_rendered_quartet = false;
+							break;
 						}
 					}
 
-					foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
-						$tag = hectv_public_media_remove_tag_attribute( $tag, $attribute_name );
+					if ( $has_complete_rendered_quartet ) {
+						foreach ( array( 'width', 'height', 'srcset', 'sizes' ) as $attribute_name ) {
+							$tag = hectv_public_media_remove_tag_attribute( $tag, $attribute_name );
+						}
+
+						return hectv_public_media_remove_inline_dimensions( $tag, ! $has_serialized_width, ! $has_serialized_height );
 					}
 
-					$tag = hectv_public_media_remove_inline_dimensions( $tag, ! $has_serialized_width, ! $has_serialized_height );
+					$has_orphaned_dimensions = $has_resized_figure &&
+						! $has_serialized_width &&
+						! $has_serialized_height &&
+						hectv_public_media_tag_has_inline_property( $tag, 'width' ) &&
+						hectv_public_media_tag_has_inline_property( $tag, 'height' );
 
-					return $tag;
+					return $has_orphaned_dimensions ? hectv_public_media_remove_inline_dimensions( $tag ) : $tag;
 				},
 				$matches[3],
 				1

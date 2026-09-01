@@ -257,6 +257,32 @@ expect_same(
 	'Legacy inline dimensions must be removed when the block comment does not serialize a current resize.'
 );
 
+$orphaned_legacy_resize = '<!-- wp:image {"id":64676,"sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px;object-fit:cover"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+$expected_orphaned_legacy_resize = '<!-- wp:image {"id":64676,"sizeSlug":"large","linkDestination":"custom","align":"center"} -->' . "\n"
+	. '<figure class="wp-block-image aligncenter size-large is-resized"><a href="https://youtube.com/@aspireandcelebrate"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="object-fit:cover"/></a></figure>' . "\n"
+	. '<!-- /wp:image -->';
+expect_same(
+	$expected_orphaned_legacy_resize,
+	hectv_public_media_prepare_editor_content( $orphaned_legacy_resize ),
+	'Orphaned inline dimensions must be removed from an is-resized legacy block while unrelated styles remain.'
+);
+
+$unmarked_inline_dimensions = str_replace( ' is-resized', '', $orphaned_legacy_resize );
+expect_same(
+	$unmarked_inline_dimensions,
+	hectv_public_media_prepare_editor_content( $unmarked_inline_dimensions ),
+	'Inline dimensions without the legacy is-resized signature must remain unchanged.'
+);
+
+$partial_orphaned_dimensions = str_replace( 'height:138px;', '', $orphaned_legacy_resize );
+expect_same(
+	$partial_orphaned_dimensions,
+	hectv_public_media_prepare_editor_content( $partial_orphaned_dimensions ),
+	'A partial inline-dimension signature must remain unchanged.'
+);
+
 $current_resized_block = '<!-- wp:image {"id":64676,"width":"840px","height":"138px","sizeSlug":"large"} -->' . "\n"
 	. '<figure class="wp-block-image size-large is-resized"><img src="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png" alt="" class="wp-image-64676" style="width:840px;height:138px" width="1024" height="169" srcset="https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-300x50.png 300w, https://prd-hectv-wp-media.s3.us-east-2.amazonaws.com/wp-content/uploads/2025/07/Aspire-Banner-Image-1024x169.png 1024w" sizes="(max-width: 1024px) 100vw, 1024px"/></figure>' . "\n"
 	. '<!-- /wp:image -->';
@@ -293,6 +319,11 @@ expect_same(
 	$expected_legacy_resize,
 	hectv_public_media_prepare_editor_content( hectv_public_media_prepare_editor_content( $persisted_legacy_resize ) ),
 	'Persisted rendered-attribute cleanup must be idempotent.'
+);
+expect_same(
+	$expected_orphaned_legacy_resize,
+	hectv_public_media_prepare_editor_content( hectv_public_media_prepare_editor_content( $orphaned_legacy_resize ) ),
+	'Orphaned inline-dimension cleanup must be idempotent.'
 );
 expect_true(
 	strpos( hectv_public_media_rewrite_content( $current_image_block ), 'width="1024"' ) !== false,
